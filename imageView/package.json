@@ -1,0 +1,16 @@
+{
+  "name": "imageview",
+  "version": "1.0.0",
+  "description": "Lambda for image viewing from S3",
+  "main": "grassroot-image-view.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "aws-sdk": "^2.213.1",
+    "aws-serverless-express": "^3.1.3",
+    "express": "^4.16.3"
+  }
+}
