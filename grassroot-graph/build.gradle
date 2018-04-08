@@ -22,6 +22,11 @@ repositories {
 	mavenCentral()
 }
 
+dependencyManagement {
+	imports {
+		mavenBom 'software.amazon.awssdk:bom:2.0.0-preview-8'
+	}
+}
 
 dependencies {
 
@@ -29,6 +34,7 @@ dependencies {
 
 	compile group: 'software.amazon.awssdk', name: 'kinesis', version: '2.0.0-preview-8'
 	compile 'com.amazonaws:amazon-kinesis-client:1.9.0'
+	compile 'software.amazon.awssdk:sqs' // v2 hence different naming
 
 	compileOnly('org.projectlombok:lombok')
 	testCompile('org.springframework.boot:spring-boot-starter-test')

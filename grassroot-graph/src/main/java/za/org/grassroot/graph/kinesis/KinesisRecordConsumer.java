@@ -22,7 +22,7 @@ public class KinesisRecordConsumer implements IRecordProcessor {
     private static final long BACKOFF_TIME_IN_MILLIS = 3000L;
     private static final int NUM_RETRIES = 10;
 
-    private static final long CHECKPOINT_INTERVAL_MILLIS = 60000L;
+    private static final long CHECKPOINT_INTERVAL_MILLIS = 10000L;
 
     private long nextCheckpointTimeInMillis;
 

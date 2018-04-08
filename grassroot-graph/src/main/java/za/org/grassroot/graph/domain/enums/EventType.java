@@ -1,4 +1,4 @@
-package za.org.grassroot.graph.domain;
+package za.org.grassroot.graph.domain.enums;
 
 public enum EventType {
 

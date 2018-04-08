@@ -1,6 +1,7 @@
-package za.org.grassroot.graph.scheduled;
+package za.org.grassroot.graph.kinesis;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -12,6 +13,7 @@ import javax.annotation.PostConstruct;
 
 @Component @Slf4j
 @Profile("localtest")
+@ConditionalOnProperty("kinesis.enabled")
 public class KinesisPoller {
 
     private KinesisClient kinesisClient;

@@ -9,7 +9,7 @@ import org.neo4j.ogm.id.UuidStrategy;
 import java.util.UUID;
 
 @NodeEntity @Getter
-public class Interaction {
+public class Interaction implements GrassrootGraphEntity {
 
     @Id @GeneratedValue(strategy = UuidStrategy.class) UUID id;
 
