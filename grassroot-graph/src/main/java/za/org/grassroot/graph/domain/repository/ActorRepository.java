@@ -1,0 +1,16 @@
+package za.org.grassroot.graph.domain.repository;
+
+import org.springframework.data.neo4j.annotation.Query;
+import org.springframework.data.neo4j.repository.Neo4jRepository;
+import org.springframework.data.repository.query.Param;
+import za.org.grassroot.graph.domain.Actor;
+
+import java.util.Collection;
+
+public interface ActorRepository extends Neo4jRepository<Actor, String> {
+
+    // todo : decide on optimal level here, since can't (unfortunately) parameterize depth (maybe have shallow & deep methods)
+    @Query("match (:Actor {platformUid: {platformUid}, actorType: 'MOVEMENT'})<-[:PARTICIPATES*1..5]-(actor) return actor;")
+    Collection<Actor> findMovementParticipantsInDepth(@Param("platformUid") final String platformUid);
+
+}
