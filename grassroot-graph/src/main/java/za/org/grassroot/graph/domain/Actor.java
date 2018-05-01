@@ -12,6 +12,9 @@ import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
 
+import static za.org.grassroot.graph.domain.enums.GrassrootRelationship.TYPE_GENERATOR;
+import static za.org.grassroot.graph.domain.enums.GrassrootRelationship.TYPE_PARTICIPATES;
+
 @NodeEntity @Getter @Setter
 public class Actor extends GrassrootGraphEntity {
 
@@ -20,31 +23,31 @@ public class Actor extends GrassrootGraphEntity {
     @Property @Index protected String platformUid;
     @Property @Index private ActorType actorType;
 
-    @Relationship(type = "GENERATOR", direction = Relationship.INCOMING)
+    @Relationship(type = TYPE_GENERATOR, direction = Relationship.INCOMING)
     private Actor createdByActor;
 
-    @Relationship(type = "GENERATOR", direction = Relationship.OUTGOING)
+    @Relationship(type = TYPE_GENERATOR, direction = Relationship.OUTGOING)
     private Set<Event> createdEvents;
 
-    @Relationship(type = "GENERATOR", direction = Relationship.OUTGOING)
+    @Relationship(type = TYPE_GENERATOR, direction = Relationship.OUTGOING)
     private Set<Actor> createdActors;
 
-    @Relationship(type = "GENERATOR", direction = Relationship.OUTGOING)
+    @Relationship(type = TYPE_GENERATOR, direction = Relationship.OUTGOING)
     private Set<Actor> createdInteractions;
 
-    @Relationship(type = "PARTICIPATES", direction = Relationship.OUTGOING)
+    @Relationship(type = TYPE_PARTICIPATES, direction = Relationship.OUTGOING)
     private Set<Actor> participatesInActors;
 
-    @Relationship(type = "PARTICIPATES", direction = Relationship.OUTGOING)
+    @Relationship(type = TYPE_PARTICIPATES, direction = Relationship.OUTGOING)
     private Set<Actor> partcipatesInEvents;
 
-    @Relationship(type = "PARTICIPATES", direction = Relationship.OUTGOING)
+    @Relationship(type = TYPE_PARTICIPATES, direction = Relationship.OUTGOING)
     private Set<Actor> participatesInInteractions;
 
     // note: from my understanding of docs (and queries as shown in logs), this is going to be an efficient call
     // whenever we load something with a lot of participants, because eager fetching to depth 1 is cheap in graph.
     // but - keep an eye on it.
-    @Relationship(type = "PARTICIPATES", direction = Relationship.INCOMING)
+    @Relationship(type = TYPE_PARTICIPATES, direction = Relationship.INCOMING)
     private Set<Actor> participants;
 
     public Actor() {

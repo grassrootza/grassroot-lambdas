@@ -6,6 +6,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
+import org.neo4j.ogm.annotation.Index;
 import org.neo4j.ogm.annotation.Property;
 import za.org.grassroot.graph.domain.enums.GraphEntityType;
 
@@ -25,7 +26,8 @@ public abstract class GrassrootGraphEntity {
     @Property
     protected Instant creationTime; // creation time _in graph_ (not necessarily on platform)
 
-    // UID of entity on main platform (to enable audit / traceability later)
-    @Property protected String platformUid;
+    // UID of entity on main platform, both to fetch properties as needed, and for traceability; no entity on main
+    // can be multiple entities on graph, hence the unique index (and lookup on this property will be used _a lot_)
+    @Property @Index(unique = true) protected String platformUid;
 
 }
