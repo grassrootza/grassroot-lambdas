@@ -12,7 +12,8 @@ const TWITTER_APP_SECRET = process.env.TWITTER_APP_SECRET; // = 'app secret'
 
 const DDB_TABLE = "twitter_tokens";
 
-const REDIRECT_URI = 'http://localhost:3000/twitter/connect/done';
+const REDIRECT_URI = 'https://www.grassroot.org.za/social/connect/twitter';
+// const REDIRECT_URI = 'http://localhost:4200/social/connect/twitter';
 
 AWS.config.update({
     region: "eu-west-1",
@@ -38,7 +39,7 @@ app.get('/twitter/connect/request/:userId', (req, res) => {
     const request_data = {
         url: 'https://api.twitter.com/oauth/request_token',
         method: 'POST',
-        data: { oauth_callback: REDIRECT_URI + '/' + req.params.userId }
+        data: { oauth_callback: REDIRECT_URI }
     }
 
     const oAuthHeaders = oauth.toHeader(oauth.authorize(request_data));
@@ -52,7 +53,10 @@ app.get('/twitter/connect/request/:userId', (req, res) => {
 
     request(options).then(response => {
         res.send(response);
-    }).catch(error => res.send(error));
+    }).catch(error => {
+        console.log("error: ", error);
+        res.status(500);
+    });
 });
 
 app.get('/twitter/connect/done/:userId', (req, res) => {
@@ -98,7 +102,7 @@ app.get('/twitter/connect/done/:userId', (req, res) => {
               res.status(500).send({ error: 'Could not complete connection' });
             } else {
               console.log("added item: ", JSON.stringify(data, null, 2));
-              res.status(201).json(parsed);
+              res.status(201).json({displayName: parsed.screen_name, twitterUserId: parsed.twitterId});
             }
           });
 
@@ -107,7 +111,34 @@ app.get('/twitter/connect/done/:userId', (req, res) => {
 
 app.get('/twitter/status/:userId', (req, res) => {
     fetchToken(req.params.userId, user_details => {
-        res.status(200).json(user_details);
+        const request_data = {
+            url: 'https://api.twitter.com/1.1/users/show.json',
+            method: 'GET',
+            data: { user_id: user_details.twitterId }
+        }
+    
+        const oAuthHeaders = oauth.toHeader(oauth.authorize(request_data));
+    
+        const options = {
+            url: request_data.url,
+            method: request_data.method,
+            qs: request_data.data,
+            headers: oAuthHeaders
+        };
+
+        request(options).then(response => {
+            const twUserData = JSON.parse(response);
+            // console.log("response: ", JSON.parse(response));
+            // console.log("response img url: ", JSON.parse(response).profile_image_url_https);
+            res.status(200).json({
+                displayName: user_details.twitterName, 
+                twitterUserId: user_details.twitterId,
+                profileImageUrl: twUserData.profile_image_url_https
+            });
+        }).catch(error => {
+            console.log(error);
+            res.status(500);
+        })
     });
 });
 
@@ -212,5 +243,5 @@ function fetchToken(userId, callback) {
     });
   }
   
-//   app.listen(3000, () => console.log(`Listening on port 3000`));
+// app.listen(3000, () => console.log(`Listening on port 3000`));
 module.exports = app;

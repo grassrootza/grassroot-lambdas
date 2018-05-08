@@ -1,12 +1,13 @@
 # Gradle, in case
 .gradle/
 
-# Lambdas that we keep private
+# Lambdas that we keep private, and some env variable definitions
 
 recaptchaVerify/**
 notificationRollUp/**
 storeImageAnalysis/**
 accountRefCRUD/**
+**/testing.env.variables
 
 # JS and Claudia generated files
 **/node_modules
