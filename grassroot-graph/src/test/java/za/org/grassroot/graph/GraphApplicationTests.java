@@ -92,7 +92,7 @@ public class GraphApplicationTests {
 		Event eventFromDb1 = eventRepository.findById(testEvent.getId()).get();
 
 		Actor testActor2 = actorRepository.save(new Actor(ActorType.INDIVIDUAL));
-		eventFromDb1.addParticipant(testActor2);
+		eventFromDb1.addParticipatingActor(testActor2);
 
 		eventRepository.save(eventFromDb1);
 

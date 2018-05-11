@@ -20,12 +20,12 @@ public class Interaction extends GrassrootGraphEntity {
     @Id @GeneratedValue(strategy = UuidStrategy.class) String id;
 
     @Relationship(type = "GENERATOR", direction = Relationship.INCOMING)
-    private Actor initiator;
+    private GrassrootGraphEntity initiator;
 
     @Relationship(type = "PARTICIPATES", direction = Relationship.INCOMING)
     private List<Actor> participants;
 
-    public Interaction() {
+    private Interaction() {
         this.entityType = GraphEntityType.INTERACTION;
     }
 
@@ -37,10 +37,36 @@ public class Interaction extends GrassrootGraphEntity {
         this.participants.add(firstParticipant);
     }
 
-    public void addParticipant(Actor participant) {
+    private void addParticipant(Actor participant) {
         if (this.participants == null)
             this.participants = new ArrayList<>();
         this.participants.add(participant);
+    }
+
+    @Override
+    public void addParticipatingActor(Actor actor) {
+        this.addParticipant(actor);
+    }
+
+    @Override
+    public void addParticipatingEvent(Event event) {
+        // for the moment, we're not allowing this. but we might.
+        throw new IllegalArgumentException("Error! Cannot have an event participating in an interaction ... yet");
+    }
+
+    @Override
+    public void addGenerator(GrassrootGraphEntity graphEntity) {
+        this.initiator = graphEntity;
+    }
+
+    @Override
+    public void removeParticipant(GrassrootGraphEntity participant) {
+        if (participant.isActor()) {
+            if (participants != null)
+                participants.remove((Actor) participant);
+        } else {
+            throw new IllegalArgumentException("Trying to remove a non-actor entity from an event");
+        }
     }
 
     @Override
@@ -56,4 +82,6 @@ public class Interaction extends GrassrootGraphEntity {
 
         return Objects.hash(id);
     }
+
+
 }

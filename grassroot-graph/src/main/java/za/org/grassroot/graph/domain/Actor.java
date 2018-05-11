@@ -50,6 +50,9 @@ public class Actor extends GrassrootGraphEntity {
     @Relationship(type = TYPE_PARTICIPATES, direction = Relationship.INCOMING)
     private Set<Actor> participants;
 
+    @Relationship(type = TYPE_PARTICIPATES, direction = Relationship.INCOMING)
+    private Set<Event> participatingEvents;
+
     public Actor() {
         this.entityType = GraphEntityType.ACTOR;
     }
@@ -68,7 +71,36 @@ public class Actor extends GrassrootGraphEntity {
             actor.addParticipant(this, true);
     }
 
-    public void addParticipant(Actor actor, boolean callFromChild) {
+    @Override
+    public void addParticipatingActor(Actor actor) {
+        this.addParticipant(actor, false);
+    }
+
+    @Override
+    public void addParticipatingEvent(Event event) {
+        if (this.participatingEvents == null)
+            this.participatingEvents = new HashSet<>();
+        this.participatingEvents.add(event);
+    }
+
+    @Override
+    public void addGenerator(GrassrootGraphEntity graphEntity) {
+        if (!GraphEntityType.ACTOR.equals(graphEntity.getEntityType())) {
+            throw new IllegalArgumentException("Error! Only actors can generate actors");
+        }
+        this.createdByActor = (Actor) graphEntity;
+    }
+
+    @Override
+    public void removeParticipant(GrassrootGraphEntity participant) {
+        if (participant.isActor() && this.participants != null) {
+            this.participants.remove((Actor) participant);
+        } else if (participant.isEvent() && this.participatingEvents != null) {
+            this.participatingEvents.remove((Event) participant);
+        }
+    }
+
+    private void addParticipant(Actor actor, boolean callFromChild) {
         if (this.participants == null)
             this.participants = new HashSet<>();
         this.participants.add(actor);

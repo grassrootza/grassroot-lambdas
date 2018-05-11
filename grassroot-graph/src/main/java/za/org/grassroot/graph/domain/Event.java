@@ -24,7 +24,7 @@ public class Event extends GrassrootGraphEntity {
     @Property private EventType eventType;
 
     @Relationship(type = "GENERATOR", direction = Relationship.INCOMING)
-    private Actor creator;
+    private GrassrootGraphEntity creator;
 
     @Relationship(type = "PARTICIPATES", direction = Relationship.OUTGOING)
     private List<Actor> participatesIn;
@@ -42,17 +42,38 @@ public class Event extends GrassrootGraphEntity {
         this.entityType = GraphEntityType.EVENT;
     }
 
-    public Event(Actor creator, EventType eventType) {
+    public Event(GrassrootGraphEntity creator, EventType eventType) {
         this();
         this.creationTime = Instant.now();
         this.creator = creator;
         this.eventType = eventType;
     }
 
-    public void addParticipant(Actor participant) {
+    @Override
+    public void addParticipatingActor(Actor actor) {
         if (this.participants == null)
             this.participants = new ArrayList<>();
-        this.participants.add(participant);
+        this.participants.add(actor);
+    }
+
+    @Override
+    public void addParticipatingEvent(Event event) {
+        throw new IllegalArgumentException("Error! Events cannot participate in other events (can only have generation relationship");
+    }
+
+    @Override
+    public void addGenerator(GrassrootGraphEntity graphEntity) {
+        this.creator = graphEntity;
+    }
+
+    @Override
+    public void removeParticipant(GrassrootGraphEntity participant) {
+        if (participant.isActor()) {
+            if (participants != null)
+                participants.remove((Actor) participant);
+        } else {
+            throw new IllegalArgumentException("Trying to remove a non-actor entity from an event");
+        }
     }
 
     @Override
