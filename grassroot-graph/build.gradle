@@ -14,8 +14,11 @@ apply plugin: 'java'
 apply plugin: 'org.springframework.boot'
 apply plugin: 'io.spring.dependency-management'
 
-group = 'za.org.grassroot'
-version = '0.0.1-SNAPSHOT'
+allprojects {
+	group = 'za.org.grassroot'
+	version = '0.0.1-SNAPSHOT'
+}
+
 sourceCompatibility = 1.8
 
 repositories {
@@ -30,6 +33,7 @@ dependencyManagement {
 
 dependencies {
 
+	compile project('grassroot-graph-domain')
 	compile('org.springframework.boot:spring-boot-starter-data-neo4j')
 
 	compile group: 'software.amazon.awssdk', name: 'kinesis', version: '2.0.0-preview-8'

@@ -23,6 +23,9 @@ public class Event extends GrassrootGraphEntity {
 
     @Property private EventType eventType;
 
+    @Property private Instant eventStartTime;
+    @Property private Instant eventEndTime;
+
     @Relationship(type = "GENERATOR", direction = Relationship.INCOMING)
     private GrassrootGraphEntity creator;
 
@@ -42,11 +45,13 @@ public class Event extends GrassrootGraphEntity {
         this.entityType = GraphEntityType.EVENT;
     }
 
-    public Event(GrassrootGraphEntity creator, EventType eventType) {
+    public Event(GrassrootGraphEntity creator, EventType eventType, Instant startTime, Instant endTime) {
         this();
         this.creationTime = Instant.now();
         this.creator = creator;
         this.eventType = eventType;
+        this.eventStartTime = startTime;
+        this.eventEndTime = endTime;
     }
 
     @Override

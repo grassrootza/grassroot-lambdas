@@ -1,4 +1,4 @@
-package za.org.grassroot.graph.domain.repository;
+package za.org.grassroot.graph.repository;
 
 import org.springframework.data.neo4j.annotation.Query;
 import org.springframework.data.neo4j.repository.Neo4jRepository;

@@ -12,9 +12,9 @@ import za.org.grassroot.graph.domain.Actor;
 import za.org.grassroot.graph.domain.enums.ActorType;
 import za.org.grassroot.graph.domain.enums.GraphEntityType;
 import za.org.grassroot.graph.domain.enums.GrassrootRelationship;
-import za.org.grassroot.graph.domain.repository.ActorRepository;
-import za.org.grassroot.graph.domain.repository.EventRepository;
-import za.org.grassroot.graph.domain.repository.InteractionRepository;
+import za.org.grassroot.graph.repository.ActorRepository;
+import za.org.grassroot.graph.repository.EventRepository;
+import za.org.grassroot.graph.repository.InteractionRepository;
 import za.org.grassroot.graph.dto.ActionType;
 import za.org.grassroot.graph.dto.IncomingDataObject;
 import za.org.grassroot.graph.dto.IncomingGraphAction;
@@ -87,9 +87,9 @@ public class IncomingActionTests {
     @After
     public void cleanDb() {
         log.info("Cleaning up DB");
-//        eventRepository.deleteAll();
-//        interactionRepository.deleteAll();
-//        actorRepository.deleteAll();
+        eventRepository.deleteAll();
+        interactionRepository.deleteAll();
+        actorRepository.deleteAll();
     }
 
 }

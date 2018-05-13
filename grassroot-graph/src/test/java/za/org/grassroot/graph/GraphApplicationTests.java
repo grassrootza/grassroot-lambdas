@@ -15,9 +15,9 @@ import za.org.grassroot.graph.domain.Event;
 import za.org.grassroot.graph.domain.Interaction;
 import za.org.grassroot.graph.domain.enums.ActorType;
 import za.org.grassroot.graph.domain.enums.EventType;
-import za.org.grassroot.graph.domain.repository.ActorRepository;
-import za.org.grassroot.graph.domain.repository.EventRepository;
-import za.org.grassroot.graph.domain.repository.InteractionRepository;
+import za.org.grassroot.graph.repository.ActorRepository;
+import za.org.grassroot.graph.repository.EventRepository;
+import za.org.grassroot.graph.repository.InteractionRepository;
 
 import java.time.Instant;
 import java.util.Collection;
@@ -48,7 +48,7 @@ public class GraphApplicationTests {
 	}
 
 	private void eventSetUp() {
-		testEvent = new Event(testActor, EventType.MEETING);
+		testEvent = new Event(testActor, EventType.MEETING, Instant.now(), Instant.now());
 		actorRepository.save(testActor);
 		eventRepository.save(testEvent);
 	}

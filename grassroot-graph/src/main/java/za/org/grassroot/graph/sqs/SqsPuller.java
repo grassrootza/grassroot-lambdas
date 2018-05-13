@@ -13,7 +13,7 @@ import software.amazon.awssdk.services.sqs.SQSClient;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse;
 import za.org.grassroot.graph.domain.Actor;
 import za.org.grassroot.graph.domain.GrassrootGraphEntity;
-import za.org.grassroot.graph.domain.repository.ActorRepository;
+import za.org.grassroot.graph.repository.ActorRepository;
 
 import javax.annotation.PostConstruct;
 import java.io.IOException;
