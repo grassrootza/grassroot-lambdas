@@ -9,12 +9,12 @@ import za.org.grassroot.graph.domain.GrassrootGraphEntity;
 import za.org.grassroot.graph.domain.Interaction;
 import za.org.grassroot.graph.domain.enums.GraphEntityType;
 import za.org.grassroot.graph.domain.enums.GrassrootRelationship;
-import za.org.grassroot.graph.repository.ActorRepository;
-import za.org.grassroot.graph.repository.EventRepository;
-import za.org.grassroot.graph.repository.InteractionRepository;
 import za.org.grassroot.graph.dto.IncomingDataObject;
 import za.org.grassroot.graph.dto.IncomingGraphAction;
 import za.org.grassroot.graph.dto.IncomingRelationship;
+import za.org.grassroot.graph.repository.ActorRepository;
+import za.org.grassroot.graph.repository.EventRepository;
+import za.org.grassroot.graph.repository.InteractionRepository;
 
 import java.util.List;
 
@@ -36,10 +36,8 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
     public boolean processIncomingAction(IncomingGraphAction action) {
         switch (action.getActionType()) {
             case CREATE_ENTITY:         return createOrUpdateEntities(action);
-            case ALTER_ENTITY:          return createOrUpdateEntities(action);
             case REMOVE_ENTITY:         return removeEntities(action);
             case CREATE_RELATIONSHIP:   return establishRelationships(action.getRelationships());
-            case ALTER_RELATIONSHIP:    return false; // not implemented yet
             case REMOVE_RELATIONSHIP:   return removeRelationships(action.getRelationships());
         }
         return false;
@@ -67,6 +65,9 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
     }
 
     private boolean createOrUpdateSingleEntity(IncomingDataObject dataObject) {
+        if (entityExists(dataObject.getGraphEntity()))
+            return false; // as we do not do any updating in here, because of too much potential fragility
+
         try {
             switch (dataObject.getEntityType()) {
                 case ACTOR:         actorRepository.save((Actor) dataObject.getGraphEntity()); break;
@@ -77,6 +78,15 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
         } catch (IllegalArgumentException|ClassCastException e) {
             log.error("error persisting graph entity: ", e);
             return false;
+        }
+    }
+
+    private boolean entityExists(GrassrootGraphEntity graphEntity) {
+        switch (graphEntity.getEntityType()) {
+            case ACTOR: return actorRepository.findByPlatformUid(graphEntity.getPlatformUid()) != null;
+            case EVENT: return eventRepository.findByPlatformUid(graphEntity.getPlatformUid()) != null;
+            case INTERACTION: return interactionRepository.findByPlatformUid(graphEntity.getPlatformUid()) != null;
+            default: throw new IllegalArgumentException("Unknown graph entity type in create entity action");
         }
     }
 

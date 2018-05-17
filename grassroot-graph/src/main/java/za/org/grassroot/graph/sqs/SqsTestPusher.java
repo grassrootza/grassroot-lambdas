@@ -19,7 +19,7 @@ import javax.annotation.PostConstruct;
 import java.time.Instant;
 
 @Slf4j @Component
-@ConditionalOnProperty("sqs.enabled")
+@ConditionalOnProperty("sqs.push.enabled")
 public class SqsTestPusher {
 
     @Value("${sqs.url}")

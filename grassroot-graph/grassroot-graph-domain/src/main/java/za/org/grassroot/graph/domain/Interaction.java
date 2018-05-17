@@ -9,7 +9,6 @@ import org.neo4j.ogm.annotation.Relationship;
 import org.neo4j.ogm.id.UuidStrategy;
 import za.org.grassroot.graph.domain.enums.GraphEntityType;
 
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -31,7 +30,6 @@ public class Interaction extends GrassrootGraphEntity {
 
     public Interaction(Actor initiator, Actor firstParticipant) {
         this();
-        this.creationTime = Instant.now();
         this.initiator = initiator;
         this.participants = new ArrayList<>();
         this.participants.add(firstParticipant);

@@ -1,5 +1,7 @@
 package za.org.grassroot.graph.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Getter;
 import lombok.Setter;
 import org.neo4j.ogm.annotation.*;
@@ -8,15 +10,12 @@ import za.org.grassroot.graph.domain.enums.ActorType;
 import za.org.grassroot.graph.domain.enums.GraphEntityType;
 import za.org.grassroot.graph.domain.enums.GrassrootRelationship;
 
-import java.time.Instant;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
 
-import static za.org.grassroot.graph.domain.enums.GrassrootRelationship.TYPE_GENERATOR;
-import static za.org.grassroot.graph.domain.enums.GrassrootRelationship.TYPE_PARTICIPATES;
-
 @NodeEntity @Getter @Setter
+@JsonInclude(JsonInclude.Include.NON_EMPTY)
 public class Actor extends GrassrootGraphEntity {
 
     @Id @GeneratedValue(strategy = UuidStrategy.class) private String id;
@@ -60,8 +59,13 @@ public class Actor extends GrassrootGraphEntity {
 
     public Actor(ActorType actorType) {
         this();
-        this.creationTime = Instant.now();
+//        this.creationTime = Instant.now();
         this.actorType = actorType;
+    }
+
+    public Actor(ActorType actorType, String platformId) {
+        this(actorType);
+        this.platformUid = platformId;
     }
 
     public void addParticipatesInActor(Actor actor, boolean callFromParent) {
@@ -127,8 +131,9 @@ public class Actor extends GrassrootGraphEntity {
     public String toString() {
         return "Actor{" +
                 "id='" + id + '\'' +
-                ", actorType=" + actorType +
                 ", platformUid='" + platformUid + '\'' +
+                ", actorType=" + actorType +
+                ", creationTime=" + creationTime +
                 '}';
     }
 }

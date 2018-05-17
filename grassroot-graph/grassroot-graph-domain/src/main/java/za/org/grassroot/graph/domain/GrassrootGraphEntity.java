@@ -1,5 +1,6 @@
 package za.org.grassroot.graph.domain;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import lombok.Getter;
@@ -16,6 +17,7 @@ import java.time.Instant;
 @NodeEntity
 @Getter @Setter @NoArgsConstructor @ToString
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.EXISTING_PROPERTY, property = "entityType")
+@JsonInclude(JsonInclude.Include.NON_EMPTY)
 @JsonSubTypes({
         @JsonSubTypes.Type(value = Actor.class, name = "ACTOR"),
         @JsonSubTypes.Type(value = Event.class, name = "EVENT"),

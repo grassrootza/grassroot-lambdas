@@ -27,7 +27,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 
 @RunWith(SpringRunner.class) @Slf4j
-@SpringBootTest(properties = {"sqs.enabled=false"})
+@SpringBootTest(properties = {"sqs.pull.enabled=false", "sqs.push.enabled=false"})
 public class GraphApplicationTests {
 
 	@Autowired ActorRepository actorRepository;
@@ -48,7 +48,8 @@ public class GraphApplicationTests {
 	}
 
 	private void eventSetUp() {
-		testEvent = new Event(testActor, EventType.MEETING, Instant.now(), Instant.now());
+		testEvent = new Event(EventType.MEETING, "testing-event", Instant.now().toEpochMilli());
+		testEvent.setCreator(testActor);
 		actorRepository.save(testActor);
 		eventRepository.save(testEvent);
 	}
@@ -60,6 +61,8 @@ public class GraphApplicationTests {
 		Optional<Actor> actorFromDb = actorRepository.findById(testActor.getId());
 		assertThat(actorFromDb.isPresent(), is(true));
 		assertThat(actorFromDb.get(), is(testActor));
+		log.info("actor from DB: {}", actorFromDb);
+		assertThat(actorFromDb.get().getCreationTime(), notNullValue());
 		cleanDb();
 	}
 

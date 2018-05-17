@@ -8,7 +8,6 @@ import org.neo4j.ogm.id.UuidStrategy;
 import za.org.grassroot.graph.domain.enums.EventType;
 import za.org.grassroot.graph.domain.enums.GraphEntityType;
 
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -18,13 +17,11 @@ public class Event extends GrassrootGraphEntity {
 
     @Id @GeneratedValue(strategy = UuidStrategy.class) private String id;
 
-    @Property private Instant creationTime; // creation time _in graph_ (not necessarily on platform)
-    @Property private String platformUid;
+    @Property @Index private String platformUid;
 
     @Property private EventType eventType;
 
-    @Property private Instant eventStartTime;
-    @Property private Instant eventEndTime;
+    @Property private long eventStartTimeEpochMilli;
 
     @Relationship(type = "GENERATOR", direction = Relationship.INCOMING)
     private GrassrootGraphEntity creator;
@@ -41,17 +38,15 @@ public class Event extends GrassrootGraphEntity {
     @Relationship(type = "GENERATOR", direction = Relationship.OUTGOING)
     private List<Interaction> childInteractions;
 
-    public Event() {
+    private Event() {
         this.entityType = GraphEntityType.EVENT;
     }
 
-    public Event(GrassrootGraphEntity creator, EventType eventType, Instant startTime, Instant endTime) {
+    public Event(EventType eventType, String platformId, long startTimeMillis) {
         this();
-        this.creationTime = Instant.now();
-        this.creator = creator;
         this.eventType = eventType;
-        this.eventStartTime = startTime;
-        this.eventEndTime = endTime;
+        this.eventStartTimeEpochMilli = startTimeMillis;
+        this.platformUid = platformId;
     }
 
     @Override

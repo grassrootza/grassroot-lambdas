@@ -2,6 +2,7 @@ package za.org.grassroot.graph.sqs;
 
 import com.amazonaws.SdkClientException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.exc.MismatchedInputException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -11,16 +12,15 @@ import org.springframework.stereotype.Component;
 import software.amazon.awssdk.core.regions.Region;
 import software.amazon.awssdk.services.sqs.SQSClient;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse;
-import za.org.grassroot.graph.domain.Actor;
-import za.org.grassroot.graph.domain.GrassrootGraphEntity;
-import za.org.grassroot.graph.repository.ActorRepository;
+import za.org.grassroot.graph.dto.IncomingGraphAction;
+import za.org.grassroot.graph.services.IncomingActionProcessor;
 
 import javax.annotation.PostConstruct;
 import java.io.IOException;
 
 @Slf4j
 @Component
-@ConditionalOnProperty("sqs.enabled")
+@ConditionalOnProperty("sqs.pull.enabled")
 public class SqsPuller {
 
     @Value("${sqs.url}")
@@ -29,12 +29,12 @@ public class SqsPuller {
     private SQSClient sqs;
 
     private final ObjectMapper objectMapper;
-    private final ActorRepository actorRepository;
+    private final IncomingActionProcessor incomingActionProcessor;
 
     @Autowired
-    public SqsPuller(ObjectMapper objectMapper, ActorRepository actorRepository) {
+    public SqsPuller(ObjectMapper objectMapper, IncomingActionProcessor incomingActionProcessor) {
         this.objectMapper = objectMapper;
-        this.actorRepository = actorRepository;
+        this.incomingActionProcessor = incomingActionProcessor;
     }
 
     @PostConstruct
@@ -67,28 +67,23 @@ public class SqsPuller {
 
         response.messages().forEach(message -> {
                 try {
-                    GrassrootGraphEntity entity = deserialize(message.body());
-                    log.info("message body deserialized: {}", entity);
-                    if (entity instanceof Actor) {
-                        log.info("storing an actor ...");
-                        actorRepository.save((Actor) entity);
-                    }
+                    IncomingGraphAction action = deserialize(message.body());
+                    log.info("message body deserialized: {}", action);
+                    boolean success = incomingActionProcessor.processIncomingAction(action);
+                    log.info("successfully handled? : ", success);
                     sqs.deleteMessage(builder -> builder.queueUrl(sqsUrl).receiptHandle(message.receiptHandle()));
                     log.info("message cleared from queue");
                 } catch (IOException e) {
-                    log.error("error, could not deserialize: {}", e);
+                    log.error("Error deserializing input: {}", message.body());
+                    log.error("error, could not deserialize: ", e);
                 }
         });
     }
 
-    private GrassrootGraphEntity deserialize(String jsonValue) throws IOException {
-        GrassrootGraphEntity graphEntity = objectMapper.readValue(jsonValue, GrassrootGraphEntity.class);
-        log.info("data object: {}", graphEntity);
-        if (graphEntity instanceof Actor) {
-            Actor actor = (Actor) graphEntity;
-            log.info("deserialized actor type: {}", actor.getActorType());
-        }
-        return graphEntity;
+    private IncomingGraphAction deserialize(String jsonValue) throws IOException {
+        IncomingGraphAction action = objectMapper.readValue(jsonValue, IncomingGraphAction.class);
+        log.info("incoming action: {}", action);
+        return action;
     }
 
 

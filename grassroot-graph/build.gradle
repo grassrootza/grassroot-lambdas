@@ -1,6 +1,6 @@
 buildscript {
 	ext {
-		springBootVersion = '2.0.0.RELEASE'
+		springBootVersion = '2.0.1.RELEASE'
 	}
 	repositories {
 		mavenCentral()
@@ -16,7 +16,7 @@ apply plugin: 'io.spring.dependency-management'
 
 allprojects {
 	group = 'za.org.grassroot'
-	version = '0.0.1-SNAPSHOT'
+	version = '0.0.2a'
 }
 
 sourceCompatibility = 1.8
