@@ -27,8 +27,13 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 
 @RunWith(SpringRunner.class) @Slf4j
-@SpringBootTest(properties = {"sqs.pull.enabled=false", "sqs.push.enabled=false"})
+@SpringBootTest
 public class GraphApplicationTests {
+
+    // integration testing is failing on a dependency conflict (NoClassDef in jetty for the in-memory neo4j),
+    // hence using a workaround where all test entities have this pattern, so we can clean them at the end
+
+    protected static final String TEST_ENTITY_PREFIX = "testing-entity-";
 
 	@Autowired ActorRepository actorRepository;
 	@Autowired EventRepository eventRepository;
@@ -37,18 +42,19 @@ public class GraphApplicationTests {
 	private Actor testActor;
 	private Event testEvent;
 
+
 	@Before
 	public void generalSetUp() {
-		Optional<Actor> actorCheckDb = testActor == null || StringUtils.isEmpty(testActor.getId())
+        Optional<Actor> actorCheckDb = testActor == null || StringUtils.isEmpty(testActor.getId())
 				? Optional.empty() : actorRepository.findById(testActor.getId());
 		if (!actorCheckDb.isPresent()) {
 			testActor = new Actor(ActorType.INDIVIDUAL);
-			testActor.setPlatformUid("testing-actor");
+			testActor.setPlatformUid(TEST_ENTITY_PREFIX + "actor");
 		}
 	}
 
 	private void eventSetUp() {
-		testEvent = new Event(EventType.MEETING, "testing-event", Instant.now().toEpochMilli());
+		testEvent = new Event(EventType.MEETING, TEST_ENTITY_PREFIX + "event", Instant.now().toEpochMilli());
 		testEvent.setCreator(testActor);
 		actorRepository.save(testActor);
 		eventRepository.save(testEvent);
@@ -94,7 +100,7 @@ public class GraphApplicationTests {
 
 		Event eventFromDb1 = eventRepository.findById(testEvent.getId()).get();
 
-		Actor testActor2 = actorRepository.save(new Actor(ActorType.INDIVIDUAL));
+		Actor testActor2 = actorRepository.save(new Actor(ActorType.INDIVIDUAL, TEST_ENTITY_PREFIX + "-individual"));
 		eventFromDb1.addParticipatingActor(testActor2);
 
 		eventRepository.save(eventFromDb1);
@@ -113,17 +119,18 @@ public class GraphApplicationTests {
 		generalSetUp();
 		actorRepository.save(testActor);
 
-		Actor testActor2 = new Actor(ActorType.AUTOMATON);
+		Actor testActor2 = new Actor(ActorType.AUTOMATON, TEST_ENTITY_PREFIX + "-automaton");
 		actorRepository.save(testActor2);
 
 		Interaction testInteraction = new Interaction(testActor, testActor2);
+		testInteraction.setPlatformUid(TEST_ENTITY_PREFIX + "interaction");
 		interactionRepository.save(testInteraction);
 
 		Optional<Interaction> interactionFromDb = interactionRepository.findById(testInteraction.getId());
 		assertThat(interactionFromDb.isPresent(), is(true));
 		assertThat(interactionFromDb.get(), is(testInteraction));
 
-		cleanDb();
+        actorRepository.deleteByPlatformUidContaining(TEST_ENTITY_PREFIX);
 	}
 
 	@Test @Rollback
@@ -131,26 +138,26 @@ public class GraphApplicationTests {
 		generalSetUp();
 
 		Actor movement = new Actor(ActorType.MOVEMENT);
-		movement.setPlatformUid("movement-" + Instant.now().toEpochMilli());
+		movement.setPlatformUid(TEST_ENTITY_PREFIX + "movement-" + Instant.now().toEpochMilli());
 		actorRepository.save(movement);
 
 		testActor.addParticipatesInActor(movement, false);
 		actorRepository.save(testActor);
 
-		Actor group1 = new Actor(ActorType.GROUP);
+		Actor group1 = new Actor(ActorType.GROUP, TEST_ENTITY_PREFIX + "-group1");
 		group1.setCreatedByActor(testActor);
 		group1.addParticipatesInActor(movement, false);
 		actorRepository.save(group1);
 
-		Actor user2 = new Actor(ActorType.INDIVIDUAL);
+		Actor user2 = new Actor(ActorType.INDIVIDUAL, TEST_ENTITY_PREFIX + "-user2");
 		user2.addParticipatesInActor(group1, false);
 		actorRepository.save(user2);
 
-		Actor user3 = new Actor(ActorType.ACCOUNT);
+		Actor user3 = new Actor(ActorType.ACCOUNT, TEST_ENTITY_PREFIX + "-account");
 		user3.addParticipatesInActor(group1, false);
 		actorRepository.save(user3);
-		
-		Actor group2 = new Actor(ActorType.GROUP);
+
+		Actor group2 = new Actor(ActorType.GROUP, TEST_ENTITY_PREFIX + "-group2");
 		group2.setCreatedByActor(testActor);
 		group2.addParticipatesInActor(movement, false);
 		actorRepository.save(group2);
@@ -174,9 +181,9 @@ public class GraphApplicationTests {
 
 	@After
 	public void cleanDb() {
-		eventRepository.deleteAll();
-		interactionRepository.deleteAll();
-		actorRepository.deleteAll();
+		actorRepository.deleteByPlatformUidContaining(TEST_ENTITY_PREFIX);
+		eventRepository.deleteByPlatformUidContaining(TEST_ENTITY_PREFIX);
+		interactionRepository.deleteByPlatformUidContaining(TEST_ENTITY_PREFIX);
 	}
 
 }

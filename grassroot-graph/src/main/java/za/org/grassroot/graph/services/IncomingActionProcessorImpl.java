@@ -16,7 +16,9 @@ import za.org.grassroot.graph.repository.ActorRepository;
 import za.org.grassroot.graph.repository.EventRepository;
 import za.org.grassroot.graph.repository.InteractionRepository;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service @Slf4j
 public class IncomingActionProcessorImpl implements IncomingActionProcessor {
@@ -71,7 +73,7 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
         try {
             switch (dataObject.getEntityType()) {
                 case ACTOR:         actorRepository.save((Actor) dataObject.getGraphEntity()); break;
-                case EVENT:         eventRepository.save((Event) dataObject.getGraphEntity()); break;
+                case EVENT:         eventRepository.save(replaceRelationshipEntities((Event) dataObject.getGraphEntity())); break;
                 case INTERACTION:   interactionRepository.save((Interaction) dataObject.getGraphEntity()); break;
             }
             return true;
@@ -80,6 +82,43 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
             return false;
         }
     }
+
+    private Event replaceRelationshipEntities(Event event) {
+        event.setParticipatesIn(transformToGraphActors(event.getParticipatesIn()));
+        event.setCreator(replaceWithGraphEntityIfPresent(event.getCreator()));
+        event.setParticipants(transformToGraphActors(event.getParticipants()));
+        return event;
+    }
+
+    private List<Actor> transformToGraphActors(List<Actor> actors) {
+        return actors == null ? new ArrayList<>() :
+                actors.stream().map(this::replaceWithGraphActorIfPresent).collect(Collectors.toList());
+    }
+
+    private GrassrootGraphEntity replaceWithGraphEntityIfPresent(GrassrootGraphEntity graphEntity) {
+        switch (graphEntity.getEntityType()) {
+            case ACTOR: return replaceWithGraphActorIfPresent((Actor) graphEntity);
+            case EVENT: return replaceWithGraphEventIfPresent((Event) graphEntity);
+            case INTERACTION: return replaceWithGraphInteractionIfPresent((Interaction) graphEntity);
+            default: throw new IllegalArgumentException("Unsupported entity type in graph entity swap");
+        }
+    }
+
+    private Actor replaceWithGraphActorIfPresent(Actor actor) {
+        Actor actorInGraph = actorRepository.findByPlatformUid(actor.getPlatformUid());
+        return actorInGraph != null ? actorInGraph : actor;
+    }
+
+    private Event replaceWithGraphEventIfPresent(Event event) {
+        Event eventInGraph = eventRepository.findByPlatformUid(event.getPlatformUid());
+        return eventInGraph != null ? eventInGraph : event;
+    }
+
+    private Interaction replaceWithGraphInteractionIfPresent(Interaction interaction) {
+        Interaction intInGraph = interactionRepository.findByPlatformUid(interaction.getPlatformUid());
+        return intInGraph != null ? intInGraph : interaction;
+    }
+
 
     private boolean entityExists(GrassrootGraphEntity graphEntity) {
         switch (graphEntity.getEntityType()) {

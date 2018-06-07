@@ -2,6 +2,10 @@
 /build/
 !gradle/wrapper/gradle-wrapper.jar
 
+### Some properties ###
+**/application-production.properties
+src/test/resources/application.properties
+
 ### STS ###
 .apt_generated
 .classpath

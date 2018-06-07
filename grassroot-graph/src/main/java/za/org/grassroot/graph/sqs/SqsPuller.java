@@ -1,14 +1,13 @@
 package za.org.grassroot.graph.sqs;
 
-import com.amazonaws.SdkClientException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.exc.MismatchedInputException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.core.regions.Region;
 import software.amazon.awssdk.services.sqs.SQSClient;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse;
@@ -23,18 +22,15 @@ import java.io.IOException;
 @ConditionalOnProperty("sqs.pull.enabled")
 public class SqsPuller {
 
+    private final SqsProcessor sqsProcessor;
+
     @Value("${sqs.url}")
     private String sqsUrl;
 
     private SQSClient sqs;
 
-    private final ObjectMapper objectMapper;
-    private final IncomingActionProcessor incomingActionProcessor;
-
-    @Autowired
-    public SqsPuller(ObjectMapper objectMapper, IncomingActionProcessor incomingActionProcessor) {
-        this.objectMapper = objectMapper;
-        this.incomingActionProcessor = incomingActionProcessor;
+    public SqsPuller(SqsProcessor sqsProcessor) {
+        this.sqsProcessor = sqsProcessor;
     }
 
     @PostConstruct
@@ -46,7 +42,7 @@ public class SqsPuller {
         }
     }
 
-    @Scheduled(fixedRate = 100000)
+    @Scheduled(fixedRate = 10000)
     public void readDataFromSqs() {
         log.info("pulling from SQS ...");
 
@@ -66,24 +62,11 @@ public class SqsPuller {
         log.info("fetched {} messages", response.messages().size());
 
         response.messages().forEach(message -> {
-                try {
-                    IncomingGraphAction action = deserialize(message.body());
-                    log.info("message body deserialized: {}", action);
-                    boolean success = incomingActionProcessor.processIncomingAction(action);
-                    log.info("successfully handled? : ", success);
-                    sqs.deleteMessage(builder -> builder.queueUrl(sqsUrl).receiptHandle(message.receiptHandle()));
-                    log.info("message cleared from queue");
-                } catch (IOException e) {
-                    log.error("Error deserializing input: {}", message.body());
-                    log.error("error, could not deserialize: ", e);
-                }
+            boolean success = sqsProcessor.handleSqsMessage(message.body());
+            if (success) {
+                sqs.deleteMessage(builder -> builder.queueUrl(sqsUrl).receiptHandle(message.receiptHandle()));
+            }
         });
-    }
-
-    private IncomingGraphAction deserialize(String jsonValue) throws IOException {
-        IncomingGraphAction action = objectMapper.readValue(jsonValue, IncomingGraphAction.class);
-        log.info("incoming action: {}", action);
-        return action;
     }
 
 

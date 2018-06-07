@@ -1,33 +1,38 @@
 buildscript {
 	ext {
-		springBootVersion = '2.0.1.RELEASE'
+		springBootVersion = '2.0.2.RELEASE'
 	}
 	repositories {
+		jcenter()
 		mavenCentral()
 	}
 	dependencies {
 		classpath("org.springframework.boot:spring-boot-gradle-plugin:${springBootVersion}")
+		classpath "com.github.ben-manes:gradle-versions-plugin:0.17.0"
+		classpath 'com.github.jengelman.gradle.plugins:shadow:2.0.4'
 	}
 }
 
 apply plugin: 'java'
 apply plugin: 'org.springframework.boot'
 apply plugin: 'io.spring.dependency-management'
+apply plugin: 'com.github.ben-manes.versions'
 
 allprojects {
 	group = 'za.org.grassroot'
-	version = '0.0.2a'
+	version = '0.0.2d'
 }
 
 sourceCompatibility = 1.8
 
 repositories {
 	mavenCentral()
+	maven { url "http://repo.spring.io/plugins-release/" }
 }
 
 dependencyManagement {
 	imports {
-		mavenBom 'software.amazon.awssdk:bom:2.0.0-preview-8'
+		mavenBom 'software.amazon.awssdk:bom:2.0.0-preview-9'
 	}
 }
 
@@ -36,14 +41,14 @@ dependencies {
 	compile project('grassroot-graph-domain')
 	compile('org.springframework.boot:spring-boot-starter-data-neo4j')
 
-	compile group: 'software.amazon.awssdk', name: 'kinesis', version: '2.0.0-preview-8'
-	compile 'com.amazonaws:amazon-kinesis-client:1.9.0'
 	compile 'software.amazon.awssdk:sqs' // v2 hence different naming
 
 	compile group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.9.5'
 	compile group: 'com.fasterxml.jackson.datatype', name: 'jackson-datatype-jsr310', version: '2.9.5'
 
 	compile('org.projectlombok:lombok')
+
+	compileOnly("org.springframework:spring-context-indexer:5.0.6.RELEASE")
 
 	testCompile('org.springframework.boot:spring-boot-starter-test')
 	testCompile('io.projectreactor:reactor-test')

@@ -7,7 +7,11 @@ recaptchaVerify/**
 notificationRollUp/**
 storeImageAnalysis/**
 accountRefCRUD/**
+izweLami/**
 **/testing.env.variables
+**/run_local.sh
+**/env.json
+**/application-production.properties
 
 # JS and Claudia generated files
 **/node_modules

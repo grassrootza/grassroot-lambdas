@@ -3,6 +3,7 @@ package za.org.grassroot.graph.repository;
 import org.springframework.data.neo4j.annotation.Query;
 import org.springframework.data.neo4j.repository.Neo4jRepository;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 import za.org.grassroot.graph.domain.Actor;
 
 import java.util.Collection;
@@ -15,5 +16,8 @@ public interface ActorRepository extends Neo4jRepository<Actor, String> {
     Collection<Actor> findMovementParticipantsInDepth(@Param("platformUid") final String platformUid);
 
     Actor findByPlatformUid(String platformId);
+
+    @Transactional
+    Long deleteByPlatformUidContaining(String platformUidFragment);
 
 }
