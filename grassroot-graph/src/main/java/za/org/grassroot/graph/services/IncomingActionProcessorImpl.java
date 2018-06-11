@@ -36,6 +36,7 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
 
     @Override
     public boolean processIncomingAction(IncomingGraphAction action) {
+        log.info("handling action, type: {}", action.getActionType());
         switch (action.getActionType()) {
             case CREATE_ENTITY:         return createOrUpdateEntities(action);
             case REMOVE_ENTITY:         return removeEntities(action);
@@ -52,10 +53,12 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
 
         // first, create or update the entities, including possibly multiple (e.g., if packet is group creation)
         if (action.getDataObjects() != null) {
+            log.info("Graph action has data objections, processing {} objects", action.getDataObjects().size());
             executionSucceeded = action.getDataObjects().stream()
                     .map(this::createOrUpdateSingleEntity).reduce(true, (a, b) -> a && b); // can do as allMatch but find that a bit opaque
-
+            log.info("After data object handling, succeeded: {}", executionSucceeded);
         }
+
         // second, wire up any relationships - if we need to (OGM may do this for us - keep eye on it)
         if (action.getRelationships() != null) {
             executionSucceeded = executionSucceeded && action.getRelationships().stream()
@@ -68,8 +71,9 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
 
     private boolean createOrUpdateSingleEntity(IncomingDataObject dataObject) {
         if (entityExists(dataObject.getGraphEntity()))
-            return false; // as we do not do any updating in here, because of too much potential fragility
+            return true; // by definition, execution succeeded, as we do not do any updating in here, because of too much potential fragility
 
+        log.info("Data object did not exist, has entity type: {}, entity: {}", dataObject.getEntityType(), dataObject);
         try {
             switch (dataObject.getEntityType()) {
                 case ACTOR:         actorRepository.save((Actor) dataObject.getGraphEntity()); break;
@@ -163,8 +167,8 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
         GrassrootGraphEntity tailEntity = fetchGraphEntity(relationship.getTailEntityType(), relationship.getTailEntityPlatformId());
 
         if (headEntity == null || tailEntity == null) {
-            log.error("received a relationship that has invalid head or tail");
-            return false;
+            log.error("Received a relationship that has invalid head or tail, exiting");
+            return true;
         }
 
         // remember head = destination, tail = origin

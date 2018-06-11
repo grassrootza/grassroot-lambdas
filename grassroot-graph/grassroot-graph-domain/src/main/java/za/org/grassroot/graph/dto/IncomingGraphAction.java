@@ -28,4 +28,8 @@ public class IncomingGraphAction {
         this.relationships.add(incomingRelationship);
     }
 
+    public long operationsCount() {
+        return (dataObjects != null ? dataObjects.size() : 0) + (relationships != null  ? relationships.size() : 0);
+    }
+
 }
