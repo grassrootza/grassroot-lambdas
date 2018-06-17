@@ -15,8 +15,6 @@ pool.on('error', (err, client) => {
     process.exit(-1)
   })
 
-var queryPromises = [];
-
 exports.handler = async (event) => {
     try {
         console.log('about to execute query ... ');

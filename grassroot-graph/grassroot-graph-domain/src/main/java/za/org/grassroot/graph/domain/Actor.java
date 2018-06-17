@@ -1,9 +1,9 @@
 package za.org.grassroot.graph.domain;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 import org.neo4j.ogm.annotation.*;
 import org.neo4j.ogm.id.UuidStrategy;
 import za.org.grassroot.graph.domain.enums.ActorType;
@@ -14,13 +14,13 @@ import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
 
-@NodeEntity @Getter @Setter
+@NodeEntity @Getter @Setter @Slf4j
 @JsonInclude(JsonInclude.Include.NON_EMPTY)
 public class Actor extends GrassrootGraphEntity {
 
     @Id @GeneratedValue(strategy = UuidStrategy.class) private String id;
 
-    @Property @Index protected String platformUid;
+    @Property @Index(unique = true) protected String platformUid;
     @Property @Index private ActorType actorType;
 
     @Relationship(type = GrassrootRelationship.TYPE_GENERATOR, direction = Relationship.INCOMING)
@@ -39,7 +39,7 @@ public class Actor extends GrassrootGraphEntity {
     private Set<Actor> participatesInActors;
 
     @Relationship(type = GrassrootRelationship.TYPE_PARTICIPATES, direction = Relationship.OUTGOING)
-    private Set<Actor> partcipatesInEvents;
+    private Set<Event> participatesInEvents;
 
     @Relationship(type = GrassrootRelationship.TYPE_PARTICIPATES, direction = Relationship.OUTGOING)
     private Set<Actor> participatesInInteractions;
@@ -53,32 +53,46 @@ public class Actor extends GrassrootGraphEntity {
     @Relationship(type = GrassrootRelationship.TYPE_PARTICIPATES, direction = Relationship.INCOMING)
     private Set<Event> participatingEvents;
 
+    // for JSON, JPA, etc
     public Actor() {
         this.entityType = GraphEntityType.ACTOR;
     }
 
-    public Actor(ActorType actorType) {
-        this();
-//        this.creationTime = Instant.now();
-        this.actorType = actorType;
-    }
-
     public Actor(ActorType actorType, String platformId) {
-        this(actorType);
+        this.actorType = actorType;
         this.platformUid = platformId;
     }
 
-    public void addParticipatesInActor(Actor actor, boolean callFromParent) {
+    public void addParticipatesInActor(Actor actor, boolean dontWireBothSide) {
         if (this.participatesInActors == null)
             this.participatesInActors = new HashSet();
         this.participatesInActors.add(actor);
-        if (!callFromParent)
+        if (!dontWireBothSide)
             actor.addParticipant(this, true);
     }
 
     @Override
     public void addParticipatingActor(Actor actor) {
         this.addParticipant(actor, false);
+    }
+
+    @Override
+    public void addParticipatesInEntity(GrassrootGraphEntity graphEntity) {
+        switch (graphEntity.getEntityType()) {
+            case ACTOR:
+                this.addParticipatesInActor((Actor) graphEntity, true);
+                break;
+            case EVENT:
+                this.getParticipatesInEvents().add((Event) graphEntity);
+                break;
+            case INTERACTION:
+                break;
+        }
+    }
+
+    @Override
+    public Set<Actor> getParticipatingActors() {
+        return new HashSet<>(getParticipants());
     }
 
     @Override
@@ -118,13 +132,13 @@ public class Actor extends GrassrootGraphEntity {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         Actor actor = (Actor) o;
-        return Objects.equals(id, actor.id);
+        return Objects.equals(platformUid, actor.platformUid);
     }
 
     @Override
     public int hashCode() {
 
-        return Objects.hash(id);
+        return Objects.hash(platformUid);
     }
 
     @Override

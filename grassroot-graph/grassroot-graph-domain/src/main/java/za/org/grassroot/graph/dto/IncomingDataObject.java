@@ -14,4 +14,8 @@ public class IncomingDataObject {
     private GraphEntityType entityType;
     private GrassrootGraphEntity graphEntity;
 
+    public boolean isActor() {
+        return GraphEntityType.ACTOR.equals(entityType);
+    }
+
 }

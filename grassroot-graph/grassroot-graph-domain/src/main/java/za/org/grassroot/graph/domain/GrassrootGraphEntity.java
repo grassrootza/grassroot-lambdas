@@ -13,6 +13,7 @@ import org.neo4j.ogm.annotation.Property;
 import za.org.grassroot.graph.domain.enums.GraphEntityType;
 
 import java.time.Instant;
+import java.util.Set;
 
 @NodeEntity
 @Getter @Setter @NoArgsConstructor @ToString
@@ -36,6 +37,10 @@ public abstract class GrassrootGraphEntity {
 
     // since all types have these
     public abstract void addParticipatingActor(Actor actor);
+
+    public abstract void addParticipatesInEntity(GrassrootGraphEntity graphEntity);
+
+    public abstract Set<Actor> getParticipatingActors();
 
     public abstract void addParticipatingEvent(Event event);
 

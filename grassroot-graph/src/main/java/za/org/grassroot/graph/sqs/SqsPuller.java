@@ -20,7 +20,7 @@ import javax.annotation.PostConstruct;
 @ConditionalOnProperty("sqs.pull.enabled")
 public class SqsPuller {
 
-    private static final long QUEUE_DEFAULT_TIME = 2 * 60 * 1000;
+    private static final long QUEUE_DEFAULT_TIME = 60 * 1000;
 
     private final SqsProcessor sqsProcessor;
 
@@ -80,7 +80,7 @@ public class SqsPuller {
         }
 
         ReceiveMessageResponse response  = sqs.receiveMessage(builder -> builder.queueUrl(sqsUrl)
-            .maxNumberOfMessages(3));
+            .maxNumberOfMessages(10));
 
         if (response.messages() == null || response.messages().isEmpty()) {
             log.info("empty message queue, exiting, messages: {}", response.messages());

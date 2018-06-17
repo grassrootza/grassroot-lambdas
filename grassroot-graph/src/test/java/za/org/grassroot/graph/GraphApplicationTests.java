@@ -48,8 +48,7 @@ public class GraphApplicationTests {
         Optional<Actor> actorCheckDb = testActor == null || StringUtils.isEmpty(testActor.getId())
 				? Optional.empty() : actorRepository.findById(testActor.getId());
 		if (!actorCheckDb.isPresent()) {
-			testActor = new Actor(ActorType.INDIVIDUAL);
-			testActor.setPlatformUid(TEST_ENTITY_PREFIX + "actor");
+			testActor = new Actor(ActorType.INDIVIDUAL, TEST_ENTITY_PREFIX + "actor");
 		}
 	}
 
@@ -137,8 +136,7 @@ public class GraphApplicationTests {
 	public void handlesMovements() {
 		generalSetUp();
 
-		Actor movement = new Actor(ActorType.MOVEMENT);
-		movement.setPlatformUid(TEST_ENTITY_PREFIX + "movement-" + Instant.now().toEpochMilli());
+		Actor movement = new Actor(ActorType.MOVEMENT, TEST_ENTITY_PREFIX + "movement-" + Instant.now().toEpochMilli());
 		actorRepository.save(movement);
 
 		testActor.addParticipatesInActor(movement, false);

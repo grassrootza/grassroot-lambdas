@@ -12,7 +12,7 @@ import java.io.IOException;
 @Component @Slf4j
 public class SqsProcessorImpl implements SqsProcessor {
 
-    private static final long PER_OPERATION_TIME_ESTIMATE = 2000; // conservative, takes two seconds
+    private static final long PER_OPERATION_TIME_ESTIMATE = 1000; // conservative, takes one second
 
     private final ObjectMapper objectMapper;
     private final IncomingActionProcessor incomingActionProcessor;

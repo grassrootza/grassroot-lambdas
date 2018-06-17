@@ -2,6 +2,7 @@ package za.org.grassroot.graph.domain;
 
 import lombok.Getter;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 import org.neo4j.ogm.annotation.GeneratedValue;
 import org.neo4j.ogm.annotation.Id;
 import org.neo4j.ogm.annotation.NodeEntity;
@@ -9,11 +10,9 @@ import org.neo4j.ogm.annotation.Relationship;
 import org.neo4j.ogm.id.UuidStrategy;
 import za.org.grassroot.graph.domain.enums.GraphEntityType;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 
-@NodeEntity @Getter @Setter
+@NodeEntity @Getter @Setter @Slf4j
 public class Interaction extends GrassrootGraphEntity {
 
     @Id @GeneratedValue(strategy = UuidStrategy.class) String id;
@@ -44,6 +43,16 @@ public class Interaction extends GrassrootGraphEntity {
     @Override
     public void addParticipatingActor(Actor actor) {
         this.addParticipant(actor);
+    }
+
+    @Override
+    public void addParticipatesInEntity(GrassrootGraphEntity graphEntity) {
+        log.error("Should not be calling this on interaction");
+    }
+
+    @Override
+    public Set<Actor> getParticipatingActors() {
+        return new HashSet<>(getParticipants());
     }
 
     @Override

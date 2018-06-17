@@ -47,7 +47,7 @@ public class SqsTestPusher {
     public void placeDataInSQS() {
         log.info("inserting into SQS, time now: {}", Instant.now());
 
-        Actor actor = new Actor(ActorType.INDIVIDUAL);
+        Actor actor = new Actor(ActorType.INDIVIDUAL, "test-actor-" + Instant.now());
         final String testValue = serialize(actor);
         log.info("placing into stream: {}", testValue);
 

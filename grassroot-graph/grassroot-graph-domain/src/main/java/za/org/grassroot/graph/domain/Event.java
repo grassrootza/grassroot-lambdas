@@ -3,16 +3,15 @@ package za.org.grassroot.graph.domain;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
+import lombok.extern.slf4j.Slf4j;
 import org.neo4j.ogm.annotation.*;
 import org.neo4j.ogm.id.UuidStrategy;
 import za.org.grassroot.graph.domain.enums.EventType;
 import za.org.grassroot.graph.domain.enums.GraphEntityType;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 
-@NodeEntity @Getter @Setter @ToString
+@NodeEntity @Getter @Setter @ToString @Slf4j
 public class Event extends GrassrootGraphEntity {
 
     @Id @GeneratedValue(strategy = UuidStrategy.class) private String id;
@@ -54,6 +53,16 @@ public class Event extends GrassrootGraphEntity {
         if (this.participants == null)
             this.participants = new ArrayList<>();
         this.participants.add(actor);
+    }
+
+    @Override
+    public void addParticipatesInEntity(GrassrootGraphEntity graphEntity) {
+        this.getParticipants().add((Actor) graphEntity); // todo: clean up
+    }
+
+    @Override
+    public Set<Actor> getParticipatingActors() {
+        return new HashSet<>(getParticipants());
     }
 
     @Override
