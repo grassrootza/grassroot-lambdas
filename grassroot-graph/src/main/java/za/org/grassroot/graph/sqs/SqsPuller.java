@@ -10,7 +10,6 @@ import software.amazon.awssdk.core.auth.SystemPropertyCredentialsProvider;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.core.regions.Region;
 import software.amazon.awssdk.services.sqs.SQSClient;
-import software.amazon.awssdk.services.sqs.model.ChangeMessageVisibilityResponse;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse;
 
 import javax.annotation.PostConstruct;
@@ -80,7 +79,7 @@ public class SqsPuller {
         }
 
         ReceiveMessageResponse response  = sqs.receiveMessage(builder -> builder.queueUrl(sqsUrl)
-            .maxNumberOfMessages(10));
+            .maxNumberOfMessages(3));
 
         if (response.messages() == null || response.messages().isEmpty()) {
             log.info("empty message queue, exiting, messages: {}", response.messages());
@@ -90,26 +89,7 @@ public class SqsPuller {
         log.info("Fetched {} messages", response.messages().size());
 
         response.messages().forEach(message -> {
-            final String receiptHandle = message.receiptHandle();
-            long timeEstimate = sqsProcessor.estimateProcessingTime(message);
-
-            log.info("Estimating {} msecs to process message", timeEstimate);
-            if (timeEstimate > QUEUE_DEFAULT_TIME) {
-                ChangeMessageVisibilityResponse extendVisibilityResponse = sqs.changeMessageVisibility(builder -> builder.queueUrl(sqsUrl).receiptHandle(receiptHandle)
-                    .visibilityTimeout((int) (timeEstimate / 1000)));
-                log.info("Visibility change response: {}", extendVisibilityResponse.toString());
-            }
-
-            boolean success = sqsProcessor.handleSqsMessage(message.body());
-            if (success) {
-                log.info("Handled message, deleting it");
-                try {
-                    sqs.deleteMessage(builder -> builder.queueUrl(sqsUrl).receiptHandle(receiptHandle));
-                    log.info("Message handled, deleting");
-                } catch (SdkClientException e) {
-                    log.error("Error deleting message with handle: {}", receiptHandle);
-                }
-            }
+            sqsProcessor.handleSqsMessage(message, sqs);
         });
     }
 

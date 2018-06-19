@@ -40,33 +40,27 @@ public class Interaction extends GrassrootGraphEntity {
         this.participants.add(participant);
     }
 
-    @Override
     public void addParticipatingActor(Actor actor) {
         this.addParticipant(actor);
     }
 
-    @Override
     public void addParticipatesInEntity(GrassrootGraphEntity graphEntity) {
         log.error("Should not be calling this on interaction");
     }
 
-    @Override
     public Set<Actor> getParticipatingActors() {
         return new HashSet<>(getParticipants());
     }
 
-    @Override
     public void addParticipatingEvent(Event event) {
         // for the moment, we're not allowing this. but we might.
         throw new IllegalArgumentException("Error! Cannot have an event participating in an interaction ... yet");
     }
 
-    @Override
     public void addGenerator(GrassrootGraphEntity graphEntity) {
         this.initiator = graphEntity;
     }
 
-    @Override
     public void removeParticipant(GrassrootGraphEntity participant) {
         if (participant.isActor()) {
             if (participants != null)

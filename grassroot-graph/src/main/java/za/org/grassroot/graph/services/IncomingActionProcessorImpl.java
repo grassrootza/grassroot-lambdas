@@ -8,7 +8,6 @@ import za.org.grassroot.graph.domain.Event;
 import za.org.grassroot.graph.domain.GrassrootGraphEntity;
 import za.org.grassroot.graph.domain.Interaction;
 import za.org.grassroot.graph.domain.enums.GraphEntityType;
-import za.org.grassroot.graph.domain.enums.GrassrootRelationship;
 import za.org.grassroot.graph.dto.IncomingDataObject;
 import za.org.grassroot.graph.dto.IncomingGraphAction;
 import za.org.grassroot.graph.dto.IncomingRelationship;
@@ -30,11 +29,16 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
     private final EventRepository eventRepository;
     private final InteractionRepository interactionRepository;
 
+    private final ExistenceBroker existenceBroker;
+    private final RelationshipBroker relationshipBroker;
+
     @Autowired
-    public IncomingActionProcessorImpl(ActorRepository actorRepository, EventRepository eventRepository, InteractionRepository interactionRepository) {
+    public IncomingActionProcessorImpl(ActorRepository actorRepository, EventRepository eventRepository, InteractionRepository interactionRepository, ExistenceBroker existenceBroker, RelationshipBroker relationshipBroker) {
         this.actorRepository = actorRepository;
         this.eventRepository = eventRepository;
         this.interactionRepository = interactionRepository;
+        this.existenceBroker = existenceBroker;
+        this.relationshipBroker = relationshipBroker;
     }
 
     @Override
@@ -107,8 +111,8 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
 
     private Event replaceRelationshipEntities(Event event) {
         event.setParticipatesIn(transformToGraphActors(event.getParticipatesIn()));
-        event.setCreator(replaceWithGraphEntityIfPresent(event.getCreator()));
-        event.setParticipants(transformToGraphActors(event.getParticipants()));
+//        event.setCreator(replaceWithGraphEntityIfPresent(event.getCreator()));
+//        event.setParticipants(transformToGraphActors(event.getParticipants()));
         return event;
     }
 
@@ -197,77 +201,28 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
 
     // may need to do this in order, hence a list
     private boolean establishRelationships(List<IncomingRelationship> relationships) {
-        log.info("creating realtionships: {}", relationships);
+        log.info("creating relationship: {}", relationships);
         return relationships.stream().map(this::createSingleRelationship).reduce(true, (a, b) -> a && b);
     }
 
-    // now, this is the heart of the beast. complex and ugly because of profusion of relationship types
-    // by far the most elegant solution _would have been_ RelationshipEntities with generics
-    // _but_ it doesn't seem like the OGM supports that yet. So would have had massive entity profusion.
-    // thus decided best to consolidate messiness in single entity, inside here. definitely change if OGM implements generics.
     private boolean createSingleRelationship(IncomingRelationship relationship) {
-        log.info("inside creating relationship, fetching head entity ...");
-        GrassrootGraphEntity headEntity = fetchGraphEntity(relationship.getHeadEntityType(), relationship.getHeadEntityPlatformId(), 0);
-        log.info("fetched head entity: {}", headEntity);
+        PlatformEntityDTO tailEntity = new PlatformEntityDTO(relationship.getTailEntityPlatformId(), relationship.getTailEntityType(), relationship.getTailEntitySubtype());
+        PlatformEntityDTO headEntity = new PlatformEntityDTO(relationship.getHeadEntityPlatformId(), relationship.getHeadEntityType(), relationship.getHeadEntitySubtype());
 
-        log.info("fetching tail entity");
-        GrassrootGraphEntity tailEntity = fetchGraphEntity(relationship.getTailEntityType(), relationship.getTailEntityPlatformId(), 0);
-        log.info("fetched tail entity: {}", tailEntity);
+        if (!existenceBroker.doesEntityExistInGraph(tailEntity))
+            existenceBroker.addEntityToGraph(tailEntity);
 
-        if (headEntity == null || tailEntity == null) {
-            log.error("Received a relationship that has invalid head or tail, exiting");
-            return true;
+        if (!existenceBroker.doesEntityExistInGraph(headEntity))
+            existenceBroker.addEntityToGraph(headEntity);
+
+        switch (relationship.getRelationshipType()) {
+            case GENERATOR: return relationshipBroker.setGeneration(tailEntity, headEntity);
+            case PARTICIPATES: return relationshipBroker.addParticipation(tailEntity, headEntity);
+            case OBSERVES: return relationshipBroker.addObserver(tailEntity, headEntity);
+            default:
+                log.error("Error! Badly formed instruction, not a known entity type");
+                return false;
         }
-
-        // remember head = destination, tail = origin
-        try {
-            switch (tailEntity.getEntityType()) {
-                case ACTOR:         return addRelationshipToActor((Actor) tailEntity, headEntity, relationship.getRelationshipType());
-                case EVENT:         return addRelationshipToEvent((Event) tailEntity, headEntity, relationship.getRelationshipType());
-                case INTERACTION:   return addRelationshipToInteraction((Interaction) tailEntity, headEntity, relationship.getRelationshipType());
-            }
-        } catch (IllegalArgumentException|ClassCastException e) {
-            log.error("Error creating relationship, with error: ", e);
-            log.error("Relationship causing error: {}", relationship);
-            return false;
-        }
-
-        log.error("received unsupported type on head entity");
-        return true;
-    }
-
-    private boolean addRelationshipToActor(Actor actor, GrassrootGraphEntity headEntity, GrassrootRelationship.Type type) {
-        if (GrassrootRelationship.Type.PARTICIPATES.equals(type)) {
-            Set<Actor> participants = headEntity.getParticipatingActors();
-
-            if (participants.contains(actor)) {
-                log.info("Already a participant, exiting");
-                return true;
-            }
-
-            headEntity.addParticipatingActor(actor);
-            return persistGraphEntity(headEntity);
-        } else if (GrassrootRelationship.Type.GENERATOR.equals(type)) {
-            headEntity.addGenerator(actor);
-            return persistGraphEntity(headEntity);
-        }
-
-        throw new IllegalArgumentException("Illegal relationship & head entity combination in adding relationship to actor");
-    }
-
-    private boolean addRelationshipToEvent(Event event, GrassrootGraphEntity headEntity, GrassrootRelationship.Type type) {
-        if (GrassrootRelationship.Type.PARTICIPATES.equals(type)) {
-            headEntity.addParticipatingEvent(event);
-            return persistGraphEntity(headEntity);
-        } else if (GrassrootRelationship.Type.GENERATOR.equals(type) && headEntity.isEvent()) {
-            headEntity.addGenerator(event);
-            return persistGraphEntity(headEntity);
-        }
-        throw new IllegalArgumentException("Illegal relationship & head entity combination in adding relationship to event");
-    }
-
-    private boolean addRelationshipToInteraction(Interaction interaction, GrassrootGraphEntity headEntity, GrassrootRelationship.Type type) {
-        throw new IllegalArgumentException("At present interaction is exclusively a head entity, and cannot participate or generate any other entity");
     }
 
     // again, only relevant from single, central node
@@ -286,7 +241,7 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
 
         switch (relationship.getRelationshipType()) {
             case PARTICIPATES:
-                headEntity.removeParticipant(tailEntity);
+//                headEntity.removeParticipant(tailEntity);
                 return persistGraphEntity(tailEntity);
             case GENERATOR:
                 throw new IllegalArgumentException("Error! Cannot remove generator relationship");

@@ -8,8 +8,11 @@ import org.neo4j.ogm.annotation.*;
 import org.neo4j.ogm.id.UuidStrategy;
 import za.org.grassroot.graph.domain.enums.EventType;
 import za.org.grassroot.graph.domain.enums.GraphEntityType;
+import za.org.grassroot.graph.domain.relationship.ActorInEvent;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
 
 @NodeEntity @Getter @Setter @ToString @Slf4j
 public class Event extends GrassrootGraphEntity {
@@ -22,14 +25,15 @@ public class Event extends GrassrootGraphEntity {
 
     @Property private long eventStartTimeEpochMilli;
 
+    // todo someone has to generate the event (= creator), but we want some form of parent mapping (other side of below)
     @Relationship(type = "GENERATOR", direction = Relationship.INCOMING)
-    private GrassrootGraphEntity creator;
+    private Actor creator;
+
+    @Relationship(type = "PARTICIPATES", direction = Relationship.INCOMING)
+    private List<ActorInEvent> participants;
 
     @Relationship(type = "PARTICIPATES", direction = Relationship.OUTGOING)
     private List<Actor> participatesIn;
-
-    @Relationship(type = "PARTICIPATES", direction = Relationship.INCOMING)
-    private List<Actor> participants;
 
     @Relationship(type = "GENERATOR", direction = Relationship.OUTGOING)
     private List<Event> childEvents;
@@ -48,41 +52,10 @@ public class Event extends GrassrootGraphEntity {
         this.platformUid = platformId;
     }
 
-    @Override
     public void addParticipatingActor(Actor actor) {
         if (this.participants == null)
             this.participants = new ArrayList<>();
-        this.participants.add(actor);
-    }
-
-    @Override
-    public void addParticipatesInEntity(GrassrootGraphEntity graphEntity) {
-        this.getParticipants().add((Actor) graphEntity); // todo: clean up
-    }
-
-    @Override
-    public Set<Actor> getParticipatingActors() {
-        return new HashSet<>(getParticipants());
-    }
-
-    @Override
-    public void addParticipatingEvent(Event event) {
-        throw new IllegalArgumentException("Error! Events cannot participate in other events (can only have generation relationship");
-    }
-
-    @Override
-    public void addGenerator(GrassrootGraphEntity graphEntity) {
-        this.creator = graphEntity;
-    }
-
-    @Override
-    public void removeParticipant(GrassrootGraphEntity participant) {
-        if (participant.isActor()) {
-            if (participants != null)
-                participants.remove((Actor) participant);
-        } else {
-            throw new IllegalArgumentException("Trying to remove a non-actor entity from an event");
-        }
+        this.participants.add(new ActorInEvent(actor, this));
     }
 
     @Override

@@ -8,10 +8,12 @@ import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Scope;
+import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import za.org.grassroot.graph.repository.PreSaveListener;
 
 @Configuration
+@EnableAsync
 @EnableScheduling
 public class GraphConfig {
 

@@ -11,4 +11,6 @@ public interface EventRepository extends Neo4jRepository<Event, String> {
     @Transactional
     Long deleteByPlatformUidContaining(String platformUidFragment);
 
+    long countByPlatformUid(String platformUid);
+
 }

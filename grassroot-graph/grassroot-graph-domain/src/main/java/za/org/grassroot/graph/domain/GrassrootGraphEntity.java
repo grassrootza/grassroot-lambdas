@@ -13,7 +13,6 @@ import org.neo4j.ogm.annotation.Property;
 import za.org.grassroot.graph.domain.enums.GraphEntityType;
 
 import java.time.Instant;
-import java.util.Set;
 
 @NodeEntity
 @Getter @Setter @NoArgsConstructor @ToString
@@ -34,19 +33,6 @@ public abstract class GrassrootGraphEntity {
     // UID of entity on main platform, both to fetch properties as needed, and for traceability; no entity on main
     // can be multiple entities on graph, hence the unique index (and lookup on this property will be used _a lot_)
     @Property @Index(unique = true) protected String platformUid;
-
-    // since all types have these
-    public abstract void addParticipatingActor(Actor actor);
-
-    public abstract void addParticipatesInEntity(GrassrootGraphEntity graphEntity);
-
-    public abstract Set<Actor> getParticipatingActors();
-
-    public abstract void addParticipatingEvent(Event event);
-
-    public abstract void addGenerator(GrassrootGraphEntity graphEntity);
-
-    public abstract void removeParticipant(GrassrootGraphEntity participant);
 
     // some utility methods
     public boolean isActor() { return GraphEntityType.ACTOR.equals(entityType); }

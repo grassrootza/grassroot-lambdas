@@ -1,0 +1,16 @@
+{
+  "name": "scheduleddatacleanup",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "aws-sdk": "^2.259.1",
+    "moment": "^2.22.2",
+    "pg": "^7.4.3"
+  }
+}
