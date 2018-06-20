@@ -10,6 +10,7 @@ import za.org.grassroot.graph.domain.enums.EventType;
 import za.org.grassroot.graph.domain.enums.GraphEntityType;
 import za.org.grassroot.graph.domain.relationship.ActorInEvent;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -18,6 +19,7 @@ import java.util.Objects;
 public class Event extends GrassrootGraphEntity {
 
     @Id @GeneratedValue(strategy = UuidStrategy.class) private String id;
+    @Property protected Instant creationTime; // creation time _in graph_ (not necessarily on platform)
 
     @Property @Index private String platformUid;
 

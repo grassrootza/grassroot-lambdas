@@ -3,6 +3,7 @@ package za.org.grassroot.graph.services;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Mono;
 import za.org.grassroot.graph.domain.Actor;
 import za.org.grassroot.graph.domain.Event;
 import za.org.grassroot.graph.domain.GrassrootGraphEntity;
@@ -42,15 +43,18 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
     }
 
     @Override
-    public boolean processIncomingAction(IncomingGraphAction action) {
-        log.info("handling action, type: {}", action.getActionType());
-        switch (action.getActionType()) {
-            case CREATE_ENTITY:         return createEntities(action);
-            case REMOVE_ENTITY:         return removeEntities(action);
-            case CREATE_RELATIONSHIP:   return establishRelationships(action.getRelationships());
-            case REMOVE_RELATIONSHIP:   return removeRelationships(action.getRelationships());
-        }
-        return false;
+    public Mono<Boolean> processIncomingAction(IncomingGraphAction action) {
+        return Mono.<Boolean>create(sink -> {
+            log.info("Handling action, type: {}", action.getActionType());
+            boolean succeeded = false;
+            switch (action.getActionType()) {
+                case CREATE_ENTITY:         succeeded = createEntities(action); break;
+                case REMOVE_ENTITY:         succeeded = removeEntities(action); break;
+                case CREATE_RELATIONSHIP:   succeeded = establishRelationships(action.getRelationships()); break;
+                case REMOVE_RELATIONSHIP:   succeeded = removeRelationships(action.getRelationships()); break;
+            }
+            sink.success(succeeded);
+        });
     }
 
     // note: although it allows for multiple entities at once, to preserve integrity, any such multiple entities must
@@ -201,7 +205,7 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
 
     // may need to do this in order, hence a list
     private boolean establishRelationships(List<IncomingRelationship> relationships) {
-        log.info("creating relationship: {}", relationships);
+        log.info("Creating relationship: {}", relationships);
         return relationships.stream().map(this::createSingleRelationship).reduce(true, (a, b) -> a && b);
     }
 
@@ -212,8 +216,12 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
         if (!existenceBroker.doesEntityExistInGraph(tailEntity))
             existenceBroker.addEntityToGraph(tailEntity);
 
+        log.info("Completed existence check of tail");
+
         if (!existenceBroker.doesEntityExistInGraph(headEntity))
             existenceBroker.addEntityToGraph(headEntity);
+
+        log.info("Completed existence check of head");
 
         switch (relationship.getRelationshipType()) {
             case GENERATOR: return relationshipBroker.setGeneration(tailEntity, headEntity);

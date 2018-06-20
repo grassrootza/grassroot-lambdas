@@ -22,8 +22,10 @@ import java.util.Set;
 public class Actor extends GrassrootGraphEntity {
 
     @Id @GeneratedValue(strategy = UuidStrategy.class) private String id;
+    @Property protected Instant creationTime; // creation time _in graph_ (not necessarily on platform)
 
     @Property @Index(unique = true) protected String platformUid;
+
     @Property @Index private ActorType actorType;
 
     @Relationship(type = GrassrootRelationship.TYPE_PARTICIPATES)
@@ -35,21 +37,6 @@ public class Actor extends GrassrootGraphEntity {
     @Relationship(type = GrassrootRelationship.TYPE_GENERATOR, direction = Relationship.INCOMING)
     private Actor createdByActor;
 
-    @Relationship(type = GrassrootRelationship.TYPE_GENERATOR, direction = Relationship.OUTGOING)
-    private Set<Event> createdEvents;
-
-    @Relationship(type = GrassrootRelationship.TYPE_GENERATOR, direction = Relationship.OUTGOING)
-    private Set<Actor> createdActors;
-
-    @Relationship(type = GrassrootRelationship.TYPE_GENERATOR, direction = Relationship.OUTGOING)
-    private Set<Actor> createdInteractions;
-
-    @Relationship(type = GrassrootRelationship.TYPE_PARTICIPATES, direction = Relationship.OUTGOING)
-    private Set<Actor> participatesInInteractions;
-
-    @Relationship(type = GrassrootRelationship.TYPE_PARTICIPATES, direction = Relationship.INCOMING)
-    private Set<Event> participatingEvents;
-
     // for JSON, JPA, etc
     public Actor() {
         this.entityType = GraphEntityType.ACTOR;
@@ -60,23 +47,22 @@ public class Actor extends GrassrootGraphEntity {
         this.platformUid = platformId;
     }
 
+    public Set<ActorInActor> getParticipatesInActors() {
+        if (participatesInActors == null)
+            this.participatesInActors = new HashSet<>();
+        return this.participatesInActors;
+    }
+
     public void addParticipatesInActor(Actor actor) {
         if (this.participatesInActors == null)
-            this.participatesInActors = new HashSet();
+            this.participatesInActors = new HashSet<>();
         this.participatesInActors.add(new ActorInActor(this, actor, Instant.now())); // todo : get from incoming
     }
 
     public void addParticipatesInEvent(Event event) {
         if (this.participatesInEvents == null)
-            this.participatingEvents = new HashSet<>();
+            this.participatesInEvents = new HashSet<>();
         this.participatesInEvents.add(new ActorInEvent(this, event));
-    }
-
-    public void addGenerator(GrassrootGraphEntity graphEntity) {
-        if (!GraphEntityType.ACTOR.equals(graphEntity.getEntityType())) {
-            throw new IllegalArgumentException("Error! Only actors can generate actors");
-        }
-        this.createdByActor = (Actor) graphEntity;
     }
 
     @Override
@@ -99,6 +85,7 @@ public class Actor extends GrassrootGraphEntity {
                 ", platformUid='" + platformUid + '\'' +
                 ", actorType=" + actorType +
                 ", creationTime=" + creationTime +
+                ", participant size=" + getParticipatesInActors().size() +
                 '}';
     }
 }

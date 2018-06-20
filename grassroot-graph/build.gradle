@@ -1,6 +1,6 @@
 buildscript {
 	ext {
-		springBootVersion = '2.0.2.RELEASE'
+		springBootVersion = '2.0.3.RELEASE'
 	}
 	repositories {
 		jcenter()
@@ -42,6 +42,7 @@ dependencies {
 	compile('org.springframework.boot:spring-boot-starter-data-neo4j')
 
 	compile 'software.amazon.awssdk:sqs' // v2 hence different naming
+	compile group: 'io.projectreactor', name: 'reactor-core', version: '3.1.8.RELEASE'
 
 	compile group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.9.5'
 	compile group: 'com.fasterxml.jackson.datatype', name: 'jackson-datatype-jsr310', version: '2.9.5'

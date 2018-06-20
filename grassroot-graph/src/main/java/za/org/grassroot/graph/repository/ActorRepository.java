@@ -17,6 +17,8 @@ public interface ActorRepository extends Neo4jRepository<Actor, String> {
 
     Actor findByPlatformUid(String platformId);
 
+    Actor findByPlatformUid(String platformId, int depth);
+
     long countByPlatformUid(final String platformUid);
 
     Collection<Actor> findByPlatformUidIn(Collection<String> platformIds);

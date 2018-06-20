@@ -26,4 +26,14 @@ public class ActorInActor {
         this.participatesIn = participatesIn;
         this.establishedTime = establishedTime;
     }
+
+    @Override
+    public String toString() {
+        return "ActorInActor{" +
+                "id='" + id + '\'' +
+                ", participant=" + participant +
+                ", participatesIn=" + participatesIn +
+                ", establishedTime=" + establishedTime +
+                '}';
+    }
 }

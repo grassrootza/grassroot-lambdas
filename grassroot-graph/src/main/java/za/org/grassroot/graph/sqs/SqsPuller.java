@@ -6,10 +6,12 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import reactor.core.scheduler.Schedulers;
 import software.amazon.awssdk.core.auth.SystemPropertyCredentialsProvider;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.core.regions.Region;
 import software.amazon.awssdk.services.sqs.SQSClient;
+import software.amazon.awssdk.services.sqs.model.ChangeMessageVisibilityResponse;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse;
 
 import javax.annotation.PostConstruct;
@@ -69,7 +71,7 @@ public class SqsPuller {
         }
     }
 
-    @Scheduled(fixedRate = 10000)
+    @Scheduled(fixedRate = 15000)
     public void readDataFromSqs() {
         log.info("Pulling from SQS ... queue: {}", sqsUrl);
 
@@ -79,7 +81,7 @@ public class SqsPuller {
         }
 
         ReceiveMessageResponse response  = sqs.receiveMessage(builder -> builder.queueUrl(sqsUrl)
-            .maxNumberOfMessages(3));
+            .maxNumberOfMessages(5));
 
         if (response.messages() == null || response.messages().isEmpty()) {
             log.info("empty message queue, exiting, messages: {}", response.messages());
@@ -89,7 +91,31 @@ public class SqsPuller {
         log.info("Fetched {} messages", response.messages().size());
 
         response.messages().forEach(message -> {
-            sqsProcessor.handleSqsMessage(message, sqs);
+            log.info("Setting up subscription for {}", message.receiptHandle());
+            long timeEstimate = sqsProcessor.estimateProcessingTime(message);
+
+            log.info("Processing message, estimating {} msecs, handle {}", timeEstimate, message.receiptHandle());
+            if (timeEstimate > QUEUE_DEFAULT_TIME) {
+                ChangeMessageVisibilityResponse extendVisibilityResponse = sqs.changeMessageVisibility(builder -> builder
+                        .queueUrl(sqsUrl)
+                        .receiptHandle(message.receiptHandle())
+                    .visibilityTimeout((int) (timeEstimate / 1000)));
+                log.info("Visibility change response: {}", extendVisibilityResponse.toString());
+            }
+
+            sqsProcessor.handleSqsMessage(message)
+                    .subscribeOn(Schedulers.elastic())
+                    .subscribe(success -> {
+                        log.info("Successfully handled message? : {}", success);
+                        if (success) {
+                            try {
+                                sqs.deleteMessage(builder -> builder.queueUrl(sqsUrl).receiptHandle(message.receiptHandle()));
+                                log.info("Message handled, deleted");
+                            } catch (SdkClientException e) {
+                                log.error("Error deleting message with handle: {}", message.receiptHandle());
+                            }
+                        }
+                    });
         });
     }
 
