@@ -5,6 +5,7 @@ import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.neo4j.ogm.annotation.*;
 import org.neo4j.ogm.id.UuidStrategy;
+import za.org.grassroot.graph.domain.enums.InteractionType;
 import za.org.grassroot.graph.domain.enums.GraphEntityType;
 
 import java.time.Instant;
@@ -17,6 +18,8 @@ public class Interaction extends GrassrootGraphEntity {
 
     @Id @GeneratedValue(strategy = UuidStrategy.class) String id;
     @Property protected Instant creationTime; // creation time _in graph_ (not necessarily on platform)
+
+    @Property private InteractionType interactionType;
 
     @Relationship(type = "GENERATOR", direction = Relationship.INCOMING)
     private Actor initiator;

@@ -5,6 +5,7 @@ import lombok.Setter;
 import org.springframework.util.StringUtils;
 import za.org.grassroot.graph.domain.enums.ActorType;
 import za.org.grassroot.graph.domain.enums.EventType;
+import za.org.grassroot.graph.domain.enums.InteractionType;
 import za.org.grassroot.graph.domain.enums.GraphEntityType;
 
 @Getter @Setter
@@ -15,6 +16,7 @@ public class PlatformEntityDTO {
 
     private ActorType actorType;
     private EventType eventType;
+    private InteractionType interactionType;
 
     public PlatformEntityDTO(String platformId, GraphEntityType entityType, String subType) {
         this.platformId = platformId;
@@ -35,6 +37,10 @@ public class PlatformEntityDTO {
             if (isEvent()) {
                 this.eventType = EventType.valueOf(givenSubType);
             }
+
+            if (isInteraction()) {
+                this.interactionType = InteractionType.valueOf(givenSubType);
+            }
         }
     }
 
@@ -44,5 +50,9 @@ public class PlatformEntityDTO {
 
     public boolean isEvent() {
         return GraphEntityType.EVENT.equals(entityType);
+    }
+
+    public boolean isInteraction() {
+        return GraphEntityType.INTERACTION.equals(entityType);
     }
 }

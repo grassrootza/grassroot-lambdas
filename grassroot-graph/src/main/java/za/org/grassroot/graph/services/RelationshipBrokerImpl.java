@@ -44,12 +44,13 @@ public class RelationshipBrokerImpl implements RelationshipBroker {
             log.info("Got participates in entity: {}", participatesInActor);
             return addParticipantToActor(participantActor, participatesInActor);
         } else if (participant.isActor() && participatesIn.isEvent()) {
-            log.info("Wiring up event participation");
             Actor participantActor = actorRepository.findByPlatformUid(participant.getPlatformId(), 0);
-            log.info("Got participant entity: {}", participantActor);
             Event event = eventRepository.findByPlatformUid(participatesIn.getPlatformId(), 0);
-            log.info("Got participates in event: {}", event);
             return addParticipantToEvent(participantActor, event);
+        } else if (participant.isEvent() && participatesIn.isActor()) {
+            Event participantEvent = eventRepository.findByPlatformUid(participant.getPlatformId(), 0);
+            Actor actor = actorRepository.findByPlatformUid(participatesIn.getPlatformId(), 0);
+            return addEventToActor(participantEvent, actor);
         }
         return false;
     }
@@ -65,6 +66,10 @@ public class RelationshipBrokerImpl implements RelationshipBroker {
             Actor participantActor = actorRepository.findByPlatformUid(participant.getPlatformId(), 0);
             Event event = eventRepository.findByPlatformUid(participatesIn.getPlatformId(), 0);
             return removeParticipantToEvent(participantActor, event);
+        } else if (participant.isEvent() && participatesIn.isActor()) {
+            Event participantEvent = eventRepository.findByPlatformUid(participant.getPlatformId(), 0);
+            Actor actor = actorRepository.findByPlatformUid(participatesIn.getPlatformId(), 0);
+            return removeEventToActor(participantEvent, actor);
         }
         return false;
     }
@@ -80,7 +85,7 @@ public class RelationshipBrokerImpl implements RelationshipBroker {
             Actor actor = actorRepository.findByPlatformUid(generator.getPlatformId(), 0);
             Event event = eventRepository.findByPlatformUid(generated.getPlatformId(), 0);
             return addGeneratingActorToEvent(actor, event);
-        } else if (generator.isActor() && !(generated.isActor() || generated.isEvent())) {
+        } else if (generator.isActor() && generated.isInteraction()) {
             Actor actor = actorRepository.findByPlatformUid(generator.getPlatformId(), 0);
             Interaction interaction = interactionRepository.findByPlatformUid(generated.getPlatformId(), 0);
             return addGeneratingActorToInteraction(actor, interaction);
@@ -111,6 +116,13 @@ public class RelationshipBrokerImpl implements RelationshipBroker {
         return true;
     }
 
+    private boolean addEventToActor(Event participant, Actor actor) {
+        validateEntitiesExist(participant, actor);
+        participant.addParticipatesInActor(actor);
+        eventRepository.save(participant);
+        return true;
+    }
+
     private boolean removeParticipantToActor(Actor participantActor, Actor participatesIn) {
         validateEntitiesExist(participant, participatesIn);
         ActorInActor relationship = participantActor.getParticipatesInActors().stream()
@@ -124,6 +136,13 @@ public class RelationshipBrokerImpl implements RelationshipBroker {
         ActorInEvent relationship = participantActor.getParticipatesInEvents().stream()
                 .filter(AinE -> AinE.getParticipatesIn().equals(event)).findAny().get();
         session.delete(relationship, 0);
+        return true;
+    }
+
+    private boolean removeEventToActor(Event participant, Actor actor) {
+        validateEntitiesExist(participant, actor);
+        participant.removeParticipatesInActor(actor);
+        eventRepository.save(participant);
         return true;
     }
 

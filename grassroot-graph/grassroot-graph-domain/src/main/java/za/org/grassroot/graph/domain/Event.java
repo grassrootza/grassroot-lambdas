@@ -56,6 +56,10 @@ public class Event extends GrassrootGraphEntity {
         this.participatesIn.add(actor);
     }
 
+    public void removeParticipatesInActor(Actor actor) {
+        this.participatesIn.remove(actor);
+    }
+
     public void addChildEvent(Event event) {
         if (this.childEvents == null)
             this.childEvents = new ArrayList<>();
