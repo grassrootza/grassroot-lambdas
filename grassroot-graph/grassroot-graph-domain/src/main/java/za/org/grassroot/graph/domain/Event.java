@@ -27,15 +27,11 @@ public class Event extends GrassrootGraphEntity {
 
     @Property private long eventStartTimeEpochMilli;
 
-    // todo someone has to generate the event (= creator), but we want some form of parent mapping (other side of below)
-    @Relationship(type = "GENERATOR", direction = Relationship.INCOMING)
-    private Actor creator;
-
-    @Relationship(type = "PARTICIPATES", direction = Relationship.INCOMING)
-    private List<ActorInEvent> participants;
-
     @Relationship(type = "PARTICIPATES", direction = Relationship.OUTGOING)
     private List<Actor> participatesIn;
+
+    @Relationship(type = "GENERATOR", direction = Relationship.INCOMING)
+    private Actor creator;
 
     @Relationship(type = "GENERATOR", direction = Relationship.OUTGOING)
     private List<Event> childEvents;
@@ -54,10 +50,22 @@ public class Event extends GrassrootGraphEntity {
         this.platformUid = platformId;
     }
 
-    public void addParticipatingActor(Actor actor) {
-        if (this.participants == null)
-            this.participants = new ArrayList<>();
-        this.participants.add(new ActorInEvent(actor, this));
+    public void addParticipatesInActor(Actor actor) {
+        if (this.participatesIn == null)
+            participatesIn = new ArrayList<>();
+        this.participatesIn.add(actor);
+    }
+
+    public void addChildEvent(Event event) {
+        if (this.childEvents == null)
+            this.childEvents = new ArrayList<>();
+        this.childEvents.add(event);
+    }
+
+    public void addChildInteraction(Interaction interaction) {
+        if (this.childInteractions == null)
+            this.childInteractions = new ArrayList<>();
+        this.childInteractions.add(interaction);
     }
 
     @Override

@@ -103,7 +103,7 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
         try {
             switch (dataObject.getEntityType()) {
                 case ACTOR:         actorRepository.save((Actor) dataObject.getGraphEntity()); break;
-                case EVENT:         eventRepository.save(replaceRelationshipEntities((Event) dataObject.getGraphEntity()), 0); break;
+                case EVENT:         eventRepository.save((Event) dataObject.getGraphEntity()); break;
                 case INTERACTION:   interactionRepository.save((Interaction) dataObject.getGraphEntity()); break;
             }
             return true;
@@ -112,44 +112,6 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
             return false;
         }
     }
-
-    private Event replaceRelationshipEntities(Event event) {
-        event.setParticipatesIn(transformToGraphActors(event.getParticipatesIn()));
-//        event.setCreator(replaceWithGraphEntityIfPresent(event.getCreator()));
-//        event.setParticipants(transformToGraphActors(event.getParticipants()));
-        return event;
-    }
-
-    // todo : replace entity collections with sets instead of lists to clean this all up (and better matches data structure too)
-    private List<Actor> transformToGraphActors(List<Actor> actors) {
-        return actors == null ? new ArrayList<>() :
-                new ArrayList<>(storeActorsNotInGraph(new HashSet<>(actors)));
-    }
-
-    private GrassrootGraphEntity replaceWithGraphEntityIfPresent(GrassrootGraphEntity graphEntity) {
-        switch (graphEntity.getEntityType()) {
-            case ACTOR: return replaceWithGraphActorIfPresent((Actor) graphEntity);
-            case EVENT: return replaceWithGraphEventIfPresent((Event) graphEntity);
-            case INTERACTION: return replaceWithGraphInteractionIfPresent((Interaction) graphEntity);
-            default: throw new IllegalArgumentException("Unsupported entity type in graph entity swap");
-        }
-    }
-
-    private Actor replaceWithGraphActorIfPresent(Actor actor) {
-        Actor actorInGraph = actorRepository.findByPlatformUid(actor.getPlatformUid());
-        return actorInGraph != null ? actorInGraph : actor;
-    }
-
-    private Event replaceWithGraphEventIfPresent(Event event) {
-        Event eventInGraph = eventRepository.findByPlatformUid(event.getPlatformUid());
-        return eventInGraph != null ? eventInGraph : event;
-    }
-
-    private Interaction replaceWithGraphInteractionIfPresent(Interaction interaction) {
-        Interaction intInGraph = interactionRepository.findByPlatformUid(interaction.getPlatformUid());
-        return intInGraph != null ? intInGraph : interaction;
-    }
-
 
     private boolean entityExists(GrassrootGraphEntity graphEntity) {
         switch (graphEntity.getEntityType()) {
@@ -189,21 +151,23 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
         return action.getDataObjects().stream().map(this::removeSingleEntity).reduce(true, (a, b) -> a && b);
     }
 
+    // to-do: transition existence check to existenceBroker.
     private boolean removeSingleEntity(IncomingDataObject dataObject) {
-        try {
-            switch (dataObject.getEntityType()) {
-                case ACTOR:         actorRepository.delete((Actor) dataObject.getGraphEntity()); break;
-                case EVENT:         eventRepository.delete((Event) dataObject.getGraphEntity()); break;
-                case INTERACTION:   interactionRepository.delete((Interaction) dataObject.getGraphEntity()); break;
-            }
-            return true;
-        } catch (IllegalArgumentException e) {
-            log.error("error removing graph entity: ", e);
+        if (!existenceBroker.doesEntityExistInGraph(dataObject.getGraphEntity().getPlatformUid())) {
+            log.error("Entity does not exist in graph");
             return false;
         }
+
+        switch (dataObject.getEntityType()) {
+            case ACTOR:         actorRepository.delete((Actor) dataObject.getGraphEntity()); break;
+            case EVENT:         eventRepository.delete((Event) dataObject.getGraphEntity()); break;
+            case INTERACTION:   interactionRepository.delete((Interaction) dataObject.getGraphEntity()); break;
+        }
+        return true;
     }
 
     // may need to do this in order, hence a list
+    // Update: should not need to be in order with elimination of fifo and integration of existence broker?
     private boolean establishRelationships(List<IncomingRelationship> relationships) {
         log.info("Creating relationship: {}", relationships);
         return relationships.stream().map(this::createSingleRelationship).reduce(true, (a, b) -> a && b);
@@ -239,18 +203,15 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
     }
 
     private boolean removeSingleRelationship(IncomingRelationship relationship) {
-        GrassrootGraphEntity headEntity = fetchGraphEntity(relationship.getHeadEntityType(), relationship.getHeadEntityPlatformId(), 0);
         GrassrootGraphEntity tailEntity = fetchGraphEntity(relationship.getTailEntityType(), relationship.getTailEntityPlatformId(), 0);
+        GrassrootGraphEntity headEntity = fetchGraphEntity(relationship.getHeadEntityType(), relationship.getHeadEntityPlatformId(), 0);
 
-        if (headEntity == null || tailEntity == null) {
-            log.error("received a relationship that has invalid head or tail");
-            return false;
-        }
+        if (tailEntity == null || headEntity == null)
+            return true; // by definition, execution succeeded
 
         switch (relationship.getRelationshipType()) {
             case PARTICIPATES:
-//                headEntity.removeParticipant(tailEntity);
-                return persistGraphEntity(tailEntity);
+                return relationshipBroker.removeParticipation(tailEntity, headEntity);
             case GENERATOR:
                 throw new IllegalArgumentException("Error! Cannot remove generator relationship");
             case OBSERVES:
