@@ -71,7 +71,7 @@ public class SqsPuller {
         }
     }
 
-    @Scheduled(fixedRate = 15000)
+    @Scheduled(fixedRate = 10000)
     public void readDataFromSqs() {
         log.info("Pulling from SQS ... queue: {}", sqsUrl);
 
@@ -81,7 +81,7 @@ public class SqsPuller {
         }
 
         ReceiveMessageResponse response  = sqs.receiveMessage(builder -> builder.queueUrl(sqsUrl)
-            .maxNumberOfMessages(5));
+            .maxNumberOfMessages(2));
 
         if (response.messages() == null || response.messages().isEmpty()) {
             log.info("empty message queue, exiting, messages: {}", response.messages());

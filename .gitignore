@@ -8,6 +8,7 @@ notificationRollUp/**
 storeImageAnalysis/**
 accountRefCRUD/**
 izweLami/**
+chargebeeIntegration/**
 **/testing.env.variables
 **/run_local.sh
 **/env.json
