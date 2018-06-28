@@ -102,7 +102,11 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
         try {
             switch (dataObject.getEntityType()) {
                 case ACTOR:         actorRepository.save((Actor) dataObject.getGraphEntity()); break;
-                case EVENT:         eventRepository.save((Event) dataObject.getGraphEntity()); break;
+                case EVENT:
+                    log.debug("Persisting new event entity: {}", dataObject.getGraphEntity());
+                    eventRepository.save((Event) dataObject.getGraphEntity());
+                    log.debug("New event entity persisted.");
+                    break;
                 case INTERACTION:   interactionRepository.save((Interaction) dataObject.getGraphEntity()); break;
             }
             return true;

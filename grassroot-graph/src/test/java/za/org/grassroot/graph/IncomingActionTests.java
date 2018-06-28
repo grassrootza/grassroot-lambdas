@@ -141,6 +141,44 @@ public class IncomingActionTests {
         cleanDb();
     }
 
+    @Test
+    @Rollback
+    public void createEventAndEventToActorRelationship() {
+        log.debug("Testing to check event persistence doesn't cause duplication...");
+        Event graphEvent = new Event(EventType.MEETING, TEST_ENTITY_PREFIX + "meeting", Instant.now().toEpochMilli());
+        Actor participatesIn = new Actor(ActorType.GROUP, TEST_ENTITY_PREFIX + "participatesIn");
+        List<Actor> participatingActors = IntStream.range(0, 10)
+                .mapToObj(index -> new Actor(ActorType.INDIVIDUAL, TEST_ENTITY_PREFIX + "participant-" + index)).collect(Collectors.toList());
+
+        log.debug("Persisting actors to database, excluding event.");
+        List<IncomingDataObject> graphDataObjects = new ArrayList<>();
+        graphDataObjects.add(new IncomingDataObject(GraphEntityType.ACTOR, participatesIn));
+        graphDataObjects.addAll(participatingActors.stream().map(a -> new IncomingDataObject(GraphEntityType.ACTOR, a))
+                .collect(Collectors.toList()));
+        IncomingGraphAction graphAction = new IncomingGraphAction(TEST_ENTITY_PREFIX + "actors", ActionType.CREATE_ENTITY,
+                graphDataObjects, null);
+        incomingActionProcessor.processIncomingAction(graphAction);
+        assertThat(actorRepository.findByPlatformUidContaining(TEST_ENTITY_PREFIX).size(), is(11));
+
+        log.debug("Creating participatory actor-event relationships, then persisting event.");
+        for (Actor actor: participatingActors) actor.addParticipatesInEvent(graphEvent);
+        IncomingDataObject eventDataObject = new IncomingDataObject(GraphEntityType.EVENT, graphEvent);
+        incomingActionProcessor.processIncomingAction(new IncomingGraphAction(TEST_ENTITY_PREFIX + "event",
+                ActionType.CREATE_ENTITY, Collections.singletonList(eventDataObject), null));
+        assertThat(eventRepository.findByPlatformUid(graphEvent.getPlatformUid()), notNullValue());
+        assertThat(actorRepository.findByPlatformUidContaining(TEST_ENTITY_PREFIX).size(), is(11));
+
+        log.debug("Persisting event-in-actor relationship, event has 10 attached actors.");
+        IncomingRelationship relationship = new IncomingRelationship(graphEvent.getPlatformUid(), GraphEntityType.EVENT,
+                EventType.MEETING, participatesIn.getPlatformUid(), GraphEntityType.ACTOR,
+                ActorType.GROUP, GrassrootRelationship.Type.PARTICIPATES);
+        incomingActionProcessor.processIncomingAction(new IncomingGraphAction(TEST_ENTITY_PREFIX + "eventToActor",
+                ActionType.CREATE_RELATIONSHIP, null, Collections.singletonList(relationship)));
+        assertThat(actorRepository.findByPlatformUidContaining(TEST_ENTITY_PREFIX).size(), is(11));
+
+        cleanDb();
+    }
+
     @After
     public void cleanDb() {
         actorRepository.deleteByPlatformUidContaining(TEST_ENTITY_PREFIX);

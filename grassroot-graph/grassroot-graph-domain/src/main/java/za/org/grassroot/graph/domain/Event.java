@@ -21,7 +21,7 @@ public class Event extends GrassrootGraphEntity {
     @Id @GeneratedValue(strategy = UuidStrategy.class) private String id;
     @Property protected Instant creationTime; // creation time _in graph_ (not necessarily on platform)
 
-    @Property @Index private String platformUid;
+    @Property @Index(unique=true) private String platformUid;
 
     @Property private EventType eventType;
 

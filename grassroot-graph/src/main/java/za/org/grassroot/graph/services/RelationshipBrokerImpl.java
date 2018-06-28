@@ -118,7 +118,9 @@ public class RelationshipBrokerImpl implements RelationshipBroker {
     private boolean addEventToActor(Event participant, Actor actor) {
         validateEntitiesExist(participant, actor);
         participant.addParticipatesInActor(actor);
+        log.debug("Persisting participation relationship for event {} in actor {}", participant, actor);
         eventRepository.save(participant);
+        log.debug("Relationship persisted.");
         return true;
     }
 
