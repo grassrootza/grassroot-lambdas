@@ -39,7 +39,7 @@ public class Event extends GrassrootGraphEntity {
     @Relationship(type = "GENERATOR", direction = Relationship.OUTGOING)
     private List<Interaction> childInteractions;
 
-    private Event() {
+    public Event() {
         this.entityType = GraphEntityType.EVENT;
     }
 

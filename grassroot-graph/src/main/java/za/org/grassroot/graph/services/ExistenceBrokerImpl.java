@@ -57,7 +57,6 @@ public class ExistenceBrokerImpl implements ExistenceBroker {
                 return true;
             case INTERACTION:
                 Interaction interaction = new Interaction();
-                interaction.setPlatformUid(platformEntity.getPlatformId());
                 if (platformEntity.getInteractionType() != null)
                     interaction.setInteractionType(platformEntity.getInteractionType());
                 interactionRepository.save(interaction);

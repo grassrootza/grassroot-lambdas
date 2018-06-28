@@ -5,8 +5,8 @@ import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.neo4j.ogm.annotation.*;
 import org.neo4j.ogm.id.UuidStrategy;
-import za.org.grassroot.graph.domain.enums.InteractionType;
 import za.org.grassroot.graph.domain.enums.GraphEntityType;
+import za.org.grassroot.graph.domain.enums.InteractionType;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -27,7 +27,7 @@ public class Interaction extends GrassrootGraphEntity {
     @Relationship(type = "PARTICIPATES", direction = Relationship.INCOMING)
     private List<Actor> participants;
 
-    private Interaction() {
+    public Interaction() {
         this.entityType = GraphEntityType.INTERACTION;
     }
 

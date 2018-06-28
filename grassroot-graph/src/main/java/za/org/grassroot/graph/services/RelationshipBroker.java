@@ -1,5 +1,7 @@
 package za.org.grassroot.graph.services;
 
+import za.org.grassroot.graph.domain.GrassrootGraphEntity;
+
 public interface RelationshipBroker {
 
     boolean addParticipation(PlatformEntityDTO participant, PlatformEntityDTO participatesIn);

@@ -8,7 +8,11 @@ public interface InteractionRepository extends Neo4jRepository<Interaction, Stri
 
     Interaction findByPlatformUid(String platformId);
 
+    Interaction findByPlatformUid(String platformId, int depth);
+
     @Transactional
     Long deleteByPlatformUidContaining(String platformUidFragment);
+
+    long countByPlatformUid(String platformUid);
 
 }

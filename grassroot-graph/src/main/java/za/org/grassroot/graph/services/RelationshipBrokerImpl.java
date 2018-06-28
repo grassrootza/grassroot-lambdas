@@ -6,8 +6,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import za.org.grassroot.graph.domain.Actor;
 import za.org.grassroot.graph.domain.Event;
-import za.org.grassroot.graph.domain.Interaction;
 import za.org.grassroot.graph.domain.GrassrootGraphEntity;
+import za.org.grassroot.graph.domain.Interaction;
 import za.org.grassroot.graph.domain.relationship.ActorInActor;
 import za.org.grassroot.graph.domain.relationship.ActorInEvent;
 import za.org.grassroot.graph.repository.ActorRepository;
@@ -15,7 +15,6 @@ import za.org.grassroot.graph.repository.EventRepository;
 import za.org.grassroot.graph.repository.InteractionRepository;
 
 import java.time.Instant;
-import java.util.stream.Collectors;
 
 @Service @Slf4j
 public class RelationshipBrokerImpl implements RelationshipBroker {
@@ -59,16 +58,16 @@ public class RelationshipBrokerImpl implements RelationshipBroker {
     @Transactional
     public boolean removeParticipation(GrassrootGraphEntity participant, GrassrootGraphEntity participatesIn) {
         if (participant.isActor() && participatesIn.isActor()) {
-            Actor participantActor = actorRepository.findByPlatformUid(participant.getPlatformId(), 0);
-            Actor participatesInActor = actorRepository.findByPlatformUid(participatesIn.getPlatformId(), 0);
+            Actor participantActor = actorRepository.findByPlatformUid(participant.getPlatformUid(), 0);
+            Actor participatesInActor = actorRepository.findByPlatformUid(participatesIn.getPlatformUid(), 0);
             return removeParticipantToActor(participantActor, participatesInActor);
         } else if (participant.isActor() && participatesIn.isEvent()) {
-            Actor participantActor = actorRepository.findByPlatformUid(participant.getPlatformId(), 0);
-            Event event = eventRepository.findByPlatformUid(participatesIn.getPlatformId(), 0);
+            Actor participantActor = actorRepository.findByPlatformUid(participant.getPlatformUid(), 0);
+            Event event = eventRepository.findByPlatformUid(participatesIn.getPlatformUid(), 0);
             return removeParticipantToEvent(participantActor, event);
         } else if (participant.isEvent() && participatesIn.isActor()) {
-            Event participantEvent = eventRepository.findByPlatformUid(participant.getPlatformId(), 0);
-            Actor actor = actorRepository.findByPlatformUid(participatesIn.getPlatformId(), 0);
+            Event participantEvent = eventRepository.findByPlatformUid(participant.getPlatformUid(), 0);
+            Actor actor = actorRepository.findByPlatformUid(participatesIn.getPlatformUid(), 0);
             return removeEventToActor(participantEvent, actor);
         }
         return false;
@@ -111,7 +110,7 @@ public class RelationshipBrokerImpl implements RelationshipBroker {
 
     private boolean addParticipantToEvent(Actor participant, Event event) {
         validateEntitiesExist(participant, event);
-        ActorInEvent relationship = new ActorInEvent(participant, event, Instant.now());
+        ActorInEvent relationship = new ActorInEvent(participant, event);
         session.save(relationship, 0);
         return true;
     }
@@ -124,18 +123,18 @@ public class RelationshipBrokerImpl implements RelationshipBroker {
     }
 
     private boolean removeParticipantToActor(Actor participantActor, Actor participatesIn) {
-        validateEntitiesExist(participant, participatesIn);
+        validateEntitiesExist(participantActor, participatesIn);
         ActorInActor relationship = participantActor.getParticipatesInActors().stream()
                 .filter(AinA -> AinA.getParticipatesIn().equals(participatesIn)).findAny().get();
-        session.delete(relationship, 0);
+        session.delete(relationship);
         return true;
     }
 
     private boolean removeParticipantToEvent(Actor participantActor, Event event) {
-        validateEntitiesExist(participant, event);
+        validateEntitiesExist(participantActor, event);
         ActorInEvent relationship = participantActor.getParticipatesInEvents().stream()
                 .filter(AinE -> AinE.getParticipatesIn().equals(event)).findAny().get();
-        session.delete(relationship, 0);
+        session.delete(relationship);
         return true;
     }
 
@@ -170,7 +169,7 @@ public class RelationshipBrokerImpl implements RelationshipBroker {
     private boolean addGeneratingEventToEvent(Event generator, Event generated) {
         validateEntitiesExist(generator, generated);
         generator.addChildEvent(generated); // todo : make not suck
-        generated.setCreator(generator); // include in addChildEvent?
+//        generated.setCreator(generator); // include in addChildEvent?
         eventRepository.save(generated);
         return true;
     }

@@ -16,7 +16,6 @@ import za.org.grassroot.graph.repository.ActorRepository;
 import za.org.grassroot.graph.repository.EventRepository;
 import za.org.grassroot.graph.repository.InteractionRepository;
 
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -153,7 +152,9 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
 
     // to-do: transition existence check to existenceBroker.
     private boolean removeSingleEntity(IncomingDataObject dataObject) {
-        if (!existenceBroker.doesEntityExistInGraph(dataObject.getGraphEntity().getPlatformUid())) {
+        PlatformEntityDTO entityDTO = new PlatformEntityDTO(dataObject.getGraphEntity().getPlatformUid(),
+                dataObject.getEntityType(), null);
+        if (!existenceBroker.doesEntityExistInGraph(entityDTO)) {
             log.error("Entity does not exist in graph");
             return false;
         }
