@@ -8,12 +8,13 @@ import org.neo4j.ogm.annotation.*;
 import org.neo4j.ogm.id.UuidStrategy;
 import za.org.grassroot.graph.domain.enums.EventType;
 import za.org.grassroot.graph.domain.enums.GraphEntityType;
+import za.org.grassroot.graph.domain.enums.GrassrootRelationship;
 import za.org.grassroot.graph.domain.relationship.ActorInEvent;
 
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashSet;
 import java.util.Objects;
+import java.util.Set;
 
 @NodeEntity @Getter @Setter @ToString @Slf4j
 public class Event extends GrassrootGraphEntity {
@@ -27,17 +28,17 @@ public class Event extends GrassrootGraphEntity {
 
     @Property private long eventStartTimeEpochMilli;
 
-    @Relationship(type = "PARTICIPATES", direction = Relationship.OUTGOING)
-    private List<Actor> participatesIn;
+    @Relationship(type = GrassrootRelationship.TYPE_PARTICIPATES)
+    private Set<Actor> participatesIn;
 
-    @Relationship(type = "GENERATOR", direction = Relationship.INCOMING)
-    private Actor creator;
+    @Relationship(type = GrassrootRelationship.TYPE_GENERATOR)
+    private Set<Event> childEvents;
 
-    @Relationship(type = "GENERATOR", direction = Relationship.OUTGOING)
-    private List<Event> childEvents;
+    @Relationship(type = GrassrootRelationship.TYPE_GENERATOR)
+    private Set<Interaction> childInteractions;
 
-    @Relationship(type = "GENERATOR", direction = Relationship.OUTGOING)
-    private List<Interaction> childInteractions;
+    @Relationship(type = GrassrootRelationship.TYPE_GENERATOR, direction = Relationship.INCOMING)
+    private GrassrootGraphEntity creator;
 
     public Event() {
         this.entityType = GraphEntityType.EVENT;
@@ -46,13 +47,15 @@ public class Event extends GrassrootGraphEntity {
     public Event(EventType eventType, String platformId, long startTimeMillis) {
         this();
         this.eventType = eventType;
-        this.eventStartTimeEpochMilli = startTimeMillis;
         this.platformUid = platformId;
+        this.eventStartTimeEpochMilli = startTimeMillis;
+
+        this.participatesIn = new HashSet<>();
+        this.childEvents = new HashSet<>();
+        this.childInteractions = new HashSet<>();
     }
 
     public void addParticipatesInActor(Actor actor) {
-        if (this.participatesIn == null)
-            participatesIn = new ArrayList<>();
         this.participatesIn.add(actor);
     }
 
@@ -61,14 +64,10 @@ public class Event extends GrassrootGraphEntity {
     }
 
     public void addChildEvent(Event event) {
-        if (this.childEvents == null)
-            this.childEvents = new ArrayList<>();
         this.childEvents.add(event);
     }
 
     public void addChildInteraction(Interaction interaction) {
-        if (this.childInteractions == null)
-            this.childInteractions = new ArrayList<>();
         this.childInteractions.add(interaction);
     }
 
@@ -84,4 +83,5 @@ public class Event extends GrassrootGraphEntity {
     public int hashCode() {
         return Objects.hash(id);
     }
+
 }

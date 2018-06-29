@@ -24,24 +24,13 @@ public class Interaction extends GrassrootGraphEntity {
     @Relationship(type = "GENERATOR", direction = Relationship.INCOMING)
     private Actor initiator;
 
-    @Relationship(type = "PARTICIPATES", direction = Relationship.INCOMING)
-    private List<Actor> participants;
-
     public Interaction() {
         this.entityType = GraphEntityType.INTERACTION;
     }
 
-    public Interaction(Actor initiator, Actor firstParticipant) {
+    public Interaction(Actor initiator) {
         this();
         this.initiator = initiator;
-        this.participants = new ArrayList<>();
-        this.participants.add(firstParticipant);
-    }
-
-    private void addParticipant(Actor participant) {
-        if (this.participants == null)
-            this.participants = new ArrayList<>();
-        this.participants.add(participant);
     }
 
     @Override
@@ -59,9 +48,7 @@ public class Interaction extends GrassrootGraphEntity {
 
     @Override
     public int hashCode() {
-
         return Objects.hash(id);
     }
-
 
 }

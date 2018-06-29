@@ -6,7 +6,7 @@ public interface RelationshipBroker {
 
     boolean addParticipation(PlatformEntityDTO participant, PlatformEntityDTO participatesIn);
 
-    boolean removeParticipation(GrassrootGraphEntity participant, GrassrootGraphEntity participatesIn);
+    boolean removeParticipation(PlatformEntityDTO participant, PlatformEntityDTO participatesIn);
 
     boolean setGeneration(PlatformEntityDTO generator, PlatformEntityDTO generated);
 

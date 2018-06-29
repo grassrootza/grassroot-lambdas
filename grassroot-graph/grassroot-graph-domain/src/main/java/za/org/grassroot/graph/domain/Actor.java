@@ -34,6 +34,9 @@ public class Actor extends GrassrootGraphEntity {
     @Relationship(type = GrassrootRelationship.TYPE_PARTICIPATES)
     private Set<ActorInEvent> participatesInEvents;
 
+    @Relationship(type = GrassrootRelationship.TYPE_PARTICIPATES)
+    private Set<Interaction> participatesInInteractions;
+
     @Relationship(type = GrassrootRelationship.TYPE_GENERATOR, direction = Relationship.INCOMING)
     private Actor createdByActor;
 
@@ -43,26 +46,21 @@ public class Actor extends GrassrootGraphEntity {
     }
 
     public Actor(ActorType actorType, String platformId) {
+        this();
         this.actorType = actorType;
         this.platformUid = platformId;
+
+        this.participatesInActors = new HashSet<>();
+        this.participatesInEvents = new HashSet<>();
+        this.participatesInInteractions = new HashSet<>();
     }
 
-    public Set<ActorInActor> getParticipatesInActors() {
-        if (participatesInActors == null)
-            this.participatesInActors = new HashSet<>();
-        return this.participatesInActors;
+    public void addParticipatesInInteraction(Interaction interaction) {
+        this.participatesInInteractions.add(interaction);
     }
 
-    public void addParticipatesInActor(Actor actor) {
-        if (this.participatesInActors == null)
-            this.participatesInActors = new HashSet<>();
-        this.participatesInActors.add(new ActorInActor(this, actor, Instant.now())); // todo : get from incoming
-    }
-
-    public void addParticipatesInEvent(Event event) {
-        if (this.participatesInEvents == null)
-            this.participatesInEvents = new HashSet<>();
-        this.participatesInEvents.add(new ActorInEvent(this, event));
+    public void removeParticipationInInteraction(Interaction interaction) {
+        this.participatesInInteractions.remove(interaction);
     }
 
     @Override
@@ -85,7 +83,10 @@ public class Actor extends GrassrootGraphEntity {
                 ", platformUid='" + platformUid + '\'' +
                 ", actorType=" + actorType +
                 ", creationTime=" + creationTime +
-                ", participant size=" + getParticipatesInActors().size() +
+                ", actor participant size=" + getParticipatesInActors().size() +
+                ", event participant size=" + getParticipatesInEvents().size() +
+                ", interaction participant size=" + getParticipatesInInteractions().size() +
                 '}';
     }
+
 }

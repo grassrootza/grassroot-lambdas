@@ -7,6 +7,7 @@ import org.springframework.transaction.annotation.Transactional;
 import za.org.grassroot.graph.domain.Actor;
 import za.org.grassroot.graph.domain.Event;
 import za.org.grassroot.graph.domain.GrassrootGraphEntity;
+import za.org.grassroot.graph.domain.enums.GraphEntityType;
 import za.org.grassroot.graph.domain.Interaction;
 import za.org.grassroot.graph.domain.relationship.ActorInActor;
 import za.org.grassroot.graph.domain.relationship.ActorInEvent;
@@ -34,66 +35,53 @@ public class RelationshipBrokerImpl implements RelationshipBroker {
 
     @Override
     @Transactional
-    public boolean addParticipation(PlatformEntityDTO participant, PlatformEntityDTO participatesIn) {
-        if (participant.isActor() && participatesIn.isActor()) {
-            log.info("Wiring up actor participation");
-            Actor participantActor = actorRepository.findByPlatformUid(participant.getPlatformId(), 0);
-            log.info("Got participant entity: {}", participantActor);
-            Actor participatesInActor = actorRepository.findByPlatformUid(participatesIn.getPlatformId(), 0);
-            log.info("Got participates in entity: {}", participatesInActor);
-            return addParticipantToActor(participantActor, participatesInActor);
-        } else if (participant.isActor() && participatesIn.isEvent()) {
-            Actor participantActor = actorRepository.findByPlatformUid(participant.getPlatformId(), 0);
-            Event event = eventRepository.findByPlatformUid(participatesIn.getPlatformId(), 0);
-            return addParticipantToEvent(participantActor, event);
-        } else if (participant.isEvent() && participatesIn.isActor()) {
-            Event participantEvent = eventRepository.findByPlatformUid(participant.getPlatformId(), 0);
-            Actor actor = actorRepository.findByPlatformUid(participatesIn.getPlatformId(), 0);
-            return addEventToActor(participantEvent, actor);
+    public boolean addParticipation(PlatformEntityDTO participantDTO, PlatformEntityDTO participatesInDTO) {
+        log.info("Wiring up participation addition");
+        GrassrootGraphEntity participant = fetchGraphEntity(participantDTO.getEntityType(), participantDTO.getPlatformId(), 0);
+        log.info("Got participant entity: {}", participant);
+        GrassrootGraphEntity participatesIn = fetchGraphEntity(participatesInDTO.getEntityType(), participatesInDTO.getPlatformId(), 0);
+        log.info("Got participates in entity: {}", participatesIn);
+
+        switch (participatesIn.getEntityType()) {
+            case ACTOR:         return addParticipantToActor(participant, (Actor) participatesIn);
+            case EVENT:         return addParticipantToEvent(participant, (Event) participatesIn);
+            case INTERACTION:   return addParticipantToInteraction(participant, (Interaction) participatesIn);
+            default:            log.error("Unsupported entity type provided"); return false;
         }
-        return false;
     }
 
     @Override
     @Transactional
-    public boolean removeParticipation(GrassrootGraphEntity participant, GrassrootGraphEntity participatesIn) {
-        if (participant.isActor() && participatesIn.isActor()) {
-            Actor participantActor = actorRepository.findByPlatformUid(participant.getPlatformUid(), 0);
-            Actor participatesInActor = actorRepository.findByPlatformUid(participatesIn.getPlatformUid(), 0);
-            return removeParticipantToActor(participantActor, participatesInActor);
-        } else if (participant.isActor() && participatesIn.isEvent()) {
-            Actor participantActor = actorRepository.findByPlatformUid(participant.getPlatformUid(), 0);
-            Event event = eventRepository.findByPlatformUid(participatesIn.getPlatformUid(), 0);
-            return removeParticipantToEvent(participantActor, event);
-        } else if (participant.isEvent() && participatesIn.isActor()) {
-            Event participantEvent = eventRepository.findByPlatformUid(participant.getPlatformUid(), 0);
-            Actor actor = actorRepository.findByPlatformUid(participatesIn.getPlatformUid(), 0);
-            return removeEventToActor(participantEvent, actor);
+    public boolean removeParticipation(PlatformEntityDTO participantDTO, PlatformEntityDTO participatesInDTO) {
+        log.info("Wiring up participation removal");
+        GrassrootGraphEntity participant = fetchGraphEntity(participantDTO.getEntityType(), participantDTO.getPlatformId(), 0);
+        log.info("Got participant entity: {}", participant);
+        GrassrootGraphEntity participatesIn = fetchGraphEntity(participatesInDTO.getEntityType(), participatesInDTO.getPlatformId(), 0);
+        log.info("Got participates in entity: {}", participatesIn);
+
+        switch (participatesIn.getEntityType()) {
+            case ACTOR:         return removeParticipantFromActor(participant, (Actor) participatesIn);
+            case EVENT:         return removeParticipantFromEvent(participant, (Event) participatesIn);
+            case INTERACTION:   return removeParticipantFromInteraction(participant, (Interaction) participatesIn);
+            default:            log.error("Unsupported entity type provided"); return false;
         }
-        return false;
     }
 
     @Override
     @Transactional
-    public boolean setGeneration(PlatformEntityDTO generator, PlatformEntityDTO generated) {
-        if (generator.isActor() && generated.isActor()) {
-            Actor generatorActor = actorRepository.findByPlatformUid(generator.getPlatformId(), 0);
-            Actor generatedActor = actorRepository.findByPlatformUid(generated.getPlatformId(), 0);
-            return addGeneratingActorToActor(generatorActor, generatedActor);
-        } else if (generator.isActor() && generated.isEvent()) {
-            Actor actor = actorRepository.findByPlatformUid(generator.getPlatformId(), 0);
-            Event event = eventRepository.findByPlatformUid(generated.getPlatformId(), 0);
-            return addGeneratingActorToEvent(actor, event);
-        } else if (generator.isActor() && generated.isInteraction()) {
-            Actor actor = actorRepository.findByPlatformUid(generator.getPlatformId(), 0);
-            Interaction interaction = interactionRepository.findByPlatformUid(generated.getPlatformId(), 0);
-            return addGeneratingActorToInteraction(actor, interaction);
-        } else if (generator.isEvent() && generated.isEvent()) {
-            Event generatorEvent = eventRepository.findByPlatformUid(generator.getPlatformId(), 0);
-            Event generatedEvent = eventRepository.findByPlatformUid(generated.getPlatformId(), 0);
-            return addGeneratingEventToEvent(generatorEvent, generatedEvent);
+    public boolean setGeneration(PlatformEntityDTO generatorDTO, PlatformEntityDTO generatedDTO) {
+        log.info("Wiring up generation");
+        GrassrootGraphEntity generator = fetchGraphEntity(generatorDTO.getEntityType(), generatorDTO.getPlatformId(), 0);
+        log.info("Got generator entity: {}", generator);
+        GrassrootGraphEntity generated = fetchGraphEntity(generatedDTO.getEntityType(), generatedDTO.getPlatformId(), 0);
+        log.info("Got generated entity: {}", generated);
+
+        switch (generated.getEntityType()) {
+            case ACTOR:         return setGeneratorForActor(generator, (Actor) generated);
+            case EVENT:         return setGeneratorForEvent(generator, (Event) generated);
+            case INTERACTION:   return setGeneratorForInteraction(generator, (Interaction) generated);
+            default:            log.error("Unsupported entity type provided"); return false;
         }
-        return false;
     }
 
     @Override
@@ -101,85 +89,125 @@ public class RelationshipBrokerImpl implements RelationshipBroker {
         return false;
     }
 
-    private boolean addParticipantToActor(Actor participant, Actor participatesIn) {
-        validateEntitiesExist(participant, participatesIn);
-        ActorInActor relationship = new ActorInActor(participant, participatesIn, Instant.now());
-        session.save(relationship, 0);
-        return true;
+    private boolean addParticipantToActor(GrassrootGraphEntity participantEntity, Actor actor) {
+        if (participantEntity.isActor()) {
+            ActorInActor relationship = new ActorInActor((Actor) participantEntity, actor, Instant.now());
+            session.save(relationship, 0);
+            return true;
+        } else if (participantEntity.isEvent()) {
+            Event participant = (Event) participantEntity;
+            participant.addParticipatesInActor(actor);
+            eventRepository.save(participant, 0);
+            return true;
+        }
+        log.error("Interaction cannot participate in actor");
+        return false;
     }
 
-    private boolean addParticipantToEvent(Actor participant, Event event) {
-        validateEntitiesExist(participant, event);
-        ActorInEvent relationship = new ActorInEvent(participant, event);
-        session.save(relationship, 0);
-        return true;
+    private boolean addParticipantToEvent(GrassrootGraphEntity participantEntity, Event event) {
+        if (participantEntity.isActor()) {
+            ActorInEvent relationship = new ActorInEvent((Actor) participantEntity, event);
+            session.save(relationship, 0);
+            return true;
+        }
+        log.error("Only actors can participate in events");
+        return false;
     }
 
-    private boolean addEventToActor(Event participant, Actor actor) {
-        validateEntitiesExist(participant, actor);
-        participant.addParticipatesInActor(actor);
-        log.debug("Persisting participation relationship for event {} in actor {}", participant, actor);
-        eventRepository.save(participant);
-        log.debug("Relationship persisted.");
-        return true;
+    private boolean addParticipantToInteraction(GrassrootGraphEntity participantEntity, Interaction interaction) {
+        if (participantEntity.isActor()) {
+            Actor participant = (Actor) participantEntity;
+            participant.addParticipatesInInteraction(interaction);
+            actorRepository.save(participant, 0);
+            return true;
+        }
+        log.error("Only actors can participate in interactions");
+        return false;
     }
 
-    private boolean removeParticipantToActor(Actor participantActor, Actor participatesIn) {
-        validateEntitiesExist(participantActor, participatesIn);
-        ActorInActor relationship = participantActor.getParticipatesInActors().stream()
-                .filter(AinA -> AinA.getParticipatesIn().equals(participatesIn)).findAny().get();
-        session.delete(relationship);
-        return true;
+    private boolean removeParticipantFromActor(GrassrootGraphEntity participantEntity, Actor actor) {
+        if (participantEntity.isActor()) {
+            Actor participant = (Actor) participantEntity;
+            ActorInActor relationship = participant.getParticipatesInActors().stream()
+                    .filter(AinA -> AinA.getParticipatesIn().equals(actor)).findAny().get();
+            session.delete(relationship);
+            return true;
+        } else if (participantEntity.isEvent()) {
+            Event participant = (Event) participantEntity;
+            participant.removeParticipatesInActor(actor);
+            eventRepository.save(participant);
+            return true;
+        }
+        log.error("Interaction cannot participate in actor");
+        return false;
     }
 
-    private boolean removeParticipantToEvent(Actor participantActor, Event event) {
-        validateEntitiesExist(participantActor, event);
-        ActorInEvent relationship = participantActor.getParticipatesInEvents().stream()
-                .filter(AinE -> AinE.getParticipatesIn().equals(event)).findAny().get();
-        session.delete(relationship);
-        return true;
+    private boolean removeParticipantFromEvent(GrassrootGraphEntity participantEntity, Event event) {
+        if (participantEntity.isActor()) {
+            Actor participant = (Actor) participantEntity;
+            ActorInEvent relationship = participant.getParticipatesInEvents().stream()
+                    .filter(AinE -> AinE.getParticipatesIn().equals(event)).findAny().get();
+            session.delete(relationship);
+            return true;
+        }
+        log.error("Only actors can participate in events");
+        return false;
     }
 
-    private boolean removeEventToActor(Event participant, Actor actor) {
-        validateEntitiesExist(participant, actor);
-        participant.removeParticipatesInActor(actor);
-        eventRepository.save(participant);
-        return true;
+    private boolean removeParticipantFromInteraction(GrassrootGraphEntity participantEntity, Interaction interaction) {
+        if (participantEntity.isActor()) {
+            Actor participant = (Actor) participantEntity;
+            participant.removeParticipationInInteraction(interaction);
+            actorRepository.save(participant, 0);
+            return true;
+        }
+        log.error("Only actors can participate in interactions");
+        return false;
     }
 
-    private boolean addGeneratingActorToActor(Actor generator, Actor generated) {
-        validateEntitiesExist(generator, generated);
-        generated.setCreatedByActor(generator);
-        actorRepository.save(generated);
-        return true;
+    private boolean setGeneratorForActor(GrassrootGraphEntity generatorEntity, Actor actor) {
+        if (generatorEntity.isActor()) {
+            actor.setCreatedByActor((Actor) generatorEntity);
+            actorRepository.save(actor);
+            return true;
+        }
+        log.error("Only actors can generate actors");
+        return false;
     }
 
-    private boolean addGeneratingActorToEvent(Actor generator, Event generated) {
-        validateEntitiesExist(generator, generated);
-        generated.setCreator(generator);
-        eventRepository.save(generated);
-        return true;
+    private boolean setGeneratorForEvent(GrassrootGraphEntity generatorEntity, Event event) {
+        if (generatorEntity.isActor()) {
+            event.setCreator(generatorEntity);
+            eventRepository.save(event);
+            return true;
+        } else if (generatorEntity.isEvent()) {
+            event.setCreator(generatorEntity);
+            Event generator = (Event) generatorEntity;
+            generator.addChildEvent(event);
+            eventRepository.save(generator, 1);
+            return true;
+        }
+        log.error("Interactions cannot generate events");
+        return false;
     }
 
-    private boolean addGeneratingActorToInteraction(Actor generator, Interaction generated) {
-        validateEntitiesExist(generator, generated);
-        generated.setInitiator(generator);
-        interactionRepository.save(generated);
-        return true;
+    private boolean setGeneratorForInteraction(GrassrootGraphEntity generatorEntity, Interaction interaction) {
+        if (generatorEntity.isActor()) {
+            interaction.setInitiator((Actor) generatorEntity);
+            interactionRepository.save(interaction);
+            return true;
+        }
+        log.error("Only actors can generate interactions");
+        return false;
     }
 
-    private boolean addGeneratingEventToEvent(Event generator, Event generated) {
-        validateEntitiesExist(generator, generated);
-        generator.addChildEvent(generated); // todo : make not suck
-//        generated.setCreator(generator); // include in addChildEvent?
-        eventRepository.save(generated);
-        return true;
+    private GrassrootGraphEntity fetchGraphEntity(GraphEntityType entityType, String platformId, int depth) {
+        switch (entityType) {
+            case ACTOR:         return actorRepository.findByPlatformUid(platformId, depth);
+            case EVENT:         return eventRepository.findByPlatformUid(platformId, depth);
+            case INTERACTION:   return interactionRepository.findById(platformId, depth).get();
+            default:            return null;
+        }
     }
 
-    private void validateEntitiesExist(GrassrootGraphEntity tailEntity, GrassrootGraphEntity headEntity) {
-        if (tailEntity == null)
-            throw new IllegalArgumentException("Error! Relationship broker assumes entities exist, but tail entity does not");
-        if (headEntity == null)
-            throw new IllegalArgumentException("Error! Relationship broker assumes entities exist, but head entity does not");
-    }
 }

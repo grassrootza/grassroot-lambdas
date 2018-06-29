@@ -10,6 +10,8 @@ import za.org.grassroot.graph.repository.ActorRepository;
 import za.org.grassroot.graph.repository.EventRepository;
 import za.org.grassroot.graph.repository.InteractionRepository;
 
+import java.time.Instant;
+
 @Service @Slf4j
 public class ExistenceBrokerImpl implements ExistenceBroker {
 
@@ -31,7 +33,7 @@ public class ExistenceBrokerImpl implements ExistenceBroker {
         switch (platformEntity.getEntityType()) {
             case ACTOR: return actorRepository.countByPlatformUid(platformEntity.getPlatformId()) > 0;
             case EVENT: return eventRepository.countByPlatformUid(platformEntity.getPlatformId()) > 0;
-            case INTERACTION: return interactionRepository.countByPlatformUid(platformEntity.getPlatformId()) > 0;
+            case INTERACTION: return interactionRepository.countById(platformEntity.getPlatformId()) > 0;
         }
         return false;
     }
@@ -51,6 +53,7 @@ public class ExistenceBrokerImpl implements ExistenceBroker {
             case EVENT:
                 Event event = new Event();
                 event.setPlatformUid(platformEntity.getPlatformId());
+                event.setEventStartTimeEpochMilli(Instant.now().toEpochMilli());
                 if (platformEntity.getActorType() != null)
                     event.setEventType(platformEntity.getEventType());
                 eventRepository.save(event);
@@ -64,6 +67,5 @@ public class ExistenceBrokerImpl implements ExistenceBroker {
         }
         return false;
     }
-
 
 }
