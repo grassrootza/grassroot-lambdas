@@ -12,6 +12,7 @@ import za.org.grassroot.graph.domain.Interaction;
 import za.org.grassroot.graph.dto.IncomingDataObject;
 import za.org.grassroot.graph.dto.IncomingGraphAction;
 import za.org.grassroot.graph.dto.IncomingRelationship;
+import za.org.grassroot.graph.dto.IncomingAnnotation;
 import za.org.grassroot.graph.repository.ActorRepository;
 import za.org.grassroot.graph.repository.EventRepository;
 import za.org.grassroot.graph.repository.InteractionRepository;
@@ -31,14 +32,18 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
 
     private final ExistenceBroker existenceBroker;
     private final RelationshipBroker relationshipBroker;
+    private final AnnotationBroker annotationBroker;
 
     @Autowired
-    public IncomingActionProcessorImpl(ActorRepository actorRepository, EventRepository eventRepository, InteractionRepository interactionRepository, ExistenceBroker existenceBroker, RelationshipBroker relationshipBroker) {
+    public IncomingActionProcessorImpl(ActorRepository actorRepository, EventRepository eventRepository,
+                                       InteractionRepository interactionRepository, ExistenceBroker existenceBroker,
+                                       RelationshipBroker relationshipBroker, AnnotationBroker annotationBroker) {
         this.actorRepository = actorRepository;
         this.eventRepository = eventRepository;
         this.interactionRepository = interactionRepository;
         this.existenceBroker = existenceBroker;
         this.relationshipBroker = relationshipBroker;
+        this.annotationBroker = annotationBroker;
     }
 
     @Override
@@ -51,6 +56,7 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
                 case REMOVE_ENTITY:         succeeded = removeEntities(action); break;
                 case CREATE_RELATIONSHIP:   succeeded = establishRelationships(action.getRelationships()); break;
                 case REMOVE_RELATIONSHIP:   succeeded = removeRelationships(action.getRelationships()); break;
+                case ANNOTATE_ENTITY:       succeeded = annotateEntities(action.getAnnotations()); break;
             }
             sink.success(succeeded);
         });
@@ -196,6 +202,24 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
             case OBSERVES: log.error("Observer relationship not yet implemented"); return false;
             default: log.error("Unsupported relationship type provided"); return false;
         }
+    }
+
+    private boolean annotateEntities(List<IncomingAnnotation> annotations) {
+        log.info("Applying annotations: {}", annotations);
+        return annotations.stream().map(this::annotateSingleEntity).reduce(true, (a, b) -> a && b);
+    }
+
+    private boolean annotateSingleEntity(IncomingAnnotation annotation) {
+        PlatformEntityDTO entityDTO = new PlatformEntityDTO(annotation.getGraphEntity().getPlatformUid(),
+                annotation.getEntityType(), null);
+        AnnotationInfoDTO annotationDTO = new AnnotationInfoDTO(annotation.getDescription(),
+                annotation.getTags(), annotation.getLanguage(), annotation.getLocation());
+
+        if (!existenceBroker.doesEntityExistInGraph(entityDTO))
+            existenceBroker.addEntityToGraph(entityDTO);
+
+        log.info("Verified entity exists, annotating entity to graph");
+        return annotationBroker.annotateEntity(entityDTO, annotationDTO);
     }
 
     private boolean persistGraphEntity(GrassrootGraphEntity graphEntity) {

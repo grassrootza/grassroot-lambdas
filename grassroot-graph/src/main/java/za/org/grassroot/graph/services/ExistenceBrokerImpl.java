@@ -14,9 +14,7 @@ import java.time.Instant;
 
 @Service @Slf4j
 public class ExistenceBrokerImpl implements ExistenceBroker {
-
-    private static final int LARGE_TX_THRESHOLD = 100; // number of entities to try write at once
-
+    
     private final ActorRepository actorRepository;
     private final EventRepository eventRepository;
     private final InteractionRepository interactionRepository;

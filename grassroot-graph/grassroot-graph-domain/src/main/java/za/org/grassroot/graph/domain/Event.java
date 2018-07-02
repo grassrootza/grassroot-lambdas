@@ -28,6 +28,12 @@ public class Event extends GrassrootGraphEntity {
 
     @Property private long eventStartTimeEpochMilli;
 
+    // leaving description as string for now to get things up and running, but description will
+    // be processed through some NLU pipeline to determine most important words/included topics.
+    @Property private String description;
+    @Property private String[] tags;
+    @Property private String location;
+
     @Relationship(type = GrassrootRelationship.TYPE_PARTICIPATES)
     private Set<Actor> participatesIn;
 
