@@ -100,7 +100,7 @@ public class RelationshipBrokerImpl implements RelationshipBroker {
             eventRepository.save(participant, 0);
             return true;
         }
-        log.error("Interaction cannot participate in actor");
+        log.error("An interaction cannot participate in an actor");
         return false;
     }
 

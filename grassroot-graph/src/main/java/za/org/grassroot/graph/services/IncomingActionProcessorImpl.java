@@ -210,7 +210,7 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
     }
 
     private boolean annotateSingleEntity(IncomingAnnotation annotation) {
-        PlatformEntityDTO entityDTO = new PlatformEntityDTO(annotation.getGraphEntity().getPlatformUid(),
+        PlatformEntityDTO entityDTO = new PlatformEntityDTO(annotation.getPlatformId(),
                 annotation.getEntityType(), null);
         AnnotationInfoDTO annotationDTO = new AnnotationInfoDTO(annotation.getDescription(),
                 annotation.getTags(), annotation.getLanguage(), annotation.getLocation());

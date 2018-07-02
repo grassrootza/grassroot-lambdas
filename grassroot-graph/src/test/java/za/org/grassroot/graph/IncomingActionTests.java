@@ -51,7 +51,7 @@ public class IncomingActionTests {
         Actor testActor = new Actor(actorType, platformId);
         IncomingDataObject dataObject = new IncomingDataObject(GraphEntityType.ACTOR, testActor);
         IncomingGraphAction graphAction = new IncomingGraphAction(platformId, ActionType.CREATE_ENTITY,
-                Collections.singletonList(dataObject), null);
+                Collections.singletonList(dataObject), null, null);
 
         incomingActionProcessor.processIncomingAction(graphAction);
     }
@@ -84,7 +84,7 @@ public class IncomingActionTests {
                 ActorType.GROUP, GrassrootRelationship.Type.PARTICIPATES);
 
         incomingActionProcessor.processIncomingAction(new IncomingGraphAction(TEST_ENTITY_PREFIX + "person",
-                ActionType.CREATE_RELATIONSHIP, null, Collections.singletonList(relationship)));
+                ActionType.CREATE_RELATIONSHIP, null, Collections.singletonList(relationship), null));
 
         assertThat(actorRepository.count(), greaterThanOrEqualTo(2L));
     }
@@ -114,7 +114,7 @@ public class IncomingActionTests {
         graphDataObjects.add(new IncomingDataObject(GraphEntityType.EVENT, graphEvent));
 
         IncomingGraphAction graphAction = new IncomingGraphAction(TEST_ENTITY_PREFIX + "meeting", ActionType.CREATE_ENTITY,
-                graphDataObjects, null);
+                graphDataObjects, null, null);
 
         log.info("incoming action: {}", graphAction);
 
@@ -156,7 +156,7 @@ public class IncomingActionTests {
         graphDataObjects.addAll(participatingActors.stream().map(a -> new IncomingDataObject(GraphEntityType.ACTOR, a))
                 .collect(Collectors.toList()));
         IncomingGraphAction graphAction = new IncomingGraphAction(TEST_ENTITY_PREFIX + "actors", ActionType.CREATE_ENTITY,
-                graphDataObjects, null);
+                graphDataObjects, null, null);
         incomingActionProcessor.processIncomingAction(graphAction);
         assertThat(actorRepository.findByPlatformUidContaining(TEST_ENTITY_PREFIX).size(), is(11));
 
@@ -165,10 +165,10 @@ public class IncomingActionTests {
         graphRelationships.addAll(IntStream.range(0, 10).mapToObj(index ->
                 new IncomingRelationship(TEST_ENTITY_PREFIX + "participant-" + index, GraphEntityType.ACTOR,
                         ActorType.INDIVIDUAL, TEST_ENTITY_PREFIX + "meeting", GraphEntityType.EVENT, EventType.MEETING,
-                        GrassrootRelationship.Type.PARTICIPATES)).collect(Collectors.toList());
+                        GrassrootRelationship.Type.PARTICIPATES)).collect(Collectors.toList()));
         IncomingDataObject eventDataObject = new IncomingDataObject(GraphEntityType.EVENT, graphEvent);
         incomingActionProcessor.processIncomingAction(new IncomingGraphAction(TEST_ENTITY_PREFIX + "event",
-                ActionType.CREATE_ENTITY, Collections.singletonList(eventDataObject), graphRelationships));
+                ActionType.CREATE_ENTITY, Collections.singletonList(eventDataObject), graphRelationships, null));
         assertThat(eventRepository.findByPlatformUid(graphEvent.getPlatformUid()), notNullValue());
         assertThat(actorRepository.findByPlatformUidContaining(TEST_ENTITY_PREFIX).size(), is(11));
 
@@ -177,7 +177,7 @@ public class IncomingActionTests {
                 EventType.MEETING, participatesIn.getPlatformUid(), GraphEntityType.ACTOR,
                 ActorType.GROUP, GrassrootRelationship.Type.PARTICIPATES);
         incomingActionProcessor.processIncomingAction(new IncomingGraphAction(TEST_ENTITY_PREFIX + "eventToActor",
-                ActionType.CREATE_RELATIONSHIP, null, Collections.singletonList(relationship)));
+                ActionType.CREATE_RELATIONSHIP, null, Collections.singletonList(relationship), null));
         assertThat(actorRepository.findByPlatformUidContaining(TEST_ENTITY_PREFIX).size(), is(11));
 
         cleanDb();
