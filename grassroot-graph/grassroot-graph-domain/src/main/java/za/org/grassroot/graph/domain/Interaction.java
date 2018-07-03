@@ -12,6 +12,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Map;
 
 @NodeEntity @Getter @Setter @Slf4j
 public class Interaction extends GrassrootGraphEntity {
@@ -20,6 +21,10 @@ public class Interaction extends GrassrootGraphEntity {
     @Property protected Instant creationTime; // creation time _in graph_ (not necessarily on platform)
 
     @Property private InteractionType interactionType;
+
+    @Property private Map<String, String> properties;
+
+    @Property private List<String> tags;
 
     @Relationship(type = "GENERATOR", direction = Relationship.INCOMING)
     private Actor initiator;

@@ -16,6 +16,8 @@ import java.time.Instant;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
+import java.util.List;
+import java.util.Map;
 
 @NodeEntity @Getter @Setter @Slf4j
 @JsonInclude(JsonInclude.Include.NON_EMPTY)
@@ -28,12 +30,9 @@ public class Actor extends GrassrootGraphEntity {
 
     @Property @Index private ActorType actorType;
 
-    // leaving description as string for now to get things up and running, but description will
-    // be processed through some NLU pipeline to determine most important words/included topics.
-    @Property private String description;
-    @Property private String[] tags;
-    @Property private String language;
-    @Property private String location;
+    @Property private Map<String, String> properties;
+
+    @Property private List<String> tags;
 
     @Relationship(type = GrassrootRelationship.TYPE_PARTICIPATES)
     private Set<ActorInActor> participatesInActors;

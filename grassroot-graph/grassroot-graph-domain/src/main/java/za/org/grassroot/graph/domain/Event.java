@@ -15,6 +15,8 @@ import java.time.Instant;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
+import java.util.List;
+import java.util.Map;
 
 @NodeEntity @Getter @Setter @ToString @Slf4j
 public class Event extends GrassrootGraphEntity {
@@ -22,17 +24,15 @@ public class Event extends GrassrootGraphEntity {
     @Id @GeneratedValue(strategy = UuidStrategy.class) private String id;
     @Property protected Instant creationTime; // creation time _in graph_ (not necessarily on platform)
 
-    @Property @Index(unique=true) private String platformUid;
+    @Property @Index(unique = true) private String platformUid;
 
     @Property private EventType eventType;
 
     @Property private long eventStartTimeEpochMilli;
 
-    // leaving description as string for now to get things up and running, but description will
-    // be processed through some NLU pipeline to determine most important words/included topics.
-    @Property private String description;
-    @Property private String[] tags;
-    @Property private String location;
+    @Property private Map<String, String> properties;
+
+    @Property private List<String> tags;
 
     @Relationship(type = GrassrootRelationship.TYPE_PARTICIPATES)
     private Set<Actor> participatesIn;
