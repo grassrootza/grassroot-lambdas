@@ -37,7 +37,6 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 import static za.org.grassroot.graph.GraphApplicationTests.TEST_ENTITY_PREFIX;
 
-
 @RunWith(SpringRunner.class) @Slf4j
 @SpringBootTest(properties = {"sqs.pull.enabled=false","sqs.push.enabled=false"})
 public class IncomingActionTests {
@@ -52,7 +51,7 @@ public class IncomingActionTests {
         Actor testActor = new Actor(actorType, platformId);
         IncomingDataObject dataObject = new IncomingDataObject(GraphEntityType.ACTOR, testActor);
         IncomingGraphAction graphAction = new IncomingGraphAction(platformId, ActionType.CREATE_ENTITY,
-                Collections.singletonList(dataObject), null);
+                Collections.singletonList(dataObject), null, null);
 
         incomingActionProcessor.processIncomingAction(graphAction);
     }
@@ -81,10 +80,11 @@ public class IncomingActionTests {
         addActorViaIncoming(ActorType.INDIVIDUAL, TEST_ENTITY_PREFIX + "person");
 
         IncomingRelationship relationship = new IncomingRelationship(TEST_ENTITY_PREFIX + "person", GraphEntityType.ACTOR,
-                TEST_ENTITY_PREFIX + "group", GraphEntityType.ACTOR, GrassrootRelationship.Type.PARTICIPATES);
+                ActorType.INDIVIDUAL, TEST_ENTITY_PREFIX + "group", GraphEntityType.ACTOR,
+                ActorType.GROUP, GrassrootRelationship.Type.PARTICIPATES);
 
-        incomingActionProcessor.processIncomingAction(new IncomingGraphAction(TEST_ENTITY_PREFIX + "person", ActionType.CREATE_RELATIONSHIP,
-                null, Collections.singletonList(relationship)));
+        incomingActionProcessor.processIncomingAction(new IncomingGraphAction(TEST_ENTITY_PREFIX + "person",
+                ActionType.CREATE_RELATIONSHIP, null, Collections.singletonList(relationship), null));
 
         assertThat(actorRepository.count(), greaterThanOrEqualTo(2L));
     }
@@ -102,10 +102,10 @@ public class IncomingActionTests {
 
         List<Actor> participatingActors = IntStream.range(0, 10)
                 .mapToObj(index -> new Actor(ActorType.INDIVIDUAL, TEST_ENTITY_PREFIX + "participant-" + index)).collect(Collectors.toList());
-        graphEvent.setParticipants(participatingActors);
+        for (Actor actor: participatingActors) actor.addParticipatesInEvent(graphEvent);
 
         Actor graphParent = new Actor(ActorType.GROUP, TEST_ENTITY_PREFIX + "parent-group");
-        graphEvent.setParticipatesIn(Collections.singletonList(graphParent));
+        graphEvent.addParticipatesInActor(graphParent);
 
         // note: neo4j on other end _should_ take care of these relationships, but to check (and test ...)
         graphDataObjects.add(new IncomingDataObject(GraphEntityType.ACTOR, creatingUser));
@@ -114,7 +114,7 @@ public class IncomingActionTests {
         graphDataObjects.add(new IncomingDataObject(GraphEntityType.EVENT, graphEvent));
 
         IncomingGraphAction graphAction = new IncomingGraphAction(TEST_ENTITY_PREFIX + "meeting", ActionType.CREATE_ENTITY,
-                graphDataObjects, null);
+                graphDataObjects, null, null);
 
         log.info("incoming action: {}", graphAction);
 
@@ -126,9 +126,9 @@ public class IncomingActionTests {
 
         Event eventFromDb = eventRepository.findByPlatformUid(TEST_ENTITY_PREFIX + "meeting");
         assertThat(eventFromDb, notNullValue());
-        List<Actor> participants = eventFromDb.getParticipants();
-        assertThat(participants, notNullValue());
-        assertThat(participants.size(), is(10));
+//        List<Actor> participants = eventFromDb.getParticipants();
+//        assertThat(participants, notNullValue());
+//        assertThat(participants.size(), is(10));
         GrassrootGraphEntity generator = eventFromDb.getCreator();
         assertThat(generator, notNullValue());
         assertThat(generator.getEntityType(), is(GraphEntityType.ACTOR));
@@ -141,11 +141,53 @@ public class IncomingActionTests {
         cleanDb();
     }
 
+    @Test
+    @Rollback
+    public void createEventAndEventToActorRelationship() {
+        log.debug("Testing to check event persistence doesn't cause duplication...");
+        Event graphEvent = new Event(EventType.MEETING, TEST_ENTITY_PREFIX + "meeting", Instant.now().toEpochMilli());
+        Actor participatesIn = new Actor(ActorType.GROUP, TEST_ENTITY_PREFIX + "participatesIn");
+        List<Actor> participatingActors = IntStream.range(0, 10)
+                .mapToObj(index -> new Actor(ActorType.INDIVIDUAL, TEST_ENTITY_PREFIX + "participant-" + index)).collect(Collectors.toList());
+
+        log.debug("Persisting actors to database, excluding event.");
+        List<IncomingDataObject> graphDataObjects = new ArrayList<>();
+        graphDataObjects.add(new IncomingDataObject(GraphEntityType.ACTOR, participatesIn));
+        graphDataObjects.addAll(participatingActors.stream().map(a -> new IncomingDataObject(GraphEntityType.ACTOR, a))
+                .collect(Collectors.toList()));
+        IncomingGraphAction graphAction = new IncomingGraphAction(TEST_ENTITY_PREFIX + "actors", ActionType.CREATE_ENTITY,
+                graphDataObjects, null, null);
+        incomingActionProcessor.processIncomingAction(graphAction);
+        assertThat(actorRepository.findByPlatformUidContaining(TEST_ENTITY_PREFIX).size(), is(11));
+
+        log.debug("Creating participatory actor-event relationships, then persisting event.");
+        List<IncomingRelationship> graphRelationships = new ArrayList<>();
+        graphRelationships.addAll(IntStream.range(0, 10).mapToObj(index ->
+                new IncomingRelationship(TEST_ENTITY_PREFIX + "participant-" + index, GraphEntityType.ACTOR,
+                        ActorType.INDIVIDUAL, TEST_ENTITY_PREFIX + "meeting", GraphEntityType.EVENT, EventType.MEETING,
+                        GrassrootRelationship.Type.PARTICIPATES)).collect(Collectors.toList()));
+        IncomingDataObject eventDataObject = new IncomingDataObject(GraphEntityType.EVENT, graphEvent);
+        incomingActionProcessor.processIncomingAction(new IncomingGraphAction(TEST_ENTITY_PREFIX + "event",
+                ActionType.CREATE_ENTITY, Collections.singletonList(eventDataObject), graphRelationships, null));
+        assertThat(eventRepository.findByPlatformUid(graphEvent.getPlatformUid()), notNullValue());
+        assertThat(actorRepository.findByPlatformUidContaining(TEST_ENTITY_PREFIX).size(), is(11));
+
+        log.debug("Persisting event-in-actor relationship, event has 10 actors participating.");
+        IncomingRelationship relationship = new IncomingRelationship(graphEvent.getPlatformUid(), GraphEntityType.EVENT,
+                EventType.MEETING, participatesIn.getPlatformUid(), GraphEntityType.ACTOR,
+                ActorType.GROUP, GrassrootRelationship.Type.PARTICIPATES);
+        incomingActionProcessor.processIncomingAction(new IncomingGraphAction(TEST_ENTITY_PREFIX + "eventToActor",
+                ActionType.CREATE_RELATIONSHIP, null, Collections.singletonList(relationship), null));
+        assertThat(actorRepository.findByPlatformUidContaining(TEST_ENTITY_PREFIX).size(), is(11));
+
+        cleanDb();
+    }
+
     @After
     public void cleanDb() {
         actorRepository.deleteByPlatformUidContaining(TEST_ENTITY_PREFIX);
         eventRepository.deleteByPlatformUidContaining(TEST_ENTITY_PREFIX);
-        interactionRepository.deleteByPlatformUidContaining(TEST_ENTITY_PREFIX);
+        interactionRepository.deleteByIdContaining(TEST_ENTITY_PREFIX);
     }
 
 }

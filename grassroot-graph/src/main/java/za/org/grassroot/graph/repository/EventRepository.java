@@ -8,6 +8,8 @@ public interface EventRepository extends Neo4jRepository<Event, String> {
 
     Event findByPlatformUid(String platformId);
 
+    Event findByPlatformUid(String platformId, int depth);
+
     @Transactional
     Long deleteByPlatformUidContaining(String platformUidFragment);
 

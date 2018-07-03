@@ -8,12 +8,13 @@ import org.neo4j.ogm.annotation.*;
 import org.neo4j.ogm.id.UuidStrategy;
 import za.org.grassroot.graph.domain.enums.EventType;
 import za.org.grassroot.graph.domain.enums.GraphEntityType;
+import za.org.grassroot.graph.domain.enums.GrassrootRelationship;
 import za.org.grassroot.graph.domain.relationship.ActorInEvent;
 
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashSet;
 import java.util.Objects;
+import java.util.Set;
 
 @NodeEntity @Getter @Setter @ToString @Slf4j
 public class Event extends GrassrootGraphEntity {
@@ -21,43 +22,59 @@ public class Event extends GrassrootGraphEntity {
     @Id @GeneratedValue(strategy = UuidStrategy.class) private String id;
     @Property protected Instant creationTime; // creation time _in graph_ (not necessarily on platform)
 
-    @Property @Index private String platformUid;
+    @Property @Index(unique=true) private String platformUid;
 
     @Property private EventType eventType;
 
     @Property private long eventStartTimeEpochMilli;
 
-    // todo someone has to generate the event (= creator), but we want some form of parent mapping (other side of below)
-    @Relationship(type = "GENERATOR", direction = Relationship.INCOMING)
-    private Actor creator;
+    // leaving description as string for now to get things up and running, but description will
+    // be processed through some NLU pipeline to determine most important words/included topics.
+    @Property private String description;
+    @Property private String[] tags;
+    @Property private String location;
 
-    @Relationship(type = "PARTICIPATES", direction = Relationship.INCOMING)
-    private List<ActorInEvent> participants;
+    @Relationship(type = GrassrootRelationship.TYPE_PARTICIPATES)
+    private Set<Actor> participatesIn;
 
-    @Relationship(type = "PARTICIPATES", direction = Relationship.OUTGOING)
-    private List<Actor> participatesIn;
+    @Relationship(type = GrassrootRelationship.TYPE_GENERATOR)
+    private Set<Event> childEvents;
 
-    @Relationship(type = "GENERATOR", direction = Relationship.OUTGOING)
-    private List<Event> childEvents;
+    @Relationship(type = GrassrootRelationship.TYPE_GENERATOR)
+    private Set<Interaction> childInteractions;
 
-    @Relationship(type = "GENERATOR", direction = Relationship.OUTGOING)
-    private List<Interaction> childInteractions;
+    @Relationship(type = GrassrootRelationship.TYPE_GENERATOR, direction = Relationship.INCOMING)
+    private GrassrootGraphEntity creator;
 
-    private Event() {
+    public Event() {
         this.entityType = GraphEntityType.EVENT;
     }
 
     public Event(EventType eventType, String platformId, long startTimeMillis) {
         this();
         this.eventType = eventType;
-        this.eventStartTimeEpochMilli = startTimeMillis;
         this.platformUid = platformId;
+        this.eventStartTimeEpochMilli = startTimeMillis;
+
+        this.participatesIn = new HashSet<>();
+        this.childEvents = new HashSet<>();
+        this.childInteractions = new HashSet<>();
     }
 
-    public void addParticipatingActor(Actor actor) {
-        if (this.participants == null)
-            this.participants = new ArrayList<>();
-        this.participants.add(new ActorInEvent(actor, this));
+    public void addParticipatesInActor(Actor actor) {
+        this.participatesIn.add(actor);
+    }
+
+    public void removeParticipatesInActor(Actor actor) {
+        this.participatesIn.remove(actor);
+    }
+
+    public void addChildEvent(Event event) {
+        this.childEvents.add(event);
+    }
+
+    public void addChildInteraction(Interaction interaction) {
+        this.childInteractions.add(interaction);
     }
 
     @Override
@@ -72,4 +89,5 @@ public class Event extends GrassrootGraphEntity {
     public int hashCode() {
         return Objects.hash(id);
     }
+
 }

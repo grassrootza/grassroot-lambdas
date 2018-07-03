@@ -4,20 +4,25 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import za.org.grassroot.graph.domain.Actor;
+import za.org.grassroot.graph.domain.Event;
+import za.org.grassroot.graph.domain.Interaction;
 import za.org.grassroot.graph.repository.ActorRepository;
 import za.org.grassroot.graph.repository.EventRepository;
+import za.org.grassroot.graph.repository.InteractionRepository;
+
+import java.time.Instant;
 
 @Service @Slf4j
 public class ExistenceBrokerImpl implements ExistenceBroker {
-
-    private static final int LARGE_TX_THRESHOLD = 100; // number of entities to try write at once
-
+    
     private final ActorRepository actorRepository;
     private final EventRepository eventRepository;
+    private final InteractionRepository interactionRepository;
 
-    public ExistenceBrokerImpl(ActorRepository actorRepository, EventRepository eventRepository) {
+    public ExistenceBrokerImpl(ActorRepository actorRepository, EventRepository eventRepository, InteractionRepository interactionRepository) {
         this.actorRepository = actorRepository;
         this.eventRepository = eventRepository;
+        this.interactionRepository = interactionRepository;
     }
 
     @Override
@@ -26,6 +31,7 @@ public class ExistenceBrokerImpl implements ExistenceBroker {
         switch (platformEntity.getEntityType()) {
             case ACTOR: return actorRepository.countByPlatformUid(platformEntity.getPlatformId()) > 0;
             case EVENT: return eventRepository.countByPlatformUid(platformEntity.getPlatformId()) > 0;
+            case INTERACTION: return interactionRepository.countById(platformEntity.getPlatformId()) > 0;
         }
         return false;
     }
@@ -42,9 +48,22 @@ public class ExistenceBrokerImpl implements ExistenceBroker {
                     actor.setActorType(platformEntity.getActorType());
                 actorRepository.save(actor);
                 return true;
+            case EVENT:
+                Event event = new Event();
+                event.setPlatformUid(platformEntity.getPlatformId());
+                event.setEventStartTimeEpochMilli(Instant.now().toEpochMilli());
+                if (platformEntity.getActorType() != null)
+                    event.setEventType(platformEntity.getEventType());
+                eventRepository.save(event);
+                return true;
+            case INTERACTION:
+                Interaction interaction = new Interaction();
+                if (platformEntity.getInteractionType() != null)
+                    interaction.setInteractionType(platformEntity.getInteractionType());
+                interactionRepository.save(interaction);
+                return true;
         }
         return false;
     }
-
 
 }

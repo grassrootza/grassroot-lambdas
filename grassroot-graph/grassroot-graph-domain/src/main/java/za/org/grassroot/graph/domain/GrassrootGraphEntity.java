@@ -31,5 +31,5 @@ public abstract class GrassrootGraphEntity {
     // some utility methods
     public boolean isActor() { return GraphEntityType.ACTOR.equals(entityType); }
     public boolean isEvent() { return GraphEntityType.EVENT.equals(entityType); }
-
+    public boolean isInteraction() { return GraphEntityType.INTERACTION.equals(entityType); }
 }

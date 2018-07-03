@@ -17,7 +17,7 @@ public class SqsProcessorImpl implements SqsProcessor {
     @Value("${sqs.url}")
     private String sqsUrl;
 
-    private static final long PER_OPERATION_TIME_ESTIMATE = 1000; // conservative, takes one second
+    private static final long PER_OPERATION_TIME_ESTIMATE = 10000; // conservative, takes one second
 
     private final ObjectMapper objectMapper;
     private final IncomingActionProcessor incomingActionProcessor;

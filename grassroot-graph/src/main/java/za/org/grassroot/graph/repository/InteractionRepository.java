@@ -6,9 +6,9 @@ import za.org.grassroot.graph.domain.Interaction;
 
 public interface InteractionRepository extends Neo4jRepository<Interaction, String> {
 
-    Interaction findByPlatformUid(String platformId);
-
     @Transactional
-    Long deleteByPlatformUidContaining(String platformUidFragment);
+    Long deleteByIdContaining(String platformIdFragment);
+
+    long countById(String platformId);
 
 }
