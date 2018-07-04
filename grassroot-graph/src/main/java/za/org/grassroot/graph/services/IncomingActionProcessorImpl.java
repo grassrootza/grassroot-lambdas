@@ -162,13 +162,19 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
         PlatformEntityDTO headEntity = new PlatformEntityDTO(relationship.getHeadEntityPlatformId(),
                 relationship.getHeadEntityType(), relationship.getHeadEntitySubtype());
 
+        boolean entitiesExist = true; // since this is our usual assumption
         if (!existenceBroker.doesEntityExistInGraph(tailEntity))
-            existenceBroker.addEntityToGraph(tailEntity);
+            entitiesExist = existenceBroker.addEntityToGraph(tailEntity);
 
         log.info("Completed existence check of tail");
 
         if (!existenceBroker.doesEntityExistInGraph(headEntity))
-            existenceBroker.addEntityToGraph(headEntity);
+            entitiesExist = existenceBroker.addEntityToGraph(headEntity);
+
+        if (!entitiesExist) {
+            log.error("Entities did not previously exist in graph and could not be added, aborting");
+            return false;
+        }
 
         log.info("Completed existence check of head");
 

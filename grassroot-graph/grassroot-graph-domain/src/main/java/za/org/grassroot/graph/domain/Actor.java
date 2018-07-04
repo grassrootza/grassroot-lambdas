@@ -49,16 +49,15 @@ public class Actor extends GrassrootGraphEntity {
     // for JSON, JPA, etc
     public Actor() {
         this.entityType = GraphEntityType.ACTOR;
+        this.participatesInActors = new HashSet<>();
+        this.participatesInEvents = new HashSet<>();
+        this.participatesInInteractions = new HashSet<>();
     }
 
     public Actor(ActorType actorType, String platformId) {
         this();
         this.actorType = actorType;
         this.platformUid = platformId;
-
-        this.participatesInActors = new HashSet<>();
-        this.participatesInEvents = new HashSet<>();
-        this.participatesInInteractions = new HashSet<>();
     }
 
     public void addParticipatesInInteraction(Interaction interaction) {

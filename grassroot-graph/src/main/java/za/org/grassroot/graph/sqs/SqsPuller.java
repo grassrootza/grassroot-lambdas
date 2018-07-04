@@ -28,6 +28,9 @@ public class SqsPuller {
     @Value("${sqs.url}")
     private String sqsUrl;
 
+    @Value("${sqs.pull.messages:1}")
+    private int numberMessagesToPull;
+
     @Value("${aws.accessKeyId:}")
     private String awsAccessKey;
 
@@ -81,7 +84,7 @@ public class SqsPuller {
         }
 
         ReceiveMessageResponse response  = sqs.receiveMessage(builder -> builder.queueUrl(sqsUrl)
-            .maxNumberOfMessages(1));
+            .maxNumberOfMessages(numberMessagesToPull));
 
         if (response.messages() == null || response.messages().isEmpty()) {
             log.info("empty message queue, exiting, messages: {}", response.messages());

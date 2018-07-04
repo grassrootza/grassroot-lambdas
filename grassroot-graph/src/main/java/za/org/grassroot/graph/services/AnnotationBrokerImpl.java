@@ -15,18 +15,19 @@ import za.org.grassroot.graph.repository.InteractionRepository;
 import java.util.List;
 import java.util.Map;
 
+import static za.org.grassroot.graph.domain.enums.ActorType.GROUP;
+import static za.org.grassroot.graph.domain.enums.ActorType.INDIVIDUAL;
+import static za.org.grassroot.graph.domain.enums.EventType.SAFETY_ALERT;
+
 @Service @Slf4j
 public class AnnotationBrokerImpl implements AnnotationBroker {
 
     private final ActorRepository actorRepository;
     private final EventRepository eventRepository;
-    private final InteractionRepository interactionRepository;
 
-    public AnnotationBrokerImpl(ActorRepository actorRepository, EventRepository eventRepository,
-                                InteractionRepository interactionRepository) {
+    public AnnotationBrokerImpl(ActorRepository actorRepository, EventRepository eventRepository) {
         this.actorRepository = actorRepository;
         this.eventRepository = eventRepository;
-        this.interactionRepository = interactionRepository;
     }
 
     @Override
@@ -35,6 +36,11 @@ public class AnnotationBrokerImpl implements AnnotationBroker {
         log.info("Wiring up annotation");
         GrassrootGraphEntity entity = fetchGraphEntity(platformEntity.getEntityType(), platformEntity.getPlatformId(), 0);
         log.info("Got entity to annotate: {}", entity);
+
+        if (entity == null) {
+            log.error("Error, sent a null entity to process");
+            return false;
+        }
 
         switch (entity.getEntityType()) {
             case ACTOR:         return annotateActor((Actor) entity, properties, tags);
@@ -46,7 +52,7 @@ public class AnnotationBrokerImpl implements AnnotationBroker {
 
     // movement should be able to be annotated, but it is not yet incorporated in main platform.
     private boolean annotateActor(Actor actor, Map<String, String> properties, List<String> tags) {
-        if (actor.getActorType().equals("INDIVIDUAL") || actor.getActorType().equals("GROUP")) {
+        if (INDIVIDUAL.equals(actor.getActorType()) || GROUP.equals(actor.getActorType())) {
             actor.setProperties(properties);
             actor.setTags(tags);
             actorRepository.save(actor, 0);
@@ -58,7 +64,7 @@ public class AnnotationBrokerImpl implements AnnotationBroker {
     }
 
     private boolean annotateEvent(Event event, Map<String, String> properties, List<String> tags) {
-        if (event.getEventType().equals("SAFETY_ALERT")) {
+        if (SAFETY_ALERT.equals(event.getEventType())) {
             log.error("Safety events cannot be annotated");
             return false;
         } else {
@@ -73,7 +79,6 @@ public class AnnotationBrokerImpl implements AnnotationBroker {
         switch (entityType) {
             case ACTOR:         return actorRepository.findByPlatformUid(platformId, depth);
             case EVENT:         return eventRepository.findByPlatformUid(platformId, depth);
-            case INTERACTION:   return interactionRepository.findById(platformId, depth).get();
             default:            return null;
         }
     }
