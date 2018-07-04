@@ -22,10 +22,6 @@ public class Interaction extends GrassrootGraphEntity {
 
     @Property private InteractionType interactionType;
 
-    @Property private Map<String, String> properties;
-
-    @Property private List<String> tags;
-
     @Relationship(type = "GENERATOR", direction = Relationship.INCOMING)
     private Actor initiator;
 

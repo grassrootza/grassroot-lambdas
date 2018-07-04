@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 import za.org.grassroot.graph.domain.Actor;
 import za.org.grassroot.graph.domain.Event;
+import za.org.grassroot.graph.domain.enums.GrassrootRelationship;
 import za.org.grassroot.graph.domain.GrassrootGraphEntity;
 import za.org.grassroot.graph.domain.enums.GraphEntityType;
 import za.org.grassroot.graph.domain.Interaction;
@@ -55,9 +56,10 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
             switch (action.getActionType()) {
                 case CREATE_ENTITY:         succeeded = createEntities(action); break;
                 case REMOVE_ENTITY:         succeeded = removeEntities(action); break;
+                case ANNOTATE_ENTITY:       succeeded = annotateEntities(action.getAnnotations()); break;
                 case CREATE_RELATIONSHIP:   succeeded = establishRelationships(action.getRelationships()); break;
                 case REMOVE_RELATIONSHIP:   succeeded = removeRelationships(action.getRelationships()); break;
-                case ANNOTATE_ENTITY:       succeeded = annotateEntities(action.getAnnotations()); break;
+                case ANNOTATE_RELATIONSHIP: succeeded = annotateRelationships(action.getAnnotations()); break;
             }
             sink.success(succeeded);
         });
@@ -102,7 +104,7 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
 
     private boolean createMasterEntity(IncomingDataObject dataObject) {
         PlatformEntityDTO entityDTO = new PlatformEntityDTO(dataObject.getGraphEntity().getPlatformUid(),
-                dataObject.getEntityType(), null);
+                dataObject.getEntityType(), dataObject.getEntitySubtype());
         if (existenceBroker.doesEntityExistInGraph(entityDTO))
             return true; // by definition, execution succeeded, as we do not do any updating in here, because of too much potential fragility
         log.info("Data object did not exist, has entity type: {}, entity: {}", dataObject.getEntityType(), dataObject);
@@ -141,11 +143,13 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
 
     private boolean removeSingleEntity(IncomingDataObject dataObject) {
         PlatformEntityDTO entityDTO = new PlatformEntityDTO(dataObject.getGraphEntity().getPlatformUid(),
-                dataObject.getEntityType(), null);
+                dataObject.getEntityType(), dataObject.getEntitySubtype());
+
         if (!existenceBroker.doesEntityExistInGraph(entityDTO)) {
             log.error("Entity does not exist in graph");
             return false;
         }
+
         log.info("Entity {} exists, deleting now.", entityDTO);
         return deleteGraphEntity(dataObject.getGraphEntity());
     }
@@ -162,27 +166,16 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
         PlatformEntityDTO headEntity = new PlatformEntityDTO(relationship.getHeadEntityPlatformId(),
                 relationship.getHeadEntityType(), relationship.getHeadEntitySubtype());
 
-        boolean entitiesExist = true; // since this is our usual assumption
-        if (!existenceBroker.doesEntityExistInGraph(tailEntity))
-            entitiesExist = existenceBroker.addEntityToGraph(tailEntity);
-
-        log.info("Completed existence check of tail");
-
-        if (!existenceBroker.doesEntityExistInGraph(headEntity))
-            entitiesExist = existenceBroker.addEntityToGraph(headEntity);
-
-        if (!entitiesExist) {
+        if (!entitiesExist(tailEntity, headEntity)) {
             log.error("Entities did not previously exist in graph and could not be added, aborting");
             return false;
         }
 
-        log.info("Completed existence check of head");
-
         switch (relationship.getRelationshipType()) {
-            case PARTICIPATES: return relationshipBroker.addParticipation(tailEntity, headEntity);
-            case GENERATOR: return relationshipBroker.setGeneration(tailEntity, headEntity);
-            case OBSERVES: return relationshipBroker.addObserver(tailEntity, headEntity);
-            default: log.error("Unsupported relationship type provided"); return false;
+            case PARTICIPATES:  return relationshipBroker.addParticipation(tailEntity, headEntity);
+            case GENERATOR:     return relationshipBroker.setGeneration(tailEntity, headEntity);
+            case OBSERVES:      log.error("Observer relationship not yet implemented"); return false;
+            default:            log.error("Unsupported relationship type provided"); return false;
         }
     }
 
@@ -204,25 +197,66 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
         log.info("Completed existence checks, both entities exist.");
 
         switch (relationship.getRelationshipType()) {
-            case PARTICIPATES: return relationshipBroker.removeParticipation(tailEntity, headEntity);
-            case GENERATOR: log.error("Error! Cannot remove generator relationship"); return false;
-            case OBSERVES: log.error("Observer relationship not yet implemented"); return false;
-            default: log.error("Unsupported relationship type provided"); return false;
+            case PARTICIPATES:  return relationshipBroker.removeParticipation(tailEntity, headEntity);
+            case GENERATOR:     log.error("Error! Cannot remove generator relationship"); return false;
+            case OBSERVES:      log.error("Observer relationship not yet implemented"); return false;
+            default:            log.error("Unsupported relationship type provided"); return false;
         }
     }
 
     private boolean annotateEntities(List<IncomingAnnotation> annotations) {
-        log.info("Applying annotations: {}", annotations);
+        log.info("Applying entity annotations: {}", annotations);
         return annotations.stream().map(this::annotateSingleEntity).reduce(true, (a, b) -> a && b);
     }
 
     private boolean annotateSingleEntity(IncomingAnnotation annotation) {
-        PlatformEntityDTO entityDTO = new PlatformEntityDTO(annotation.getPlatformId(),
-                annotation.getEntityType(), null);
-        if (!existenceBroker.doesEntityExistInGraph(entityDTO))
-            existenceBroker.addEntityToGraph(entityDTO);
+        IncomingDataObject entity = annotation.getEntity();
+        PlatformEntityDTO entityDTO = new PlatformEntityDTO(entity.getGraphEntity().getPlatformUid(),
+                entity.getEntityType(), entity.getEntitySubtype());
+
+        if (!existenceBroker.doesEntityExistInGraph(entityDTO)) {
+            if (!existenceBroker.addEntityToGraph(entityDTO)) {
+                log.error("Entity did not previously exist in graph and could not be added, aborting");
+                return false;
+            }
+        }
+
         log.info("Verified entity exists, annotating entity to graph");
         return annotationBroker.annotateEntity(entityDTO, annotation.getProperties(), annotation.getTags());
+    }
+
+    private boolean annotateRelationships(List<IncomingAnnotation> annotations) {
+        log.info("Applying relationship annotations: {}", annotations);
+        return annotations.stream().map(this::annotateSingleRelationship).reduce(true, (a, b) -> a && b);
+    }
+
+    private boolean annotateSingleRelationship(IncomingAnnotation annotation) {
+        IncomingRelationship relationship = annotation.getRelationship();
+        PlatformEntityDTO tailEntity = new PlatformEntityDTO(relationship.getTailEntityPlatformId(),
+                relationship.getTailEntityType(), relationship.getTailEntitySubtype());
+        PlatformEntityDTO headEntity = new PlatformEntityDTO(relationship.getHeadEntityPlatformId(),
+                relationship.getHeadEntityType(), relationship.getHeadEntitySubtype());
+
+        if (!isValidAnnotation(tailEntity, headEntity, relationship.getRelationshipType())) {
+            log.error("Invalid relationship annotation, only supporting ActorInActor at the moment");
+            return false;
+        }
+
+        if (!entitiesExist(tailEntity, headEntity)) {
+            log.error("Entities did not previously exist in graph and could not be added, aborting");
+            return false;
+        }
+
+        if (!existenceBroker.doesRelationshipExistInGraph(tailEntity, headEntity, relationship.getRelationshipType())) {
+            if (!relationshipBroker.addParticipation(tailEntity, headEntity)) {
+                log.error("Relationship entity did not previously exist in graph and could not be added, aborting");
+                return false;
+            }
+        }
+
+        log.info("Verified entities and relationship exist, annotating relationship to graph");
+        return annotationBroker.annotateRelationship(tailEntity, headEntity,
+                relationship.getRelationshipType(), annotation.getTags());
     }
 
     private boolean persistGraphEntity(GrassrootGraphEntity graphEntity) {
@@ -251,6 +285,24 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
             log.error("Could not delete entity from graph", e);
             return false;
         }
+    }
+
+    private boolean entitiesExist(PlatformEntityDTO tailEntity, PlatformEntityDTO headEntity) {
+        boolean entitiesExist = true;
+
+        if (!existenceBroker.doesEntityExistInGraph(tailEntity))
+            entitiesExist = existenceBroker.addEntityToGraph(tailEntity);
+
+        if (!existenceBroker.doesEntityExistInGraph(headEntity))
+            entitiesExist = existenceBroker.addEntityToGraph(headEntity);
+
+        return entitiesExist;
+    }
+
+    private boolean isValidAnnotation(PlatformEntityDTO tailEntity, PlatformEntityDTO headEntity,
+                                      GrassrootRelationship.Type relationshipType) {
+        return (relationship.getRelationshipType() == GrassrootRelationship.Type.PARTICIPATES &&
+                tailEntity.isActor() && headEntity.isActor());
     }
 
 }

@@ -17,7 +17,9 @@ import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
 import java.util.List;
+import java.util.ArrayList;
 import java.util.Map;
+import java.util.HashMap;
 
 @NodeEntity @Getter @Setter @Slf4j
 @JsonInclude(JsonInclude.Include.NON_EMPTY)
@@ -66,6 +68,18 @@ public class Actor extends GrassrootGraphEntity {
 
     public void removeParticipationInInteraction(Interaction interaction) {
         this.participatesInInteractions.remove(interaction);
+    }
+
+    public void addProperties(Map<String, String> newProperties) {
+        if (this.properties == null)
+            this.properties = new HashMap<>();
+        this.properties.putAll(newProperties);
+    }
+
+    public void addTags(List<String> newTags) {
+        if (this.tags == null)
+            this.tags = new ArrayList<>();
+        this.tags.addAll(newTags);
     }
 
     @Override

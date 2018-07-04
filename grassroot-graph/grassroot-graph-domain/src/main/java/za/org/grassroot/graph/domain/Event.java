@@ -16,7 +16,9 @@ import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
 import java.util.List;
+import java.util.ArrayList;
 import java.util.Map;
+import java.util.HashMap;
 
 @NodeEntity @Getter @Setter @ToString @Slf4j
 public class Event extends GrassrootGraphEntity {
@@ -48,6 +50,9 @@ public class Event extends GrassrootGraphEntity {
 
     public Event() {
         this.entityType = GraphEntityType.EVENT;
+        this.participatesIn = new HashSet<>();
+        this.childEvents = new HashSet<>();
+        this.childInteractions = new HashSet<>();
     }
 
     public Event(EventType eventType, String platformId, long startTimeMillis) {
@@ -55,10 +60,6 @@ public class Event extends GrassrootGraphEntity {
         this.eventType = eventType;
         this.platformUid = platformId;
         this.eventStartTimeEpochMilli = startTimeMillis;
-
-        this.participatesIn = new HashSet<>();
-        this.childEvents = new HashSet<>();
-        this.childInteractions = new HashSet<>();
     }
 
     public void addParticipatesInActor(Actor actor) {
@@ -75,6 +76,18 @@ public class Event extends GrassrootGraphEntity {
 
     public void addChildInteraction(Interaction interaction) {
         this.childInteractions.add(interaction);
+    }
+
+    public void addProperties(Map<String, String> newProperties) {
+        if (this.properties == null)
+            this.properties = new HashMap<>();
+        this.properties.putAll(newProperties);
+    }
+
+    public void addTags(List<String> newTags) {
+        if (this.tags == null)
+            this.tags = new ArrayList<>();
+        this.tags.addAll(newTags);
     }
 
     @Override

@@ -7,8 +7,8 @@ import za.org.grassroot.graph.domain.Interaction;
 public interface InteractionRepository extends Neo4jRepository<Interaction, String> {
 
     @Transactional
-    Long deleteByIdContaining(String platformIdFragment);
+    Long deleteByIdContaining(String idFragment);
 
-    long countById(String platformId);
+    long countById(String id);
 
 }

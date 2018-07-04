@@ -3,6 +3,9 @@ package za.org.grassroot.graph.services;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import za.org.grassroot.graph.domain.enums.GrassrootRelationship;
+import za.org.grassroot.graph.domain.GrassrootGraphEntity;
+import za.org.grassroot.graph.domain.enums.GraphEntityType;
 import za.org.grassroot.graph.domain.Actor;
 import za.org.grassroot.graph.domain.Event;
 import za.org.grassroot.graph.domain.Interaction;
@@ -37,6 +40,18 @@ public class ExistenceBrokerImpl implements ExistenceBroker {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public boolean doesRelationshipExistInGraph(PlatformEntityDTO tailEntity, PlatformEntityDTO headEntity,
+                                                GrassrootRelationship.Type relationshipType) {
+        switch (relationshipType) {
+            case PARTICIPATES: return doesParticipationExist(tailEntity, headEntity);
+            case GENERATOR: log.error("Generator relationship check not currently supported"); return false;
+            case OBSERVES: log.error("Observer relationship check not currently supported"); return false;
+        }
+        return false;
+    }
+
+    @Override
     @Transactional
     public boolean addEntityToGraph(PlatformEntityDTO platformEntity) {
         log.info("Adding entity to graph: {}", platformEntity);
@@ -52,7 +67,7 @@ public class ExistenceBrokerImpl implements ExistenceBroker {
                 Event event = new Event();
                 event.setPlatformUid(platformEntity.getPlatformId());
                 event.setEventStartTimeEpochMilli(Instant.now().toEpochMilli());
-                if (platformEntity.getActorType() != null)
+                if (platformEntity.getEventType() != null)
                     event.setEventType(platformEntity.getEventType());
                 eventRepository.save(event);
                 return true;
@@ -64,6 +79,32 @@ public class ExistenceBrokerImpl implements ExistenceBroker {
                 return true;
         }
         return false;
+    }
+
+    private boolean doesParticipationExist(PlatformEntityDTO tailEntity, PlatformEntityDTO headEntity) {
+        Actor participant = (Actor) fetchGraphEntity(tailEntity.getEntityType(), tailEntity.getPlatformId(), 0);
+        GrassrootGraphEntity participatesIn = fetchGraphEntity(headEntity.getEntityType(), headEntity.getPlatformId(), 0);
+
+        if (participant == null || participatesIn == null) {
+            log.error("Error, one of the entities does not exist in graph, relationship could not be verified");
+            return false;
+        }
+
+        switch (participatesIn.getEntityType()) {
+            case ACTOR:     return participant.getParticipatesInActors().stream()
+                    .filter(AinA -> AinA.getParticipatesIn().equals((Actor) participatesIn)).findAny().get() != null;
+            case EVENT:     return participant.getParticipatesInEvents().stream()
+                    .filter(AinE -> AinE.getParticipatesIn().equals((Event) participatesIn)).findAny().get() != null;
+            default:   log.error("Existence check only supported for ActorInActor and ActorInEvent"); return false;
+        }
+    }
+
+    private GrassrootGraphEntity fetchGraphEntity(GraphEntityType entityType, String Uid, int depth) {
+        switch (entityType) {
+            case ACTOR:         return actorRepository.findByPlatformUid(Uid, depth);
+            case EVENT:         return eventRepository.findByPlatformUid(Uid, depth);
+            default:            return null;
+        }
     }
 
 }

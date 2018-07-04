@@ -9,11 +9,11 @@ public class IncomingRelationship {
 
     private String tailEntityPlatformId;
     private GraphEntityType tailEntityType;
-    private String tailEntitySubtype; // in case it needs adding to
+    private String tailEntitySubtype;
 
     private String headEntityPlatformId;
     private GraphEntityType headEntityType;
-    private String headEntitySubtype; // in case it needs adding to
+    private String headEntitySubtype;
 
     private GrassrootRelationship.Type relationshipType;
 

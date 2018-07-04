@@ -9,6 +9,8 @@ import za.org.grassroot.graph.domain.Actor;
 import za.org.grassroot.graph.domain.enums.GrassrootRelationship;
 
 import java.time.Instant;
+import java.util.List;
+import java.util.ArrayList;
 
 @Getter @Setter @NoArgsConstructor
 @RelationshipEntity(type= GrassrootRelationship.TYPE_PARTICIPATES)
@@ -21,10 +23,18 @@ public class ActorInActor {
 
     @Property private Instant establishedTime; // on the platform
 
+    @Property private List<String> tags;
+
     public ActorInActor(Actor participant, Actor participatesIn, Instant establishedTime) {
         this.participant = participant;
         this.participatesIn = participatesIn;
         this.establishedTime = establishedTime;
+    }
+
+    public void addTags(List<String> newTags) {
+        if (this.tags == null)
+            this.tags = new ArrayList<>();
+        this.tags.addAll(newTags);
     }
 
     @Override

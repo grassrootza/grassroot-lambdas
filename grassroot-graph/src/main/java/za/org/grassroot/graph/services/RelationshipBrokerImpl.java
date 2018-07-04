@@ -42,6 +42,11 @@ public class RelationshipBrokerImpl implements RelationshipBroker {
         GrassrootGraphEntity participatesIn = fetchGraphEntity(participatesInDTO.getEntityType(), participatesInDTO.getPlatformId(), 0);
         log.info("Got participates in entity: {}", participatesIn);
 
+        if (participant == null || participatesIn == null) {
+            log.error("Error, one or both of the entities does not exist in graph, relationship could not be created");
+            return false;
+        }
+
         switch (participatesIn.getEntityType()) {
             case ACTOR:         return addParticipantToActor(participant, (Actor) participatesIn);
             case EVENT:         return addParticipantToEvent(participant, (Event) participatesIn);
@@ -59,6 +64,11 @@ public class RelationshipBrokerImpl implements RelationshipBroker {
         GrassrootGraphEntity participatesIn = fetchGraphEntity(participatesInDTO.getEntityType(), participatesInDTO.getPlatformId(), 0);
         log.info("Got participates in entity: {}", participatesIn);
 
+        if (participant == null || participatesIn == null) {
+            log.error("Error, one or both of the entities does not exist in graph, relationship could not be removed");
+            return false;
+        }
+
         switch (participatesIn.getEntityType()) {
             case ACTOR:         return removeParticipantFromActor(participant, (Actor) participatesIn);
             case EVENT:         return removeParticipantFromEvent(participant, (Event) participatesIn);
@@ -75,6 +85,11 @@ public class RelationshipBrokerImpl implements RelationshipBroker {
         log.info("Got generator entity: {}", generator);
         GrassrootGraphEntity generated = fetchGraphEntity(generatedDTO.getEntityType(), generatedDTO.getPlatformId(), 0);
         log.info("Got generated entity: {}", generated);
+
+        if (generator == null || generated == null) {
+            log.error("Error, one or both of the entities does not exist in graph, relationship could not be created");
+            return false;
+        }
 
         switch (generated.getEntityType()) {
             case ACTOR:         return setGeneratorForActor(generator, (Actor) generated);
@@ -201,11 +216,11 @@ public class RelationshipBrokerImpl implements RelationshipBroker {
         return false;
     }
 
-    private GrassrootGraphEntity fetchGraphEntity(GraphEntityType entityType, String platformId, int depth) {
+    private GrassrootGraphEntity fetchGraphEntity(GraphEntityType entityType, String Uid, int depth) {
         switch (entityType) {
-            case ACTOR:         return actorRepository.findByPlatformUid(platformId, depth);
-            case EVENT:         return eventRepository.findByPlatformUid(platformId, depth);
-            case INTERACTION:   return interactionRepository.findById(platformId, depth).get();
+            case ACTOR:         return actorRepository.findByPlatformUid(Uid, depth);
+            case EVENT:         return eventRepository.findByPlatformUid(Uid, depth);
+            case INTERACTION:   return interactionRepository.findById(Uid, depth).get();
             default:            return null;
         }
     }
