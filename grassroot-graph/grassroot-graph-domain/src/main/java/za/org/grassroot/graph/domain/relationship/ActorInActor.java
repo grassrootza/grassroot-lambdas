@@ -37,6 +37,10 @@ public class ActorInActor {
         this.tags.addAll(newTags);
     }
 
+    public void removeTags(List<String> tagsToRemove) {
+        if (this.tags != null) this.tags.removeAll(tagsToRemove);
+    }
+
     @Override
     public String toString() {
         return "ActorInActor{" +

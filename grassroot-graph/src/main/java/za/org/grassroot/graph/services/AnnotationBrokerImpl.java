@@ -1,6 +1,7 @@
 package za.org.grassroot.graph.services;
 
 import lombok.extern.slf4j.Slf4j;
+import org.neo4j.ogm.session.Session;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import za.org.grassroot.graph.domain.enums.GrassrootRelationship;
@@ -17,6 +18,7 @@ import static za.org.grassroot.graph.domain.enums.EventType.SAFETY_ALERT;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Service @Slf4j
 public class AnnotationBrokerImpl implements AnnotationBroker {
@@ -24,9 +26,12 @@ public class AnnotationBrokerImpl implements AnnotationBroker {
     private final ActorRepository actorRepository;
     private final EventRepository eventRepository;
 
-    public AnnotationBrokerImpl(ActorRepository actorRepository, EventRepository eventRepository) {
+    private final Session session;
+
+    public AnnotationBrokerImpl(ActorRepository actorRepository, EventRepository eventRepository, Session session) {
         this.actorRepository = actorRepository;
         this.eventRepository = eventRepository;
+        this.session = session;
     }
 
     @Override
@@ -34,7 +39,7 @@ public class AnnotationBrokerImpl implements AnnotationBroker {
     public boolean annotateEntity(PlatformEntityDTO platformEntity, Map<String, String> properties, List<String> tags) {
         log.info("Wiring up entity annotation");
         GrassrootGraphEntity entity = fetchGraphEntity(platformEntity.getEntityType(), platformEntity.getPlatformId(), 0);
-        log.info("Got entity to annotate: {}", entity);
+        log.info("Got entity: {}", entity);
 
         if (entity == null) {
             log.error("Error! Entity does not exist in graph, could not be annotated");
@@ -44,31 +49,72 @@ public class AnnotationBrokerImpl implements AnnotationBroker {
         switch (entity.getEntityType()) {
             case ACTOR:         return annotateActor((Actor) entity, properties, tags);
             case EVENT:         return annotateEvent((Event) entity, properties, tags);
-            case INTERACTION:   log.error("Error! Cannot annotate interaction entity"); return false;
+            case INTERACTION:   log.error("Error! Annotations not supported for interaction entities"); return false;
             default:            log.error("Error! Unsupported entity type provided"); return false;
         }
     }
 
     @Override
     @Transactional
-    public boolean annotateRelationship(PlatformEntityDTO tailEntity, PlatformEntityDTO headEntity,
-                                        GrassrootRelationship.Type relationshipType, List<String> tags) {
-        log.info("Wiring up relationship annotation");
-        GrassrootGraphEntity tail = fetchGraphEntity(tailEntity.getEntityType(), tailEntity.getPlatformId(), 0);
-        log.info("Got tail entity: {}", tail);
-        GrassrootGraphEntity head = fetchGraphEntity(headEntity.getEntityType(), headEntity.getPlatformId(), 0);
-        log.info("Got head entity: {}", head);
+    public boolean removeEntityAnnotation(PlatformEntityDTO platformEntity, Set<String> keysToRemove, List<String> tagsToRemove) {
+        log.info("Wiring up removing entity annotation");
+        GrassrootGraphEntity entity = fetchGraphEntity(platformEntity.getEntityType(), platformEntity.getPlatformId(), 0);
+        log.info("Got entity: {}", entity);
 
-        if (tail == null || head == null) {
+        if (entity == null) {
+            log.error("Error! Entity does not exist in graph, could not be annotated");
+            return false;
+        }
+
+        switch (entity.getEntityType()) {
+            case ACTOR:         return removeActorAnnotation((Actor) entity, keysToRemove, tagsToRemove);
+            case EVENT:         return removeEventAnnotation((Event) entity, keysToRemove, tagsToRemove);
+            case INTERACTION:   log.error("Error! Annotations not supported for interaction entities"); return false;
+            default:            log.error("Error! Unsupported entity type provided"); return false;
+        }
+    }
+
+    @Override
+    @Transactional
+    public boolean annotateParticipation(PlatformEntityDTO tailEntity, PlatformEntityDTO headEntity, List<String> tags) {
+        log.info("Wiring up participation annotation");
+        GrassrootGraphEntity participant = fetchGraphEntity(tailEntity.getEntityType(), tailEntity.getPlatformId(), 0);
+        log.info("Got tail entity: {}", participant);
+        GrassrootGraphEntity participatesIn = fetchGraphEntity(headEntity.getEntityType(), headEntity.getPlatformId(), 0);
+        log.info("Got head entity: {}", participatesIn);
+
+        if (participant == null || participatesIn == null) {
             log.error("Error! One or both entities do not exist in graph, relationship could not be annotated");
             return false;
         }
 
-        switch (relationshipType) {
-            case PARTICIPATES:  return annotateParticipation(tail, head, tags);
-            case GENERATOR:     log.error("Error! Cannot annotate generator relationship"); return false;
-            case OBSERVES:      log.error("Error! Cannot annotate observer relationship"); return false;
-            default:            log.error("Error! Unsupported relationship type provided"); return false;
+        if (GraphEntityType.ACTOR.equals(participant.getEntityType()) && GraphEntityType.ACTOR.equals(participatesIn.getEntityType())) {
+            return annotateActorInActor((Actor) participant, (Actor) participatesIn, tags);
+        } else {
+            log.error("Annotation only supported for actorInActor relationship entities (for now)");
+            return false;
+        }
+    }
+
+    @Override
+    @Transactional
+    public boolean removeParticipationAnnotation(PlatformEntityDTO tailEntity, PlatformEntityDTO headEntity, List<String> tagsToRemove) {
+        log.info("Wiring up removing participation annotation");
+        GrassrootGraphEntity participant = fetchGraphEntity(tailEntity.getEntityType(), tailEntity.getPlatformId(), 0);
+        log.info("Got tail entity: {}", participant);
+        GrassrootGraphEntity participatesIn = fetchGraphEntity(headEntity.getEntityType(), headEntity.getPlatformId(), 0);
+        log.info("Got head entity: {}", participatesIn);
+
+        if (participant == null || participatesIn == null) {
+            log.error("Error! One or both entities do not exist in graph, relationship could not be annotated");
+            return false;
+        }
+
+        if (GraphEntityType.ACTOR.equals(participant.getEntityType()) && GraphEntityType.ACTOR.equals(participatesIn.getEntityType())) {
+            return removeActorInActorAnnotation((Actor) participant, (Actor) participatesIn, tagsToRemove);
+        } else {
+            log.error("Annotation only supported for actorInActor relationship entities (for now)");
+            return false;
         }
     }
 
@@ -97,12 +143,27 @@ public class AnnotationBrokerImpl implements AnnotationBroker {
         }
     }
 
-    private boolean annotateParticipation(GrassrootGraphEntity participant, GrassrootGraphEntity participatesIn, List<String> tags) {
-        if (GraphEntityType.ACTOR.equals(participant.getEntityType()) && GraphEntityType.ACTOR.equals(participatesIn.getEntityType())) {
-            return annotateActorInActor((Actor) participant, (Actor) participatesIn, tags);
+    private boolean removeActorAnnotation(Actor actor, Set<String> keysToRemove, List<String> tagsToRemove) {
+        if (INDIVIDUAL.equals(actor.getActorType()) || GROUP.equals(actor.getActorType())) {
+            actor.removeProperties(keysToRemove);
+            actor.removeTags(tagsToRemove);
+            actorRepository.save(actor, 0);
+            return true;
         } else {
-            log.error("Only actorInActor participatory relationship entities can be annotated (for now)");
+            log.error("Only individuals and groups can be annotated (for now)");
             return false;
+        }
+    }
+
+    private boolean removeEventAnnotation(Event event, Set<String> keysToRemove, List<String> tagsToRemove) {
+        if (SAFETY_ALERT.equals(event.getEventType())) {
+            log.error("Safety events cannot be annotated");
+            return false;
+        } else {
+            event.removeProperties(keysToRemove);
+            event.removeTags(tagsToRemove);
+            eventRepository.save(event, 0);
+            return true;
         }
     }
 
@@ -114,6 +175,20 @@ public class AnnotationBrokerImpl implements AnnotationBroker {
             return false;
         } else {
             relationship.addTags(tags);
+            session.save(relationship, 0);
+            return true;
+        }
+    }
+
+    private boolean removeActorInActorAnnotation(Actor participant, Actor participatesIn, List<String> tagsToRemove) {
+        ActorInActor relationship = participant.getParticipatesInActors().stream()
+                .filter(AinA -> AinA.getParticipatesIn().equals(participatesIn)).findAny().get();
+        if (relationship == null) {
+            log.error("No ActorInActor relationship entity found between {} and {}, aborting", participant, participatesIn);
+            return false;
+        } else {
+            relationship.removeTags(tagsToRemove);
+            session.save(relationship, 0);
             return true;
         }
     }

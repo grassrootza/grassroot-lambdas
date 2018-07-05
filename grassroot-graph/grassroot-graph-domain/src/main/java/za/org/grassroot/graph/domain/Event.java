@@ -90,6 +90,14 @@ public class Event extends GrassrootGraphEntity {
         this.tags.addAll(newTags);
     }
 
+    public void removeProperties(Set<String> keysToRemove) {
+        if (this.properties != null) this.properties.keySet().removeAll(keysToRemove);
+    }
+
+    public void removeTags(List<String> tagsToRemove) {
+        if (this.tags != null) this.tags.removeAll(tagsToRemove);
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;

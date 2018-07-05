@@ -54,12 +54,13 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
             log.info("Handling action, type: {}", action.getActionType());
             boolean succeeded = false;
             switch (action.getActionType()) {
-                case CREATE_ENTITY:         succeeded = createEntities(action); break;
-                case REMOVE_ENTITY:         succeeded = removeEntities(action); break;
+                case CREATE_ENTITY:         succeeded = createEntities(action.getDataObjects()); break;
+                case REMOVE_ENTITY:         succeeded = removeEntities(action.getDataObjects()); break;
                 case ANNOTATE_ENTITY:       succeeded = annotateEntities(action.getAnnotations()); break;
                 case CREATE_RELATIONSHIP:   succeeded = establishRelationships(action.getRelationships()); break;
                 case REMOVE_RELATIONSHIP:   succeeded = removeRelationships(action.getRelationships()); break;
                 case ANNOTATE_RELATIONSHIP: succeeded = annotateRelationships(action.getAnnotations()); break;
+                case REMOVE_ANNOTATION:     succeeded = removeAnnotations(action.getAnnotations()); break;
             }
             sink.success(succeeded);
         });
@@ -67,78 +68,38 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
 
     // note: although it allows for multiple entities at once, to preserve integrity, any such multiple entities must
     // be related to each other, i.e., have relationships among each other - the validation checks if this is not the case
-    private boolean createEntities(IncomingGraphAction action) {
-        boolean executionSucceeded = false;
+    private boolean createEntities(List<IncomingDataObject> entities) {
+        log.info("Creating {} entities", entities.size());
+        boolean executionSucceeded = true;
 
-        // first, create or update the master entities, including possibly multiple (e.g., if packet is group creation)
-        if (action.getDataObjects() != null) {
-            log.info("Graph action has data objects, processing {} objects", action.getDataObjects().size());
-            executionSucceeded = createIncomingDataObjects(new HashSet<>(action.getDataObjects()));
-            log.info("After data object handling, succeeded: {}", executionSucceeded);
-        }
+        Set<IncomingDataObject> incomingActors = entities.stream()
+                .filter(IncomingDataObject::isActor).collect(Collectors.toSet());
+        executionSucceeded = incomingActors.stream().map(this::createSingleEntity).reduce(true, (a, b) -> a && b);
 
-        // second, wire up any relationships - if we need to (OGM may do this for us - keep eye on it)
-        if (action.getRelationships() != null) {
-            log.info("Graph action has relationships, processing {} objects", action.getRelationships().size());
-            executionSucceeded = executionSucceeded && establishRelationships(action.getRelationships());
-            log.info("After relationship handling, succeeded: {}", executionSucceeded);
-        }
+        entities.removeAll(incomingActors);
+        executionSucceeded = executionSucceeded && entities.stream()
+                .map(this::createSingleEntity).reduce(true, (a, b) -> a && b);
 
+        log.info("After data object handling, succeeded: {}", executionSucceeded);
         return executionSucceeded;
     }
 
-    private boolean createIncomingDataObjects(Set<IncomingDataObject> dataObjects) {
-        Set<IncomingDataObject> incomingActors = dataObjects.stream()
-                .filter(IncomingDataObject::isActor).collect(Collectors.toSet());
-        Set<Actor> individuals = incomingActors.stream().map(IncomingDataObject::getGraphEntity)
-                .map(entity -> (Actor) entity).collect(Collectors.toSet());
-        Set<Actor> storedIndividuals = storeActorsNotInGraph(individuals);
-        log.info("stored {} actors onto the graph", storedIndividuals.size());
-
-        // non user and non group (going to be smaller set)
-        dataObjects.removeAll(incomingActors);
-        log.info("and now have {} remaining objects", dataObjects.size());
-        return dataObjects.stream()
-                .map(this::createMasterEntity).reduce(true, (a, b) -> a && b); // can do as allMatch but find that a bit opaque
-    }
-
-    private boolean createMasterEntity(IncomingDataObject dataObject) {
+    private boolean createSingleEntity(IncomingDataObject dataObject) {
         PlatformEntityDTO entityDTO = new PlatformEntityDTO(dataObject.getGraphEntity().getPlatformUid(),
                 dataObject.getEntityType(), dataObject.getEntitySubtype());
+
         if (existenceBroker.doesEntityExistInGraph(entityDTO))
             return true; // by definition, execution succeeded, as we do not do any updating in here, because of too much potential fragility
+
         log.info("Data object did not exist, has entity type: {}, entity: {}", dataObject.getEntityType(), dataObject);
         return persistGraphEntity(dataObject.getGraphEntity());
     }
 
-    private Set<Actor> storeActorsNotInGraph(Set<Actor> incomingActors) {
-        Set<String> platformIds = incomingActors.stream().map(Actor::getPlatformUid).collect(Collectors.toSet());
-        log.info("extracted platform IDs: {}", platformIds);
-        Set<Actor> inGraphActors = new HashSet<>(actorRepository.findByPlatformUidIn(platformIds));
-        Set<Actor> notInGraphActors = new HashSet<>(incomingActors);
-        notInGraphActors.removeAll(inGraphActors);
-
-        log.info("Handling actor storage, incoming: {}, in graph: {}, not in graph: {}",
-                incomingActors.size(), inGraphActors.size(), notInGraphActors.size());
-        Set<Actor> newlyInGraphActors = saveActorsToGraph(notInGraphActors);
-        log.info("And now have {} actors newly in graph", newlyInGraphActors.size());
-        inGraphActors.addAll(newlyInGraphActors);
-        return inGraphActors;
-    }
-
-    private Set<Actor> saveActorsToGraph(Set<Actor> actorsNotInGraph) {
-        if (actorsNotInGraph.size() < 10)
-            return StreamSupport.stream(actorRepository.saveAll(actorsNotInGraph)
-                    .spliterator(), false).collect(Collectors.toSet());
-
-        log.info("large number of actors, splitting TX ...");
-        return actorsNotInGraph.stream().map(actor -> actorRepository.save(actor, 0)).collect(Collectors.toSet());
-    }
-
-    // this will only remove entities that are related to the primary one (first in list); doesn't need a relationship call
-    // as OGM will handle that for us
-    private boolean removeEntities(IncomingGraphAction action) {
-        return action.getDataObjects().stream().map(this::removeSingleEntity).reduce(true, (a, b) -> a && b);
+    // this will only remove entities that are related to the primary one (first in list);
+    // doesn't need a relationship call as OGM will handle that for us.
+    private boolean removeEntities(List<IncomingDataObject> entities) {
+        log.info("Removing {} entities", entities.size());
+        return entities.stream().map(this::removeSingleEntity).reduce(true, (a, b) -> a && b);
     }
 
     private boolean removeSingleEntity(IncomingDataObject dataObject) {
@@ -154,9 +115,8 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
         return deleteGraphEntity(dataObject.getGraphEntity());
     }
 
-    // should not need to be in order with elimination of fifo and integration of existence broker
     private boolean establishRelationships(List<IncomingRelationship> relationships) {
-        log.info("Creating relationships: {}", relationships);
+        log.info("Creating {} relationships", relationships.size());
         return relationships.stream().map(this::createSingleRelationship).reduce(true, (a, b) -> a && b);
     }
 
@@ -181,7 +141,7 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
 
     // again, only relevant from single, central node
     private boolean removeRelationships(List<IncomingRelationship> relationships) {
-        log.info("Removing relationships: {}", relationships);
+        log.info("Removing {} relationships", relationships.size());
         return relationships.stream().map(this::removeSingleRelationship).reduce(true, (a, b) -> a && b);
     }
 
@@ -193,8 +153,6 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
 
         if (!existenceBroker.doesEntityExistInGraph(tailEntity) || !existenceBroker.doesEntityExistInGraph(headEntity))
             return true;
-
-        log.info("Completed existence checks, both entities exist.");
 
         switch (relationship.getRelationshipType()) {
             case PARTICIPATES:  return relationshipBroker.removeParticipation(tailEntity, headEntity);
@@ -237,34 +195,83 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
         PlatformEntityDTO headEntity = new PlatformEntityDTO(relationship.getHeadEntityPlatformId(),
                 relationship.getHeadEntityType(), relationship.getHeadEntitySubtype());
 
-        if (!isValidAnnotation(tailEntity, headEntity, relationship.getRelationshipType())) {
-            log.error("Invalid relationship annotation, only supporting ActorInActor at the moment");
-            return false;
-        }
-
         if (!entitiesExist(tailEntity, headEntity)) {
             log.error("Entities did not previously exist in graph and could not be added, aborting");
             return false;
         }
 
         if (!existenceBroker.doesRelationshipExistInGraph(tailEntity, headEntity, relationship.getRelationshipType())) {
+            if (!GrassrootRelationship.Type.PARTICIPATES.equals(relationship.getRelationshipType())) {
+                log.error("Error! Only supporting participation annotation at the moment.");
+                return false;
+            }
             if (!relationshipBroker.addParticipation(tailEntity, headEntity)) {
                 log.error("Relationship entity did not previously exist in graph and could not be added, aborting");
                 return false;
             }
         }
 
-        log.info("Verified entities and relationship exist, annotating relationship to graph");
-        return annotationBroker.annotateRelationship(tailEntity, headEntity,
-                relationship.getRelationshipType(), annotation.getTags());
+        log.info("Verified relationship exists, annotating relationship to graph");
+        switch (relationship.getRelationshipType()) {
+            case PARTICIPATES:  return annotationBroker.annotateParticipation(tailEntity, headEntity, annotation.getTags());
+            default:            log.error("Error! Only supporting participation annotation at the moment."); return false;
+        }
+    }
+
+    private boolean removeAnnotations(List<IncomingAnnotation> annotations) {
+        log.info("Removing annotations: {}", annotations);
+        return annotations.stream().map(this::removeSingleAnnotation).reduce(true, (a, b) -> a && b);
+    }
+
+    private boolean removeSingleAnnotation(IncomingAnnotation annotation) {
+        if (annotation.getEntity() == null && annotation.getRelationship() == null) {
+            log.error("Error! Annotation does not contain entity or relationship, aborting");
+            return false;
+        }
+        if (annotation.getEntity() != null && annotation.getRelationship() != null) {
+            log.error("Error! One annotation cannot serve for both a relationship and entity"); // because tags overlap.
+            return false;
+        }
+        if (annotation.getEntity() != null) return removeEntityAnnotation(annotation);
+        else return removeRelationshipAnnotation(annotation);
+    }
+
+    private boolean removeEntityAnnotation(IncomingAnnotation annotation) {
+        IncomingDataObject entity = annotation.getEntity();
+        PlatformEntityDTO entityDTO = new PlatformEntityDTO(entity.getGraphEntity().getPlatformUid(),
+                entity.getEntityType(), entity.getEntitySubtype());
+
+        if (!existenceBroker.doesEntityExistInGraph(entityDTO))
+            return true;
+
+        log.info("Verified entity exists, removing entity annotation from graph");
+        return annotationBroker.removeEntityAnnotation(entityDTO, annotation.getProperties().keySet(), annotation.getTags());
+    }
+
+    private boolean removeRelationshipAnnotation(IncomingAnnotation annotation) {
+        IncomingRelationship relationship = annotation.getRelationship();
+        PlatformEntityDTO tailEntity = new PlatformEntityDTO(relationship.getTailEntityPlatformId(),
+                relationship.getTailEntityType(), relationship.getTailEntitySubtype());
+        PlatformEntityDTO headEntity = new PlatformEntityDTO(relationship.getHeadEntityPlatformId(),
+                relationship.getHeadEntityType(), relationship.getHeadEntitySubtype());
+
+        if (!existenceBroker.doesEntityExistInGraph(tailEntity) || !existenceBroker.doesEntityExistInGraph(headEntity) ||
+                !existenceBroker.doesRelationshipExistInGraph(tailEntity, headEntity, relationship.getRelationshipType()))
+            return true;
+
+        log.info("Verified relationship exists, removing relationship annotation from graph");
+        switch (relationship.getRelationshipType()) {
+            case PARTICIPATES:  return annotationBroker.annotateParticipation(tailEntity, headEntity, annotation.getTags());
+            default:            log.error("Error! Only supporting participation annotation at the moment."); return false;
+        }
     }
 
     private boolean persistGraphEntity(GrassrootGraphEntity graphEntity) {
         try {
             switch (graphEntity.getEntityType()) {
-                case ACTOR:         actorRepository.save((Actor) graphEntity); break;
-                case EVENT:         eventRepository.save((Event) graphEntity); break;
-                case INTERACTION:   interactionRepository.save((Interaction) graphEntity); break;
+                case ACTOR:         actorRepository.save((Actor) graphEntity, 0); break;
+                case EVENT:         eventRepository.save((Event) graphEntity, 0); break;
+                case INTERACTION:   interactionRepository.save((Interaction) graphEntity, 0); break;
             }
             return true;
         } catch (IllegalArgumentException|ClassCastException e) {
@@ -294,15 +301,9 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
             entitiesExist = existenceBroker.addEntityToGraph(tailEntity);
 
         if (!existenceBroker.doesEntityExistInGraph(headEntity))
-            entitiesExist = existenceBroker.addEntityToGraph(headEntity);
+            entitiesExist = entitiesExist && existenceBroker.addEntityToGraph(headEntity);
 
         return entitiesExist;
-    }
-
-    private boolean isValidAnnotation(PlatformEntityDTO tailEntity, PlatformEntityDTO headEntity,
-                                      GrassrootRelationship.Type relationshipType) {
-        return (relationship.getRelationshipType() == GrassrootRelationship.Type.PARTICIPATES &&
-                tailEntity.isActor() && headEntity.isActor());
     }
 
 }
