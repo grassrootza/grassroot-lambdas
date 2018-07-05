@@ -103,12 +103,12 @@ public class Event extends GrassrootGraphEntity {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         Event event = (Event) o;
-        return Objects.equals(id, event.id);
+        return Objects.equals(platformUid, event.platformUid);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id);
+        return Objects.hash(platformUid);
     }
 
 }
