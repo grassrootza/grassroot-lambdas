@@ -41,8 +41,8 @@ public class ExistenceBrokerImpl implements ExistenceBroker {
 
     @Override
     @Transactional(readOnly = true)
-    public boolean doesRelationshipExistInGraph(PlatformEntityDTO tailEntity, PlatformEntityDTO headEntity,
-                                                GrassrootRelationship.Type relationshipType) {
+    public boolean doesRelationshipEntityExist(PlatformEntityDTO tailEntity, PlatformEntityDTO headEntity,
+                                               GrassrootRelationship.Type relationshipType) {
         switch (relationshipType) {
             case PARTICIPATES: return doesParticipationExist(tailEntity, headEntity);
             case GENERATOR: log.error("Generator relationship check not currently supported"); return false;

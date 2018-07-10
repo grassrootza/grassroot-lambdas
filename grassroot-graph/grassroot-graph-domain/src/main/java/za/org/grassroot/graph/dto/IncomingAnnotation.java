@@ -4,6 +4,7 @@ import lombok.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Getter @Setter @AllArgsConstructor @NoArgsConstructor @ToString
 public class IncomingAnnotation {
@@ -19,5 +20,6 @@ public class IncomingAnnotation {
 
     private Map<String, String> properties;
     private List<String> tags;
+    private Set<String> keysToRemove;
 
 }

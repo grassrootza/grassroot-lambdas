@@ -6,8 +6,8 @@ public interface ExistenceBroker {
 
     boolean doesEntityExistInGraph(PlatformEntityDTO platformEntity);
 
-    boolean doesRelationshipExistInGraph(PlatformEntityDTO tailEntity, PlatformEntityDTO headEntity,
-                                         GrassrootRelationship.Type relationshipType);
+    boolean doesRelationshipEntityExist(PlatformEntityDTO tailEntity, PlatformEntityDTO headEntity,
+                                        GrassrootRelationship.Type relationshipType);
 
     boolean addEntityToGraph(PlatformEntityDTO platformEntity);
 

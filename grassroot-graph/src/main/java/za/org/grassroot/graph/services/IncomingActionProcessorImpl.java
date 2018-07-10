@@ -200,11 +200,12 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
             return false;
         }
 
-        if (!existenceBroker.doesRelationshipExistInGraph(tailEntity, headEntity, relationship.getRelationshipType())) {
-            if (!GrassrootRelationship.Type.PARTICIPATES.equals(relationship.getRelationshipType())) {
-                log.error("Error! Only supporting participation annotation at the moment.");
+        if (!existenceBroker.doesRelationshipEntityExist(tailEntity, headEntity, relationship.getRelationshipType())) {
+            if (!isValidAnnotation(tailEntity, headEntity, relationship.getRelationshipType())) {
+                log.error("Invalid relationship annotation, only supporting ActorInActor at the moment");
                 return false;
             }
+
             if (!relationshipBroker.addParticipation(tailEntity, headEntity)) {
                 log.error("Relationship entity did not previously exist in graph and could not be added, aborting");
                 return false;
@@ -256,12 +257,12 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
                 relationship.getHeadEntityType(), relationship.getHeadEntitySubtype());
 
         if (!existenceBroker.doesEntityExistInGraph(tailEntity) || !existenceBroker.doesEntityExistInGraph(headEntity) ||
-                !existenceBroker.doesRelationshipExistInGraph(tailEntity, headEntity, relationship.getRelationshipType()))
+                !existenceBroker.doesRelationshipEntityExist(tailEntity, headEntity, relationship.getRelationshipType()))
             return true;
 
         log.info("Verified relationship exists, removing relationship annotation from graph");
         switch (relationship.getRelationshipType()) {
-            case PARTICIPATES:  return annotationBroker.annotateParticipation(tailEntity, headEntity, annotation.getTags());
+            case PARTICIPATES:  return annotationBroker.removeParticipationAnnotation(tailEntity, headEntity, annotation.getTags());
             default:            log.error("Error! Only supporting participation annotation at the moment."); return false;
         }
     }
@@ -304,6 +305,12 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
             entitiesExist = entitiesExist && existenceBroker.addEntityToGraph(headEntity);
 
         return entitiesExist;
+    }
+
+    // update validity conditions if range of relationship entities annotated expands (only supports ActorInActor now).
+    private boolean isValidAnnotation(PlatformEntityDTO tailEntity, PlatformEntityDTO headEntity,
+                                      GrassrootRelationship.Type relationshipType) {
+        return (relationshipType == GrassrootRelationship.Type.PARTICIPATES && tailEntity.isActor() && headEntity.isActor());
     }
 
 }
