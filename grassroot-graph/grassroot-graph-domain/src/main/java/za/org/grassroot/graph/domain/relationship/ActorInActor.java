@@ -9,8 +9,8 @@ import za.org.grassroot.graph.domain.Actor;
 import za.org.grassroot.graph.domain.enums.GrassrootRelationship;
 
 import java.time.Instant;
-import java.util.List;
-import java.util.ArrayList;
+import java.util.Set;
+import java.util.HashSet;
 
 @Getter @Setter @NoArgsConstructor
 @RelationshipEntity(type= GrassrootRelationship.TYPE_PARTICIPATES)

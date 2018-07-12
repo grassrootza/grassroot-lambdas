@@ -13,11 +13,9 @@ import za.org.grassroot.graph.domain.relationship.ActorInActor;
 import za.org.grassroot.graph.domain.relationship.ActorInEvent;
 
 import java.time.Instant;
-import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
-import java.util.List;
-import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.HashMap;
 
