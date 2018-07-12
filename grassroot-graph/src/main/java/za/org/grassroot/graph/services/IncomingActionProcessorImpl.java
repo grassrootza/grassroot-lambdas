@@ -8,7 +8,6 @@ import za.org.grassroot.graph.domain.Actor;
 import za.org.grassroot.graph.domain.Event;
 import za.org.grassroot.graph.domain.enums.GrassrootRelationship;
 import za.org.grassroot.graph.domain.GrassrootGraphEntity;
-import za.org.grassroot.graph.domain.enums.GraphEntityType;
 import za.org.grassroot.graph.domain.Interaction;
 import za.org.grassroot.graph.dto.IncomingDataObject;
 import za.org.grassroot.graph.dto.IncomingGraphAction;
@@ -18,12 +17,7 @@ import za.org.grassroot.graph.repository.ActorRepository;
 import za.org.grassroot.graph.repository.EventRepository;
 import za.org.grassroot.graph.repository.InteractionRepository;
 
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
-import java.util.Map;
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
 @Service @Slf4j
 public class IncomingActionProcessorImpl implements IncomingActionProcessor {
@@ -54,7 +48,7 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
             log.info("Handling action, type: {}", action.getActionType());
             boolean succeeded = false;
             switch (action.getActionType()) {
-                case CREATE_ENTITY:         succeeded = createEntities(action.getDataObjects()); break;
+                case CREATE_ENTITY:         succeeded = createEntitiesAndRelationships(action); break;
                 case REMOVE_ENTITY:         succeeded = removeEntities(action.getDataObjects()); break;
                 case ANNOTATE_ENTITY:       succeeded = annotateEntities(action.getAnnotations()); break;
                 case CREATE_RELATIONSHIP:   succeeded = establishRelationships(action.getRelationships()); break;
@@ -68,20 +62,14 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
 
     // note: although it allows for multiple entities at once, to preserve integrity, any such multiple entities must
     // be related to each other, i.e., have relationships among each other - the validation checks if this is not the case
+    private boolean createEntitiesAndRelationships(IncomingGraphAction action) {
+        log.info("Handling {} entities, {} relationships", action.getDataObjects().size(), action.getRelationships().size());
+        return createEntities(action.getDataObjects()) && establishRelationships(action.getRelationships());
+    }
+
     private boolean createEntities(List<IncomingDataObject> entities) {
         log.info("Creating {} entities", entities.size());
-        boolean executionSucceeded = true;
-
-        Set<IncomingDataObject> incomingActors = entities.stream()
-                .filter(IncomingDataObject::isActor).collect(Collectors.toSet());
-        executionSucceeded = incomingActors.stream().map(this::createSingleEntity).reduce(true, (a, b) -> a && b);
-
-        entities.removeAll(incomingActors);
-        executionSucceeded = executionSucceeded && entities.stream()
-                .map(this::createSingleEntity).reduce(true, (a, b) -> a && b);
-
-        log.info("After data object handling, succeeded: {}", executionSucceeded);
-        return executionSucceeded;
+        return entities.stream().map(this::createSingleEntity).reduce(true, (a, b) -> a && b);
     }
 
     private boolean createSingleEntity(IncomingDataObject dataObject) {

@@ -9,7 +9,6 @@ import org.neo4j.ogm.id.UuidStrategy;
 import za.org.grassroot.graph.domain.enums.EventType;
 import za.org.grassroot.graph.domain.enums.GraphEntityType;
 import za.org.grassroot.graph.domain.enums.GrassrootRelationship;
-import za.org.grassroot.graph.domain.relationship.ActorInEvent;
 
 import java.time.Instant;
 import java.util.Objects;

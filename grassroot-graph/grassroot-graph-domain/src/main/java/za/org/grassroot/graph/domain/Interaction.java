@@ -9,10 +9,7 @@ import za.org.grassroot.graph.domain.enums.GraphEntityType;
 import za.org.grassroot.graph.domain.enums.InteractionType;
 
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Objects;
-import java.util.Map;
 
 @NodeEntity @Getter @Setter @Slf4j
 public class Interaction extends GrassrootGraphEntity {
