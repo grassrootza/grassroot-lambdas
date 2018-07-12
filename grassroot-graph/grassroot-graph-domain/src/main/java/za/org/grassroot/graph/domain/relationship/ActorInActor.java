@@ -23,7 +23,7 @@ public class ActorInActor {
 
     @Property private Instant establishedTime; // on the platform
 
-    @Property private List<String> tags;
+    @Property private Set<String> tags;
 
     public ActorInActor(Actor participant, Actor participatesIn, Instant establishedTime) {
         this.participant = participant;
@@ -31,13 +31,13 @@ public class ActorInActor {
         this.establishedTime = establishedTime;
     }
 
-    public void addTags(List<String> newTags) {
+    public void addTags(Set<String> newTags) {
         if (this.tags == null)
-            this.tags = new ArrayList<>();
+            this.tags = new HashSet<>();
         this.tags.addAll(newTags);
     }
 
-    public void removeTags(List<String> tagsToRemove) {
+    public void removeTags(Set<String> tagsToRemove) {
         if (this.tags != null) this.tags.removeAll(tagsToRemove);
     }
 

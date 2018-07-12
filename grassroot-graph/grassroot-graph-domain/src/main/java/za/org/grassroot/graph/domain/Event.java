@@ -34,7 +34,7 @@ public class Event extends GrassrootGraphEntity {
 
     @Property private Map<String, String> properties;
 
-    @Property private List<String> tags;
+    @Property private Set<String> tags;
 
     @Relationship(type = GrassrootRelationship.TYPE_PARTICIPATES)
     private Set<Actor> participatesIn;
@@ -84,9 +84,9 @@ public class Event extends GrassrootGraphEntity {
         this.properties.putAll(newProperties);
     }
 
-    public void addTags(List<String> newTags) {
+    public void addTags(Set<String> newTags) {
         if (this.tags == null)
-            this.tags = new ArrayList<>();
+            this.tags = new HashSet<>();
         this.tags.addAll(newTags);
     }
 
@@ -94,7 +94,7 @@ public class Event extends GrassrootGraphEntity {
         if (this.properties != null) this.properties.keySet().removeAll(keysToRemove);
     }
 
-    public void removeTags(List<String> tagsToRemove) {
+    public void removeTags(Set<String> tagsToRemove) {
         if (this.tags != null) this.tags.removeAll(tagsToRemove);
     }
 

@@ -8,12 +8,12 @@ import java.util.Set;
 
 public interface AnnotationBroker {
 
-    boolean annotateEntity(PlatformEntityDTO platformEntity, Map<String, String> properties, List<String> tags);
+    boolean annotateEntity(PlatformEntityDTO platformEntity, Map<String, String> properties, Set<String> tags);
 
-    boolean removeEntityAnnotation(PlatformEntityDTO platformEntity, Set<String> keysToRemove, List<String> tagsToRemove);
+    boolean removeEntityAnnotation(PlatformEntityDTO platformEntity, Set<String> keysToRemove, Set<String> tagsToRemove);
 
-    boolean annotateParticipation(PlatformEntityDTO tailEntity, PlatformEntityDTO headEntity, List<String> tags);
+    boolean annotateParticipation(PlatformEntityDTO tailEntity, PlatformEntityDTO headEntity, Set<String> tags);
 
-    boolean removeParticipationAnnotation(PlatformEntityDTO tailEntity, PlatformEntityDTO headEntity, List<String> tagsToRemove);
+    boolean removeParticipationAnnotation(PlatformEntityDTO tailEntity, PlatformEntityDTO headEntity, Set<String> tagsToRemove);
 
 }

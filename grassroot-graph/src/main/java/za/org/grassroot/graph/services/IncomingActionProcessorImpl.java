@@ -246,7 +246,7 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
             return true;
 
         log.info("Verified entity exists, removing entity annotation from graph");
-        return annotationBroker.removeEntityAnnotation(entityDTO, annotation.getProperties().keySet(), annotation.getTags());
+        return annotationBroker.removeEntityAnnotation(entityDTO, annotation.getKeysToRemove(), annotation.getTags());
     }
 
     private boolean removeRelationshipAnnotation(IncomingAnnotation annotation) {

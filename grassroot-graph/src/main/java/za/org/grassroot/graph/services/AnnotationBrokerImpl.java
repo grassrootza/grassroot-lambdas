@@ -36,7 +36,7 @@ public class AnnotationBrokerImpl implements AnnotationBroker {
 
     @Override
     @Transactional
-    public boolean annotateEntity(PlatformEntityDTO platformEntity, Map<String, String> properties, List<String> tags) {
+    public boolean annotateEntity(PlatformEntityDTO platformEntity, Map<String, String> properties, Set<String> tags) {
         log.info("Wiring up entity annotation");
         GrassrootGraphEntity entity = fetchGraphEntity(platformEntity.getEntityType(), platformEntity.getPlatformId(), 0);
         log.info("Got entity: {}", entity);
@@ -56,7 +56,7 @@ public class AnnotationBrokerImpl implements AnnotationBroker {
 
     @Override
     @Transactional
-    public boolean removeEntityAnnotation(PlatformEntityDTO platformEntity, Set<String> keysToRemove, List<String> tagsToRemove) {
+    public boolean removeEntityAnnotation(PlatformEntityDTO platformEntity, Set<String> keysToRemove, Set<String> tagsToRemove) {
         log.info("Wiring up removing entity annotation");
         GrassrootGraphEntity entity = fetchGraphEntity(platformEntity.getEntityType(), platformEntity.getPlatformId(), 0);
         log.info("Got entity: {}", entity);
@@ -76,7 +76,7 @@ public class AnnotationBrokerImpl implements AnnotationBroker {
 
     @Override
     @Transactional
-    public boolean annotateParticipation(PlatformEntityDTO tailEntity, PlatformEntityDTO headEntity, List<String> tags) {
+    public boolean annotateParticipation(PlatformEntityDTO tailEntity, PlatformEntityDTO headEntity, Set<String> tags) {
         log.info("Wiring up participation annotation");
         GrassrootGraphEntity participant = fetchGraphEntity(tailEntity.getEntityType(), tailEntity.getPlatformId(), 0);
         log.info("Got tail entity: {}", participant);
@@ -98,7 +98,7 @@ public class AnnotationBrokerImpl implements AnnotationBroker {
 
     @Override
     @Transactional
-    public boolean removeParticipationAnnotation(PlatformEntityDTO tailEntity, PlatformEntityDTO headEntity, List<String> tagsToRemove) {
+    public boolean removeParticipationAnnotation(PlatformEntityDTO tailEntity, PlatformEntityDTO headEntity, Set<String> tagsToRemove) {
         log.info("Wiring up removing participation annotation");
         GrassrootGraphEntity participant = fetchGraphEntity(tailEntity.getEntityType(), tailEntity.getPlatformId(), 0);
         log.info("Got tail entity: {}", participant);
@@ -119,7 +119,7 @@ public class AnnotationBrokerImpl implements AnnotationBroker {
     }
 
     // movement should be able to be annotated, but it is not yet incorporated in main platform.
-    private boolean annotateActor(Actor actor, Map<String, String> properties, List<String> tags) {
+    private boolean annotateActor(Actor actor, Map<String, String> properties, Set<String> tags) {
         if (INDIVIDUAL.equals(actor.getActorType()) || GROUP.equals(actor.getActorType())) {
             actor.addProperties(properties);
             actor.addTags(tags);
@@ -131,7 +131,7 @@ public class AnnotationBrokerImpl implements AnnotationBroker {
         }
     }
 
-    private boolean annotateEvent(Event event, Map<String, String> properties, List<String> tags) {
+    private boolean annotateEvent(Event event, Map<String, String> properties, Set<String> tags) {
         if (SAFETY_ALERT.equals(event.getEventType())) {
             log.error("Safety events cannot be annotated");
             return false;
@@ -143,7 +143,7 @@ public class AnnotationBrokerImpl implements AnnotationBroker {
         }
     }
 
-    private boolean removeActorAnnotation(Actor actor, Set<String> keysToRemove, List<String> tagsToRemove) {
+    private boolean removeActorAnnotation(Actor actor, Set<String> keysToRemove, Set<String> tagsToRemove) {
         if (INDIVIDUAL.equals(actor.getActorType()) || GROUP.equals(actor.getActorType())) {
             actor.removeProperties(keysToRemove);
             actor.removeTags(tagsToRemove);
@@ -155,7 +155,7 @@ public class AnnotationBrokerImpl implements AnnotationBroker {
         }
     }
 
-    private boolean removeEventAnnotation(Event event, Set<String> keysToRemove, List<String> tagsToRemove) {
+    private boolean removeEventAnnotation(Event event, Set<String> keysToRemove, Set<String> tagsToRemove) {
         if (SAFETY_ALERT.equals(event.getEventType())) {
             log.error("Safety events cannot be annotated");
             return false;
@@ -167,7 +167,7 @@ public class AnnotationBrokerImpl implements AnnotationBroker {
         }
     }
 
-    private boolean annotateActorInActor(Actor participant, Actor participatesIn, List<String> tags) {
+    private boolean annotateActorInActor(Actor participant, Actor participatesIn, Set<String> tags) {
         ActorInActor relationship = participant.getParticipatesInActors().stream()
                 .filter(AinA -> AinA.getParticipatesIn().equals(participatesIn)).findAny().get();
         if (relationship == null) {
@@ -180,7 +180,7 @@ public class AnnotationBrokerImpl implements AnnotationBroker {
         }
     }
 
-    private boolean removeActorInActorAnnotation(Actor participant, Actor participatesIn, List<String> tagsToRemove) {
+    private boolean removeActorInActorAnnotation(Actor participant, Actor participatesIn, Set<String> tagsToRemove) {
         ActorInActor relationship = participant.getParticipatesInActors().stream()
                 .filter(AinA -> AinA.getParticipatesIn().equals(participatesIn)).findAny().get();
         if (relationship == null) {

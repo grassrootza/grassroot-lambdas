@@ -14,12 +14,13 @@ public class IncomingAnnotation {
     public static final String province = "PROVINCE";
     public static final String latitude = "LATITUDE";
     public static final String longitude = "LONGITUDE";
+    public static final String description = "DESCRIPTION";
 
     private IncomingDataObject entity;
     private IncomingRelationship relationship;
 
     private Map<String, String> properties;
-    private List<String> tags;
+    private Set<String> tags;
     private Set<String> keysToRemove;
 
 }
