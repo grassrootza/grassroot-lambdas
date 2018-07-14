@@ -15,14 +15,12 @@ public class IncomingGraphAction {
     private List<IncomingRelationship> relationships;
     private List<IncomingAnnotation> annotations;
 
-    // used in platform
     public void addDataObject(IncomingDataObject dataObject) {
         if (this.dataObjects == null)
             this.dataObjects = new ArrayList<>();
         this.dataObjects.add(dataObject);
     }
 
-    // used in platform
     public void addRelationship(IncomingRelationship incomingRelationship) {
         if (this.relationships == null)
             this.relationships = new ArrayList<>();

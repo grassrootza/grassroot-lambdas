@@ -25,7 +25,7 @@ public class PlatformEntityDTO {
     }
 
     private void setSubTypeIfPresent(String givenSubType) {
-        if (!StringUtils.isEmpty(givenSubType)) {
+        if (givenSubType != null && !StringUtils.isEmpty(givenSubType)) {
             switch (entityType) {
                 case ACTOR:
                     try {

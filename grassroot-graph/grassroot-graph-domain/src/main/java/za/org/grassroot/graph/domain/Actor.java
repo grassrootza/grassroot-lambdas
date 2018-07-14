@@ -13,9 +13,11 @@ import za.org.grassroot.graph.domain.relationship.ActorInActor;
 import za.org.grassroot.graph.domain.relationship.ActorInEvent;
 
 import java.time.Instant;
-import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.HashMap;
 
 @NodeEntity @Getter @Setter @Slf4j
 @JsonInclude(JsonInclude.Include.NON_EMPTY)
@@ -28,12 +30,9 @@ public class Actor extends GrassrootGraphEntity {
 
     @Property @Index private ActorType actorType;
 
-    // leaving description as string for now to get things up and running, but description will
-    // be processed through some NLU pipeline to determine most important words/included topics.
-    @Property private String description;
-    @Property private String[] tags;
-    @Property private String language;
-    @Property private String location;
+    @Property private Map<String, String> properties;
+
+    @Property private Set<String> tags;
 
     @Relationship(type = GrassrootRelationship.TYPE_PARTICIPATES)
     private Set<ActorInActor> participatesInActors;
@@ -50,16 +49,15 @@ public class Actor extends GrassrootGraphEntity {
     // for JSON, JPA, etc
     public Actor() {
         this.entityType = GraphEntityType.ACTOR;
+        this.participatesInActors = new HashSet<>();
+        this.participatesInEvents = new HashSet<>();
+        this.participatesInInteractions = new HashSet<>();
     }
 
     public Actor(ActorType actorType, String platformId) {
         this();
         this.actorType = actorType;
         this.platformUid = platformId;
-
-        this.participatesInActors = new HashSet<>();
-        this.participatesInEvents = new HashSet<>();
-        this.participatesInInteractions = new HashSet<>();
     }
 
     public void addParticipatesInInteraction(Interaction interaction) {
@@ -68,6 +66,26 @@ public class Actor extends GrassrootGraphEntity {
 
     public void removeParticipationInInteraction(Interaction interaction) {
         this.participatesInInteractions.remove(interaction);
+    }
+
+    public void addProperties(Map<String, String> newProperties) {
+        if (this.properties == null)
+            this.properties = new HashMap<>();
+        this.properties.putAll(newProperties);
+    }
+
+    public void addTags(Set<String> newTags) {
+        if (this.tags == null)
+            this.tags = new HashSet<>();
+        this.tags.addAll(newTags);
+    }
+
+    public void removeProperties(Set<String> keysToRemove) {
+        if (this.properties != null) this.properties.keySet().removeAll(keysToRemove);
+    }
+
+    public void removeTags(Set<String> tagsToRemove) {
+        if (this.tags != null) this.tags.removeAll(tagsToRemove);
     }
 
     @Override

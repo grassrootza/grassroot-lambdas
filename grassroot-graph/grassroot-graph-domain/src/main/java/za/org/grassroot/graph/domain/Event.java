@@ -9,12 +9,13 @@ import org.neo4j.ogm.id.UuidStrategy;
 import za.org.grassroot.graph.domain.enums.EventType;
 import za.org.grassroot.graph.domain.enums.GraphEntityType;
 import za.org.grassroot.graph.domain.enums.GrassrootRelationship;
-import za.org.grassroot.graph.domain.relationship.ActorInEvent;
 
 import java.time.Instant;
-import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.HashMap;
 
 @NodeEntity @Getter @Setter @ToString @Slf4j
 public class Event extends GrassrootGraphEntity {
@@ -22,17 +23,15 @@ public class Event extends GrassrootGraphEntity {
     @Id @GeneratedValue(strategy = UuidStrategy.class) private String id;
     @Property protected Instant creationTime; // creation time _in graph_ (not necessarily on platform)
 
-    @Property @Index(unique=true) private String platformUid;
+    @Property @Index(unique = true) private String platformUid;
 
     @Property private EventType eventType;
 
     @Property private long eventStartTimeEpochMilli;
 
-    // leaving description as string for now to get things up and running, but description will
-    // be processed through some NLU pipeline to determine most important words/included topics.
-    @Property private String description;
-    @Property private String[] tags;
-    @Property private String location;
+    @Property private Map<String, String> properties;
+
+    @Property private Set<String> tags;
 
     @Relationship(type = GrassrootRelationship.TYPE_PARTICIPATES)
     private Set<Actor> participatesIn;
@@ -48,6 +47,9 @@ public class Event extends GrassrootGraphEntity {
 
     public Event() {
         this.entityType = GraphEntityType.EVENT;
+        this.participatesIn = new HashSet<>();
+        this.childEvents = new HashSet<>();
+        this.childInteractions = new HashSet<>();
     }
 
     public Event(EventType eventType, String platformId, long startTimeMillis) {
@@ -55,10 +57,6 @@ public class Event extends GrassrootGraphEntity {
         this.eventType = eventType;
         this.platformUid = platformId;
         this.eventStartTimeEpochMilli = startTimeMillis;
-
-        this.participatesIn = new HashSet<>();
-        this.childEvents = new HashSet<>();
-        this.childInteractions = new HashSet<>();
     }
 
     public void addParticipatesInActor(Actor actor) {
@@ -77,17 +75,37 @@ public class Event extends GrassrootGraphEntity {
         this.childInteractions.add(interaction);
     }
 
+    public void addProperties(Map<String, String> newProperties) {
+        if (this.properties == null)
+            this.properties = new HashMap<>();
+        this.properties.putAll(newProperties);
+    }
+
+    public void addTags(Set<String> newTags) {
+        if (this.tags == null)
+            this.tags = new HashSet<>();
+        this.tags.addAll(newTags);
+    }
+
+    public void removeProperties(Set<String> keysToRemove) {
+        if (this.properties != null) this.properties.keySet().removeAll(keysToRemove);
+    }
+
+    public void removeTags(Set<String> tagsToRemove) {
+        if (this.tags != null) this.tags.removeAll(tagsToRemove);
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         Event event = (Event) o;
-        return Objects.equals(id, event.id);
+        return Objects.equals(platformUid, event.platformUid);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id);
+        return Objects.hash(platformUid);
     }
 
 }

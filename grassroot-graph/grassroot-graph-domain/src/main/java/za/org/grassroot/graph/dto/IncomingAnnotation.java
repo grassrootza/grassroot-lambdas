@@ -1,18 +1,25 @@
 package za.org.grassroot.graph.dto;
 
 import lombok.*;
-import za.org.grassroot.graph.domain.GrassrootGraphEntity;
-import za.org.grassroot.graph.domain.enums.GraphEntityType;
+
+import java.util.Map;
+import java.util.Set;
 
 @Getter @Setter @AllArgsConstructor @NoArgsConstructor @ToString
 public class IncomingAnnotation {
 
-    private String platformId;
-    private GraphEntityType entityType;
+    // keys for properties map
+    public static final String language = "LANGUAGE";
+    public static final String province = "PROVINCE";
+    public static final String latitude = "LATITUDE";
+    public static final String longitude = "LONGITUDE";
+    public static final String description = "DESCRIPTION";
 
-    private String description;
-    private String[] tags;
-    private String language;
-    private String location;
+    private IncomingDataObject entity;
+    private IncomingRelationship relationship;
+
+    private Map<String, String> properties;
+    private Set<String> tags;
+    private Set<String> keysToRemove;
 
 }
