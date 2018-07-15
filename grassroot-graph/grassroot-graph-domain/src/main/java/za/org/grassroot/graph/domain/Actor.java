@@ -13,9 +13,11 @@ import za.org.grassroot.graph.domain.relationship.ActorInActor;
 import za.org.grassroot.graph.domain.relationship.ActorInEvent;
 
 import java.time.Instant;
-import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.HashMap;
 
 @NodeEntity @Getter @Setter @Slf4j
 @JsonInclude(JsonInclude.Include.NON_EMPTY)
@@ -28,11 +30,18 @@ public class Actor extends GrassrootGraphEntity {
 
     @Property @Index private ActorType actorType;
 
+    @Property private Map<String, String> properties;
+
+    @Property private Set<String> tags;
+
     @Relationship(type = GrassrootRelationship.TYPE_PARTICIPATES)
     private Set<ActorInActor> participatesInActors;
 
     @Relationship(type = GrassrootRelationship.TYPE_PARTICIPATES)
     private Set<ActorInEvent> participatesInEvents;
+
+    @Relationship(type = GrassrootRelationship.TYPE_PARTICIPATES)
+    private Set<Interaction> participatesInInteractions;
 
     @Relationship(type = GrassrootRelationship.TYPE_GENERATOR, direction = Relationship.INCOMING)
     private Actor createdByActor;
@@ -40,29 +49,43 @@ public class Actor extends GrassrootGraphEntity {
     // for JSON, JPA, etc
     public Actor() {
         this.entityType = GraphEntityType.ACTOR;
+        this.participatesInActors = new HashSet<>();
+        this.participatesInEvents = new HashSet<>();
+        this.participatesInInteractions = new HashSet<>();
     }
 
     public Actor(ActorType actorType, String platformId) {
+        this();
         this.actorType = actorType;
         this.platformUid = platformId;
     }
 
-    public Set<ActorInActor> getParticipatesInActors() {
-        if (participatesInActors == null)
-            this.participatesInActors = new HashSet<>();
-        return this.participatesInActors;
+    public void addParticipatesInInteraction(Interaction interaction) {
+        this.participatesInInteractions.add(interaction);
     }
 
-    public void addParticipatesInActor(Actor actor) {
-        if (this.participatesInActors == null)
-            this.participatesInActors = new HashSet<>();
-        this.participatesInActors.add(new ActorInActor(this, actor, Instant.now())); // todo : get from incoming
+    public void removeParticipationInInteraction(Interaction interaction) {
+        this.participatesInInteractions.remove(interaction);
     }
 
-    public void addParticipatesInEvent(Event event) {
-        if (this.participatesInEvents == null)
-            this.participatesInEvents = new HashSet<>();
-        this.participatesInEvents.add(new ActorInEvent(this, event));
+    public void addProperties(Map<String, String> newProperties) {
+        if (this.properties == null)
+            this.properties = new HashMap<>();
+        this.properties.putAll(newProperties);
+    }
+
+    public void addTags(Set<String> newTags) {
+        if (this.tags == null)
+            this.tags = new HashSet<>();
+        this.tags.addAll(newTags);
+    }
+
+    public void removeProperties(Set<String> keysToRemove) {
+        if (this.properties != null) this.properties.keySet().removeAll(keysToRemove);
+    }
+
+    public void removeTags(Set<String> tagsToRemove) {
+        if (this.tags != null) this.tags.removeAll(tagsToRemove);
     }
 
     @Override
@@ -85,7 +108,10 @@ public class Actor extends GrassrootGraphEntity {
                 ", platformUid='" + platformUid + '\'' +
                 ", actorType=" + actorType +
                 ", creationTime=" + creationTime +
-                ", participant size=" + getParticipatesInActors().size() +
+                ", actor participant size=" + getParticipatesInActors().size() +
+                ", event participant size=" + getParticipatesInEvents().size() +
+                ", interaction participant size=" + getParticipatesInInteractions().size() +
                 '}';
     }
+
 }

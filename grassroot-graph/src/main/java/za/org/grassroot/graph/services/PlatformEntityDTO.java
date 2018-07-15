@@ -5,6 +5,7 @@ import lombok.Setter;
 import org.springframework.util.StringUtils;
 import za.org.grassroot.graph.domain.enums.ActorType;
 import za.org.grassroot.graph.domain.enums.EventType;
+import za.org.grassroot.graph.domain.enums.InteractionType;
 import za.org.grassroot.graph.domain.enums.GraphEntityType;
 
 @Getter @Setter
@@ -15,6 +16,7 @@ public class PlatformEntityDTO {
 
     private ActorType actorType;
     private EventType eventType;
+    private InteractionType interactionType;
 
     public PlatformEntityDTO(String platformId, GraphEntityType entityType, String subType) {
         this.platformId = platformId;
@@ -23,17 +25,17 @@ public class PlatformEntityDTO {
     }
 
     private void setSubTypeIfPresent(String givenSubType) {
-        if (!StringUtils.isEmpty(givenSubType)) {
-            if (isActor()) {
-               try {
-                   this.actorType = ActorType.valueOf(givenSubType);
-               } catch (Exception e) {
-                   this.actorType = ActorType.INDIVIDUAL; // todo : fix once straightened out on platform
-               }
-            }
-
-            if (isEvent()) {
-                this.eventType = EventType.valueOf(givenSubType);
+        if (givenSubType != null && !StringUtils.isEmpty(givenSubType)) {
+            switch (entityType) {
+                case ACTOR:
+                    try {
+                        this.actorType = ActorType.valueOf(givenSubType);
+                    } catch (Exception e) {
+                        this.actorType = ActorType.INDIVIDUAL; // todo : fix once straightened out on platform
+                    }
+                    break;
+                case EVENT:         this.eventType = EventType.valueOf(givenSubType); break;
+                case INTERACTION:   this.interactionType = InteractionType.valueOf(givenSubType); break;
             }
         }
     }
@@ -45,4 +47,9 @@ public class PlatformEntityDTO {
     public boolean isEvent() {
         return GraphEntityType.EVENT.equals(entityType);
     }
+
+    public boolean isInteraction() {
+        return GraphEntityType.INTERACTION.equals(entityType);
+    }
+
 }
