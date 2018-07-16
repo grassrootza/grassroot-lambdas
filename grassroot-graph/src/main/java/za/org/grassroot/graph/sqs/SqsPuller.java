@@ -74,7 +74,7 @@ public class SqsPuller {
         }
     }
 
-    @Scheduled(fixedRate = 10000)
+    @Scheduled(cron = "${sqs.pull.crud.rate:*/60 * * * * *}")
     public void readDataFromSqs() {
         log.info("Pulling from SQS ... queue: {}", sqsUrl);
 

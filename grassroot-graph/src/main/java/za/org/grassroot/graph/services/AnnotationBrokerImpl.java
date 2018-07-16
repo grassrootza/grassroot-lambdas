@@ -1,6 +1,7 @@
 package za.org.grassroot.graph.services;
 
 import lombok.extern.slf4j.Slf4j;
+import org.neo4j.driver.v1.exceptions.ClientException;
 import org.neo4j.ogm.session.Session;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -121,12 +122,22 @@ public class AnnotationBrokerImpl implements AnnotationBroker {
     // movement should be able to be annotated, but it is not yet incorporated in main platform.
     private boolean annotateActor(Actor actor, Map<String, String> properties, Set<String> tags) {
         if (INDIVIDUAL.equals(actor.getActorType()) || GROUP.equals(actor.getActorType())) {
+            return addTagsAndPropertiesToActor(actor, properties, tags);
+        } else {
+            log.error("Only individuals and groups can be annotated (for now)");
+            return false;
+        }
+    }
+
+    private boolean addTagsAndPropertiesToActor(Actor actor, Map<String, String> properties, Set<String> tags) {
+        try {
             actor.addProperties(properties);
             actor.addTags(tags);
             actorRepository.save(actor, 0);
             return true;
-        } else {
-            log.error("Only individuals and groups can be annotated (for now)");
+        } catch (ClientException e) {
+            log.error("Error annotating actor, properties: {}, tags: {}", properties, tags);
+            log.error("Original error: ", e);
             return false;
         }
     }

@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.neo4j.ogm.annotation.*;
+import org.neo4j.ogm.annotation.Properties;
 import org.neo4j.ogm.id.UuidStrategy;
 import za.org.grassroot.graph.domain.enums.ActorType;
 import za.org.grassroot.graph.domain.enums.GraphEntityType;
@@ -13,11 +14,7 @@ import za.org.grassroot.graph.domain.relationship.ActorInActor;
 import za.org.grassroot.graph.domain.relationship.ActorInEvent;
 
 import java.time.Instant;
-import java.util.Objects;
-import java.util.Set;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.HashMap;
+import java.util.*;
 
 @NodeEntity @Getter @Setter @Slf4j
 @JsonInclude(JsonInclude.Include.NON_EMPTY)
@@ -30,9 +27,9 @@ public class Actor extends GrassrootGraphEntity {
 
     @Property @Index private ActorType actorType;
 
-    @Property private Map<String, String> properties;
+    @Properties private Map<String, String> standard; // for setting std properties like description, location, etc
 
-    @Property private Set<String> tags;
+    @Property private String[] tags;
 
     @Relationship(type = GrassrootRelationship.TYPE_PARTICIPATES)
     private Set<ActorInActor> participatesInActors;
@@ -69,23 +66,28 @@ public class Actor extends GrassrootGraphEntity {
     }
 
     public void addProperties(Map<String, String> newProperties) {
-        if (this.properties == null)
-            this.properties = new HashMap<>();
-        this.properties.putAll(newProperties);
+        if (this.standard == null)
+            this.standard = new HashMap<>();
+        this.standard.putAll(newProperties);
     }
 
     public void addTags(Set<String> newTags) {
-        if (this.tags == null)
-            this.tags = new HashSet<>();
-        this.tags.addAll(newTags);
+        this.tags = addToArray(this.tags, newTags);
+    }
+
+    private String[] addToArray(String[] array, Collection<String> stringsToAdd) {
+        if (array != null)
+            stringsToAdd.addAll(Arrays.asList(array));
+        return stringsToAdd.toArray(new String[stringsToAdd.size()]);
     }
 
     public void removeProperties(Set<String> keysToRemove) {
-        if (this.properties != null) this.properties.keySet().removeAll(keysToRemove);
+        if (this.standard != null) this.standard.keySet().removeAll(keysToRemove);
     }
 
     public void removeTags(Set<String> tagsToRemove) {
-        if (this.tags != null) this.tags.removeAll(tagsToRemove);
+        log.info("Bring back later");
+//        if (this.tags != null) this.tags.removeAll(tagsToRemove);
     }
 
     @Override

@@ -2,7 +2,6 @@ package za.org.grassroot.graph.sqs;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
 import software.amazon.awssdk.services.sqs.model.Message;
@@ -13,10 +12,7 @@ import java.io.IOException;
 
 @Component @Slf4j
 public class SqsProcessorImpl implements SqsProcessor {
-
-    @Value("${sqs.url}")
-    private String sqsUrl;
-
+    
     private static final long PER_OPERATION_TIME_ESTIMATE = 1000; // conservative, takes one second
 
     private final ObjectMapper objectMapper;
