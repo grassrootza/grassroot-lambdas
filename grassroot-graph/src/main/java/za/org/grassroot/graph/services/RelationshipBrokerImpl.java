@@ -112,7 +112,7 @@ public class RelationshipBrokerImpl implements RelationshipBroker {
         } else if (participantEntity.isEvent()) {
             Event participant = (Event) participantEntity;
             participant.addParticipatesInActor(actor);
-            eventRepository.save(participant, 0);
+            eventRepository.save(participant, 1);
             return true;
         }
         log.error("An interaction cannot participate in an actor");
@@ -133,7 +133,7 @@ public class RelationshipBrokerImpl implements RelationshipBroker {
         if (participantEntity.isActor()) {
             Actor participant = (Actor) participantEntity;
             participant.addParticipatesInInteraction(interaction);
-            actorRepository.save(participant, 0);
+            actorRepository.save(participant, 1);
             return true;
         }
         log.error("Only actors can participate in interactions");
@@ -150,7 +150,7 @@ public class RelationshipBrokerImpl implements RelationshipBroker {
         } else if (participantEntity.isEvent()) {
             Event participant = (Event) participantEntity;
             participant.removeParticipatesInActor(actor);
-            eventRepository.save(participant);
+            eventRepository.save(participant, 1);
             return true;
         }
         log.error("Interaction cannot participate in actor");
@@ -173,7 +173,7 @@ public class RelationshipBrokerImpl implements RelationshipBroker {
         if (participantEntity.isActor()) {
             Actor participant = (Actor) participantEntity;
             participant.removeParticipationInInteraction(interaction);
-            actorRepository.save(participant, 0);
+            actorRepository.save(participant, 1);
             return true;
         }
         log.error("Only actors can participate in interactions");
@@ -183,7 +183,7 @@ public class RelationshipBrokerImpl implements RelationshipBroker {
     private boolean setGeneratorForActor(GrassrootGraphEntity generatorEntity, Actor actor) {
         if (generatorEntity.isActor()) {
             actor.setCreatedByActor((Actor) generatorEntity);
-            actorRepository.save(actor);
+            actorRepository.save(actor, 1);
             return true;
         }
         log.error("Only actors can generate actors");
@@ -193,7 +193,7 @@ public class RelationshipBrokerImpl implements RelationshipBroker {
     private boolean setGeneratorForEvent(GrassrootGraphEntity generatorEntity, Event event) {
         if (generatorEntity.isActor()) {
             event.setCreator(generatorEntity);
-            eventRepository.save(event);
+            eventRepository.save(event, 1);
             return true;
         } else if (generatorEntity.isEvent()) {
             event.setCreator(generatorEntity);
@@ -209,7 +209,7 @@ public class RelationshipBrokerImpl implements RelationshipBroker {
     private boolean setGeneratorForInteraction(GrassrootGraphEntity generatorEntity, Interaction interaction) {
         if (generatorEntity.isActor()) {
             interaction.setInitiator((Actor) generatorEntity);
-            interactionRepository.save(interaction);
+            interactionRepository.save(interaction, 1);
             return true;
         }
         log.error("Only actors can generate interactions");

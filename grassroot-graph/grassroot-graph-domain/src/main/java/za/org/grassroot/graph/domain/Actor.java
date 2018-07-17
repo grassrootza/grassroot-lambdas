@@ -27,9 +27,9 @@ public class Actor extends GrassrootGraphEntity {
 
     @Property @Index private ActorType actorType;
 
-    @Properties private Map<String, String> standard; // for setting std properties like description, location, etc
+    @Properties private Map<String, String> stdProps;
 
-    @Property private String[] tags;
+    @Property private String[] stdTags;
 
     @Relationship(type = GrassrootRelationship.TYPE_PARTICIPATES)
     private Set<ActorInActor> participatesInActors;
@@ -46,6 +46,7 @@ public class Actor extends GrassrootGraphEntity {
     // for JSON, JPA, etc
     public Actor() {
         this.entityType = GraphEntityType.ACTOR;
+        this.stdProps = new HashMap<>();
         this.participatesInActors = new HashSet<>();
         this.participatesInEvents = new HashSet<>();
         this.participatesInInteractions = new HashSet<>();
@@ -66,28 +67,19 @@ public class Actor extends GrassrootGraphEntity {
     }
 
     public void addProperties(Map<String, String> newProperties) {
-        if (this.standard == null)
-            this.standard = new HashMap<>();
-        this.standard.putAll(newProperties);
-    }
-
-    public void addTags(Set<String> newTags) {
-        this.tags = addToArray(this.tags, newTags);
-    }
-
-    private String[] addToArray(String[] array, Collection<String> stringsToAdd) {
-        if (array != null)
-            stringsToAdd.addAll(Arrays.asList(array));
-        return stringsToAdd.toArray(new String[stringsToAdd.size()]);
+        if (newProperties != null) this.stdProps.putAll(newProperties);
     }
 
     public void removeProperties(Set<String> keysToRemove) {
-        if (this.standard != null) this.standard.keySet().removeAll(keysToRemove);
+        if (keysToRemove != null) this.stdProps.keySet().removeAll(keysToRemove);
+    }
+
+    public void addTags(Set<String> newTags) {
+        this.stdTags = StringUtils.addStringsToArray(this.stdTags, newTags);
     }
 
     public void removeTags(Set<String> tagsToRemove) {
-        log.info("Bring back later");
-//        if (this.tags != null) this.tags.removeAll(tagsToRemove);
+        this.stdTags = StringUtils.removeStringsFromArray(this.stdTags, tagsToRemove);
     }
 
     @Override

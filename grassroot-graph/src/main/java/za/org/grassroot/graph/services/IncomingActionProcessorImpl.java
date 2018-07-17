@@ -3,6 +3,7 @@ package za.org.grassroot.graph.services;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
 import reactor.core.publisher.Mono;
 import za.org.grassroot.graph.domain.Actor;
 import za.org.grassroot.graph.domain.Event;
@@ -63,11 +64,12 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
     // note: although it allows for multiple entities at once, to preserve integrity, any such multiple entities must
     // be related to each other, i.e., have relationships among each other - the validation checks if this is not the case
     private boolean createEntitiesAndRelationships(IncomingGraphAction action) {
-        log.info("Handling {} entities, {} relationships", action.getDataObjects().size(), action.getRelationships().size());
+        log.info("Handling entity and relationship creation");
         return createEntities(action.getDataObjects()) && establishRelationships(action.getRelationships());
     }
 
     private boolean createEntities(List<IncomingDataObject> entities) {
+        if (CollectionUtils.isEmpty(entities)) return true;
         log.info("Creating {} entities", entities.size());
         return entities.stream().map(this::createSingleEntity).reduce(true, (a, b) -> a && b);
     }
@@ -86,6 +88,7 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
     // this will only remove entities that are related to the primary one (first in list);
     // doesn't need a relationship call as OGM will handle that for us.
     private boolean removeEntities(List<IncomingDataObject> entities) {
+        if (CollectionUtils.isEmpty(entities)) return true;
         log.info("Removing {} entities", entities.size());
         return entities.stream().map(this::removeSingleEntity).reduce(true, (a, b) -> a && b);
     }
@@ -104,6 +107,7 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
     }
 
     private boolean establishRelationships(List<IncomingRelationship> relationships) {
+        if (CollectionUtils.isEmpty(relationships)) return true;
         log.info("Creating {} relationships", relationships.size());
         return relationships.stream().map(this::createSingleRelationship).reduce(true, (a, b) -> a && b);
     }
@@ -129,6 +133,7 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
 
     // again, only relevant from single, central node
     private boolean removeRelationships(List<IncomingRelationship> relationships) {
+        if (CollectionUtils.isEmpty(relationships)) return true;
         log.info("Removing {} relationships", relationships.size());
         return relationships.stream().map(this::removeSingleRelationship).reduce(true, (a, b) -> a && b);
     }
@@ -151,7 +156,8 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
     }
 
     private boolean annotateEntities(List<IncomingAnnotation> annotations) {
-        log.info("Applying entity annotations: {}", annotations);
+        if (CollectionUtils.isEmpty(annotations)) return true;
+        log.info("Annotating {} entities", annotations.size());
         return annotations.stream().map(this::annotateSingleEntity).reduce(true, (a, b) -> a && b);
     }
 
@@ -172,7 +178,8 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
     }
 
     private boolean annotateRelationships(List<IncomingAnnotation> annotations) {
-        log.info("Applying relationship annotations: {}", annotations);
+        if (CollectionUtils.isEmpty(annotations)) return true;
+        log.info("Annotating {} relationships", annotations.size());
         return annotations.stream().map(this::annotateSingleRelationship).reduce(true, (a, b) -> a && b);
     }
 
@@ -208,7 +215,8 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
     }
 
     private boolean removeAnnotations(List<IncomingAnnotation> annotations) {
-        log.info("Removing annotations: {}", annotations);
+        if (CollectionUtils.isEmpty(annotations)) return true;
+        log.info("Removing {} annotations", annotations.size());
         return annotations.stream().map(this::removeSingleAnnotation).reduce(true, (a, b) -> a && b);
     }
 
