@@ -1,0 +1,18 @@
+{
+  "AWSEBDockerrunVersion": "1",
+  "Image": {
+    "Name": "grassrootdocker/datetime:<TAG>",
+    "Update": "true"
+  },
+  "environment" : [
+    { "name" : "AWS_ACCESS_KEY_ID", "value" : "$AWS_ACCESS_KEY_ID" },
+    { "name" : "AWS_SECRET_ACCESS_KEY", "value" : "$AWS_SECRET_ACCESS_KEY" }
+  ],
+  "Ports": [
+    {
+      "hostPort": 5000,
+      "ContainerPort": 80
+    }
+  ],
+  "Logging": "/var/log/nginx"
+}
