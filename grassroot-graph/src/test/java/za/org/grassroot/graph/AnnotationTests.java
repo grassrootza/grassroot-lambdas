@@ -24,7 +24,6 @@ import za.org.grassroot.graph.services.IncomingActionProcessor;
 
 import java.time.Instant;
 import java.util.*;
-import java.util.stream.Collectors;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
@@ -40,14 +39,16 @@ public class AnnotationTests {
     @Autowired EventRepository eventRepository;
     @Autowired InteractionRepository interactionRepository;
 
-    @Test
-    @Rollback
-    public void annotateIndividual() {
+    @Test @Rollback
+    public void annotateActor() {
         Map<String, String> properties = new HashMap<>();
         Set<String> tags = new HashSet<>();
 
         properties.put(IncomingAnnotation.language, "test-language");
         properties.put(IncomingAnnotation.province, "test-province");
+        properties.put(IncomingAnnotation.latitude, "test-latitude");
+        properties.put(IncomingAnnotation.longitude, "test-longitude");
+        properties.put(IncomingAnnotation.description, "test-description");
         tags.add("test-tags");
 
         IncomingDataObject user = addActor(ActorType.INDIVIDUAL, TEST_ENTITY_PREFIX + "individual");
@@ -56,52 +57,18 @@ public class AnnotationTests {
                 ActionType.ANNOTATE_ENTITY, null, null, Collections.singletonList(annotation));
         incomingActionProcessor.processIncomingAction(action).block();
 
-        Actor checkUserDB = actorRepository.findByPlatformUid(user.getGraphEntity().getPlatformUid());
+        Actor userFromDB = actorRepository.findByPlatformUid(user.getGraphEntity().getPlatformUid());
 
-        assertThat(checkUserDB.getStdProps(), notNullValue());
-        assertThat(checkUserDB.getStdProps().size(), is(2));
-        assertThat(checkUserDB.getStdProps().get(IncomingAnnotation.language), is("test-language"));
+        assertThat(userFromDB.getStdProps(), notNullValue());
+        assertThat(userFromDB.getStdProps().size(), is(5));
+        assertThat(userFromDB.getStdProps().get(IncomingAnnotation.description), is("test-description"));
 
-        assertThat(checkUserDB.getStdTags(), notNullValue());
-        assertThat(checkUserDB.getStdTags().length, is(1));
-        assertThat(checkUserDB.getStdTags()[0], is("test-tags"));
-
-        cleanDb();
+        assertThat(userFromDB.getStdTags(), notNullValue());
+        assertThat(userFromDB.getStdTags().length, is(1));
+        assertThat(userFromDB.getStdTags()[0], is("test-tags"));
     }
 
-    @Test
-    @Rollback
-    public void annotateGroup() {
-        Map<String, String> properties = new HashMap<>();
-        Set<String> tags = new HashSet<>();
-
-        properties.put(IncomingAnnotation.language, "test-language");
-        properties.put(IncomingAnnotation.latitude, "test-latitude");
-        properties.put(IncomingAnnotation.longitude, "test-longitude");
-        properties.put(IncomingAnnotation.description, "test-description");
-        tags.add("test-tags");
-
-        IncomingDataObject group = addActor(ActorType.GROUP, TEST_ENTITY_PREFIX + "group");
-        IncomingAnnotation annotation = new IncomingAnnotation(group, null, properties, tags, null);
-        IncomingGraphAction action = new IncomingGraphAction(group.getGraphEntity().getPlatformUid(),
-                ActionType.ANNOTATE_ENTITY, null, null, Collections.singletonList(annotation));
-        incomingActionProcessor.processIncomingAction(action).block();
-
-        Actor checkGroupDB = actorRepository.findByPlatformUid(group.getGraphEntity().getPlatformUid());
-
-        assertThat(checkGroupDB.getStdProps(), notNullValue());
-        assertThat(checkGroupDB.getStdProps().size(), is(4));
-        assertThat(checkGroupDB.getStdProps().get(IncomingAnnotation.latitude), is("test-latitude"));
-
-        assertThat(checkGroupDB.getStdTags(), notNullValue());
-        assertThat(checkGroupDB.getStdTags().length, is(1));
-        assertThat(checkGroupDB.getStdTags()[0], is("test-tags"));
-
-        cleanDb();
-    }
-
-    @Test
-    @Rollback
+    @Test @Rollback
     public void annotateEvent() {
         Map<String, String> properties = new HashMap<>();
         Set<String> tags = new HashSet<>();
@@ -115,21 +82,18 @@ public class AnnotationTests {
                 ActionType.ANNOTATE_ENTITY, null, null, Collections.singletonList(annotation));
         incomingActionProcessor.processIncomingAction(action).block();
 
-        Event checkMeetingDB = eventRepository.findByPlatformUid(meeting.getGraphEntity().getPlatformUid());
+        Event meetingFromDB = eventRepository.findByPlatformUid(meeting.getGraphEntity().getPlatformUid());
 
-        assertThat(checkMeetingDB.getStdProps(), notNullValue());
-        assertThat(checkMeetingDB.getStdProps().size(), is(1));
-        assertThat(checkMeetingDB.getStdProps().get(IncomingAnnotation.description), is("test-description"));
+        assertThat(meetingFromDB.getStdProps(), notNullValue());
+        assertThat(meetingFromDB.getStdProps().size(), is(1));
+        assertThat(meetingFromDB.getStdProps().get(IncomingAnnotation.description), is("test-description"));
 
-        assertThat(checkMeetingDB.getStdTags(), notNullValue());
-        assertThat(checkMeetingDB.getStdTags().length, is(1));
-        assertThat(checkMeetingDB.getStdTags()[0], is("test-tags"));
-
-        cleanDb();
+        assertThat(meetingFromDB.getStdTags(), notNullValue());
+        assertThat(meetingFromDB.getStdTags().length, is(1));
+        assertThat(meetingFromDB.getStdTags()[0], is("test-tags"));
     }
 
-    @Test
-    @Rollback
+    @Test @Rollback
     public void annotateActorActorRelationship() {
         Set<String> tags = new HashSet<>();
         tags.add("test-tags");
@@ -140,22 +104,23 @@ public class AnnotationTests {
                 user.getEntityType(), user.getEntitySubtype(), group.getGraphEntity().getPlatformUid(),
                 group.getEntityType(), group.getEntitySubtype());
         IncomingAnnotation annotation = new IncomingAnnotation(null, participation, null, tags, null);
+
         IncomingGraphAction action = new IncomingGraphAction(user.getGraphEntity().getPlatformUid(),
                 ActionType.ANNOTATE_RELATIONSHIP, null, null, Collections.singletonList(annotation));
         incomingActionProcessor.processIncomingAction(action).block();
 
         Actor participant = actorRepository.findByPlatformUid(user.getGraphEntity().getPlatformUid());
-        ActorInActor relationship = participant.getParticipatesInActors().stream()
-                .filter(AinA -> AinA.getParticipatesIn().equals((Actor) group.getGraphEntity())).findAny().orElse(null);
+        ActorInActor relationship = participant.getParticipatesInActors().stream().filter(AinA ->
+                AinA.getParticipatesIn().equals((Actor) group.getGraphEntity())).findAny().orElse(null);
         assertThat(relationship, notNullValue());
         assertThat(relationship.getStdTags(), notNullValue());
         assertThat(relationship.getStdTags().length, is(1));
 
-        cleanDb();
+        incomingActionProcessor.processIncomingAction(new IncomingGraphAction(participant.getPlatformUid(),
+                ActionType.REMOVE_RELATIONSHIP, null, Collections.singletonList(participation), null));
     }
 
-    @Test
-    @Rollback
+    @Test @Rollback
     public void annotateActorEventRelationship() {
         Set<String> tags = new HashSet<>();
         tags.add("test-tags");
@@ -166,17 +131,19 @@ public class AnnotationTests {
                 user.getEntityType(), user.getEntitySubtype(), meeting.getGraphEntity().getPlatformUid(),
                 meeting.getEntityType(), meeting.getEntitySubtype());
         IncomingAnnotation annotation = new IncomingAnnotation(null, participation, null, tags, null);
+
         IncomingGraphAction action = new IncomingGraphAction(user.getGraphEntity().getPlatformUid(),
                 ActionType.ANNOTATE_RELATIONSHIP, null, null, Collections.singletonList(annotation));
         incomingActionProcessor.processIncomingAction(action).block();
 
         Actor participant = actorRepository.findByPlatformUid(user.getGraphEntity().getPlatformUid());
-        ActorInEvent relationship = participant.getParticipatesInEvents().stream()
-                .filter(AinE -> AinE.getParticipatesIn().equals((Event) meeting.getGraphEntity())).findAny().orElse(null);
+        ActorInEvent relationship = participant.getParticipatesInEvents().stream().filter(AinE ->
+                AinE.getParticipatesIn().equals((Event) meeting.getGraphEntity())).findAny().orElse(null);
         assertThat(relationship, notNullValue());
         assertThat(relationship.getStdTags(), is(nullValue())); // don't yet have anything to annotate for actorInEvent
 
-        cleanDb();
+        incomingActionProcessor.processIncomingAction(new IncomingGraphAction(participant.getPlatformUid(),
+                ActionType.REMOVE_RELATIONSHIP, null, Collections.singletonList(participation), null));
     }
 
     @After

@@ -3,7 +3,6 @@ package za.org.grassroot.graph;
 import lombok.extern.slf4j.Slf4j;
 import org.neo4j.ogm.session.Session;
 import org.junit.After;
-import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,6 +10,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.annotation.Rollback;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.CollectionUtils;
 import za.org.grassroot.graph.domain.Actor;
 import za.org.grassroot.graph.domain.Event;
 import za.org.grassroot.graph.domain.Interaction;
@@ -19,20 +19,21 @@ import za.org.grassroot.graph.domain.enums.EventType;
 import za.org.grassroot.graph.domain.enums.InteractionType;
 import za.org.grassroot.graph.domain.relationship.ActorInActor;
 import za.org.grassroot.graph.domain.relationship.ActorInEvent;
-import za.org.grassroot.graph.domain.GraphStringUtils;
 import za.org.grassroot.graph.repository.ActorRepository;
 import za.org.grassroot.graph.repository.EventRepository;
 import za.org.grassroot.graph.repository.InteractionRepository;
 
 import java.time.Instant;
 import java.util.Collection;
-import java.util.Optional;
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 
 @RunWith(SpringRunner.class) @Slf4j
-@SpringBootTest
+@SpringBootTest(properties = {"sqs.pull.enabled=false","sqs.push.enabled=false"})
 public class GraphApplicationTests {
 
     // integration testing is failing on a dependency conflict (NoClassDef in jetty for the in-memory neo4j),
@@ -47,127 +48,124 @@ public class GraphApplicationTests {
 
 	private Actor testActor;
 	private Event testEvent;
-
-	@Before
-	public void generalSetUp() {
-        Optional<Actor> actorCheckDb = testActor == null || GraphStringUtils.isEmpty(testActor.getId())
-				? Optional.empty() : actorRepository.findById(testActor.getId());
-		if (!actorCheckDb.isPresent()) {
-			testActor = new Actor(ActorType.INDIVIDUAL, TEST_ENTITY_PREFIX + "actor");
-		}
-	}
-
-	private void eventSetUp() {
-		testEvent = new Event(EventType.MEETING, TEST_ENTITY_PREFIX + "event", Instant.now().toEpochMilli());
-		testEvent.setCreator(testActor);
-		actorRepository.save(testActor);
-		eventRepository.save(testEvent);
-	}
+	private Interaction testInteraction;
 
 	@Test @Rollback
 	public void actorSavesAndLoads() {
-		generalSetUp();
-		actorRepository.save(testActor);
-
-		Optional<Actor> actorFromDb = actorRepository.findById(testActor.getId());
-		assertThat(actorFromDb.isPresent(), is(true));
-		assertThat(actorFromDb.get(), is(testActor));
-		assertThat(actorFromDb.get().getCreationTime(), notNullValue());
-
-		cleanDb();
+		addActor();
+		Actor actorFromDb = actorRepository.findById(testActor.getId()).orElse(null);
+		assertThat(actorFromDb, is(notNullValue()));
+		assertThat(actorFromDb, is(testActor));
+		assertThat(actorFromDb.getCreationTime(), notNullValue());
 	}
 
 	@Test @Rollback
-	public void eventSavesAndLoadsWithCreator() {
-		generalSetUp();
-		eventSetUp();
+	public void eventSavesAndLoads() {
+		addEvent();
+		Event eventFromDb = eventRepository.findById(testEvent.getId()).orElse(null);
+		assertThat(eventFromDb, is(notNullValue()));
+		assertThat(eventFromDb, is(testEvent));
+		assertThat(eventFromDb.getCreator(), is(testActor));
+	}
 
-		Optional<Event> eventFromDb = eventRepository.findById(testEvent.getId());
-		assertThat(eventFromDb.isPresent(), is(true));
-
-		Event event = eventFromDb.get();
-		assertThat(event.getCreator(), is(testActor));
-
-		Optional<Actor> actorFromDb = actorRepository.findById(testActor.getId());
-		assertThat(actorFromDb.isPresent(), is(true));
-
-		cleanDb();
+	@Test @Rollback
+	public void interactionSavesAndLoads() {
+		addInteraction();
+		Interaction interactionFromDb = interactionRepository.findById(testInteraction.getId()).orElse(null);
+		assertThat(interactionFromDb, is(notNullValue()));
+		assertThat(interactionFromDb, is(testInteraction));
+		assertThat(interactionFromDb.getInitiator(), is(testActor));
 	}
 
 	@Test @Rollback @Transactional
-	public void savesAndLoadsParticipants() {
-		generalSetUp();
-		eventSetUp();
+	public void actorActorRelationshipSavesAndLoads() {
+		addActor();
 
-		Event eventFromDb = eventRepository.findById(testEvent.getId()).get();
-		Actor testActor2 = actorRepository.save(new Actor(ActorType.INDIVIDUAL, TEST_ENTITY_PREFIX + "-individual"));
-		ActorInEvent relationship = new ActorInEvent(testActor2, eventFromDb);
-		session.save(relationship, 0);
+		List<Actor> participatingActors = IntStream.range(0, 10).mapToObj(index -> new Actor(ActorType.INDIVIDUAL,
+				TEST_ENTITY_PREFIX + "participant-" + index)).collect(Collectors.toList());
+		for (Actor actor : participatingActors) {
+			ActorInActor relationship = new ActorInActor(actor, testActor, Instant.now());
+			actorRepository.save(actor, 0);
+			session.save(relationship, 0);
+		}
 
-		Event checkEvent = eventRepository.findById(testEvent.getId()).get();
-		Actor checkActor = actorRepository.findById(testActor2.getId()).get();
-		assertThat(checkEvent.getCreator(), is(testActor));
-		assertThat(checkActor.getParticipatesInEvents(), notNullValue());
-		assertThat(checkActor.getParticipatesInEvents().size(), is(1));
-		assertThat(checkActor.getParticipatesInEvents(), contains(relationship));
+		List<Actor> actorsFromDB = participatingActors.stream().map(actor ->
+				actorRepository.findByPlatformUid(actor.getPlatformUid())).collect(Collectors.toList());
+		assertThat(actorsFromDB.size(), is(10));
 
-		cleanDb();
+		boolean relationshipsPersisted = actorsFromDB.stream().map(actor ->
+				!CollectionUtils.isEmpty(actor.getParticipatesInActors())).reduce(true, (a, b) -> a && b);
+		assertThat(relationshipsPersisted, is(true));
 	}
 
-	@Test @Rollback
-	public void savesAndLoadsInteraction() {
-		generalSetUp();
-		actorRepository.save(testActor);
+	@Test @Rollback @Transactional
+	public void actorEventRelationshipSavesAndLoads() {
+		addEvent();
 
-		Interaction testInteraction = new Interaction(InteractionType.SURVEY, testActor);
-		testInteraction.setId(TEST_ENTITY_PREFIX + "interaction");
-		interactionRepository.save(testInteraction);
+		List<Actor> participatingActors = IntStream.range(0, 10).mapToObj(index -> new Actor(ActorType.INDIVIDUAL,
+				TEST_ENTITY_PREFIX + "participant-" + index)).collect(Collectors.toList());
+		for (Actor actor : participatingActors) {
+			ActorInEvent relationship = new ActorInEvent(actor, testEvent);
+			actorRepository.save(actor, 0);
+			session.save(relationship, 0);
+		}
 
-		Optional<Interaction> interactionFromDb = interactionRepository.findById(testInteraction.getId());
-		assertThat(interactionFromDb.isPresent(), is(true));
-		assertThat(interactionFromDb.get(), is(testInteraction));
+		List<Actor> actorsFromDB = participatingActors.stream().map(actor ->
+				actorRepository.findByPlatformUid(actor.getPlatformUid())).collect(Collectors.toList());
+		assertThat(actorsFromDB.size(), is(10));
 
-		cleanDb();
+		boolean relationshipsPersisted = actorsFromDB.stream().map(actor ->
+				!CollectionUtils.isEmpty(actor.getParticipatesInEvents())).reduce(true, (a, b) -> a && b);
+		assertThat(relationshipsPersisted, is(true));
+	}
+
+	@Test @Rollback @Transactional
+	public void actorInteractionRelationshipSavesAndLoads() {
+		addInteraction();
+
+		List<Actor> participatingActors = IntStream.range(0, 10).mapToObj(index -> new Actor(ActorType.INDIVIDUAL,
+				TEST_ENTITY_PREFIX + "participant-" + index)).collect(Collectors.toList());
+		for (Actor actor : participatingActors) {
+			actor.addParticipatesInInteraction(testInteraction);
+			actorRepository.save(actor, 1);
+		}
+
+		List<Actor> actorsFromDB = participatingActors.stream().map(actor ->
+				actorRepository.findByPlatformUid(actor.getPlatformUid())).collect(Collectors.toList());
+		assertThat(actorsFromDB.size(), is(10));
+
+		boolean relationshipsPersisted = actorsFromDB.stream().map(actor ->
+				!CollectionUtils.isEmpty(actor.getParticipatesInInteractions())).reduce(true, (a, b) -> a && b);
+		assertThat(relationshipsPersisted, is(true));
 	}
 
 	@Test @Rollback @Transactional
 	public void handlesMovements() {
-		generalSetUp();
+		addActor();
+		Actor movement = actorRepository.save(new Actor(ActorType.MOVEMENT, TEST_ENTITY_PREFIX + "movement"));
+		Actor account = actorRepository.save(new Actor(ActorType.ACCOUNT, TEST_ENTITY_PREFIX + "account"));
+		Actor group1 = actorRepository.save(new Actor(ActorType.GROUP, TEST_ENTITY_PREFIX + "group"));
 
-		Actor movement = new Actor(ActorType.MOVEMENT, TEST_ENTITY_PREFIX + "movement-" + Instant.now().toEpochMilli());
-		actorRepository.save(movement);
+		ActorInActor individualInMovement = new ActorInActor(testActor, movement, Instant.now());
+		ActorInActor accountInMovement = new ActorInActor(account, movement, Instant.now());
+		ActorInActor groupInMovement = new ActorInActor(group1, movement, Instant.now());
 
-		actorRepository.save(testActor);
-		ActorInActor actorInMovement = new ActorInActor(testActor, movement, Instant.now());
-		session.save(actorInMovement, 0);
-
-		Actor group1 = actorRepository.save(new Actor(ActorType.GROUP, TEST_ENTITY_PREFIX + "-group1"));
-		ActorInActor group1InMovement = new ActorInActor(group1, movement, Instant.now());
-		session.save(group1InMovement, 0);
-
-		Actor user2 = actorRepository.save(new Actor(ActorType.INDIVIDUAL, TEST_ENTITY_PREFIX + "-user2"));
-		ActorInActor individualInMovement = new ActorInActor(user2, movement, Instant.now());
 		session.save(individualInMovement, 0);
-
-		Actor user3 = actorRepository.save(new Actor(ActorType.ACCOUNT, TEST_ENTITY_PREFIX + "-account"));
-		ActorInActor accountInMovement = new ActorInActor(user3, movement, Instant.now());
 		session.save(accountInMovement, 0);
+		session.save(groupInMovement, 0);
 
-		Actor group2 = actorRepository.save(new Actor(ActorType.GROUP, TEST_ENTITY_PREFIX + "-group2"));
-		ActorInActor group2InMovement = new ActorInActor(group2, movement, Instant.now());
-		session.save(group2InMovement, 0);
-
-		Actor movementFromDb = actorRepository.findById(movement.getId()).get();
+		Actor movementFromDb = actorRepository.findById(movement.getId()).orElse(null);
 		assertThat(movementFromDb, notNullValue());
 
 		Collection<Actor> depthFind = actorRepository.findMovementParticipantsInDepth(movement.getPlatformUid());
-		assertThat(depthFind.size(), is(5));
+		assertThat(depthFind.size(), is(3));
 
-		Optional<Actor> firstActor = actorRepository.findById(testActor.getId());
-		assertThat(firstActor.isPresent(), is(true));
-		assertThat(firstActor.get().getParticipatesInActors().size(), is(1));
-
-        cleanDb();
+		Actor firstActor = actorRepository.findById(testActor.getId()).orElse(null);
+		assertThat(firstActor, is(notNullValue()));
+		assertThat(firstActor.getParticipatesInActors().size(), is(1));
+		ActorInActor relationship = firstActor.getParticipatesInActors().stream()
+				.filter(AinA -> AinA.getParticipatesIn().equals(movement)).findAny().orElse(null);
+		assertThat(relationship, notNullValue());
 	}
 
 	@After
@@ -175,6 +173,25 @@ public class GraphApplicationTests {
 		actorRepository.deleteByPlatformUidContaining(TEST_ENTITY_PREFIX);
 		eventRepository.deleteByPlatformUidContaining(TEST_ENTITY_PREFIX);
 		interactionRepository.deleteByIdContaining(TEST_ENTITY_PREFIX);
+	}
+
+	private void addActor() {
+		testActor = new Actor(ActorType.INDIVIDUAL, TEST_ENTITY_PREFIX + "actor");
+		actorRepository.save(testActor);
+	}
+
+	private void addEvent() {
+		addActor();
+		testEvent = new Event(EventType.MEETING, TEST_ENTITY_PREFIX + "event", Instant.now().toEpochMilli());
+		testEvent.setCreator(testActor);
+		eventRepository.save(testEvent);
+	}
+
+	private void addInteraction() {
+		addActor();
+		testInteraction = new Interaction(InteractionType.SURVEY, testActor);
+		testInteraction.setId(TEST_ENTITY_PREFIX + "interaction");
+		interactionRepository.save(testInteraction);
 	}
 
 }
