@@ -75,6 +75,7 @@ public class ExistenceBrokerImpl implements ExistenceBroker {
                 return true;
             case INTERACTION:
                 Interaction interaction = new Interaction();
+                interaction.setId(platformEntity.getPlatformId());
                 if (platformEntity.getInteractionType() != null)
                     interaction.setInteractionType(platformEntity.getInteractionType());
                 interactionRepository.save(interaction);
@@ -103,9 +104,10 @@ public class ExistenceBrokerImpl implements ExistenceBroker {
 
     private GrassrootGraphEntity fetchGraphEntity(GraphEntityType entityType, String Uid, int depth) {
         switch (entityType) {
-            case ACTOR: return actorRepository.findByPlatformUid(Uid, depth);
-            case EVENT: return eventRepository.findByPlatformUid(Uid, depth);
-            default:    return null;
+            case ACTOR:         return actorRepository.findByPlatformUid(Uid, depth);
+            case EVENT:         return eventRepository.findByPlatformUid(Uid, depth);
+            case INTERACTION:   return interactionRepository.findById(Uid, depth).orElse(null);
+            default:            return null;
         }
     }
 

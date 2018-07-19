@@ -11,10 +11,8 @@ import org.springframework.test.context.junit4.SpringRunner;
 import za.org.grassroot.graph.domain.Actor;
 import za.org.grassroot.graph.domain.Event;
 import za.org.grassroot.graph.domain.GrassrootGraphEntity;
-import za.org.grassroot.graph.domain.enums.ActorType;
-import za.org.grassroot.graph.domain.enums.EventType;
-import za.org.grassroot.graph.domain.enums.GraphEntityType;
-import za.org.grassroot.graph.domain.enums.GrassrootRelationship;
+import za.org.grassroot.graph.domain.Interaction;
+import za.org.grassroot.graph.domain.enums.*;
 import za.org.grassroot.graph.dto.ActionType;
 import za.org.grassroot.graph.dto.IncomingDataObject;
 import za.org.grassroot.graph.dto.IncomingGraphAction;
@@ -138,6 +136,50 @@ public class IncomingActionTests {
         assertThat(parents, notNullValue());
         assertThat(parents.size(), is(1));
         assertThat(parents.iterator().next().getPlatformUid(), is(TEST_ENTITY_PREFIX + "parent-group"));
+
+        cleanDb();
+    }
+
+    @Test
+    @Rollback
+    public void checkDuplication() {
+        log.info("Creating interaction with 500 participating actors.");
+        List<IncomingDataObject> graphDataObjects = new ArrayList<>();
+        List<IncomingRelationship> graphRelationships = new ArrayList<>();
+
+        Actor initiator = new Actor(ActorType.INDIVIDUAL, TEST_ENTITY_PREFIX + "creating-user");
+        Interaction interaction = new Interaction(InteractionType.SURVEY, initiator);
+        interaction.setId(TEST_ENTITY_PREFIX + "survey");
+        List<Actor> participatingActors = IntStream.range(0, 50).mapToObj(index ->
+                new Actor(ActorType.INDIVIDUAL, TEST_ENTITY_PREFIX + "participant-" + index)).collect(Collectors.toList());
+
+        graphDataObjects.add(new IncomingDataObject(GraphEntityType.ACTOR, initiator));
+        graphDataObjects.add(new IncomingDataObject(GraphEntityType.INTERACTION, interaction));
+        graphDataObjects.addAll(participatingActors.stream().map(a ->
+                new IncomingDataObject(GraphEntityType.ACTOR, a)).collect(Collectors.toList()));
+
+        graphRelationships.addAll(participatingActors.stream().map(actor ->
+                new IncomingRelationship(actor.getPlatformUid(), GraphEntityType.ACTOR, ActorType.INDIVIDUAL.name(),
+                        interaction.getId(), GraphEntityType.INTERACTION, InteractionType.SURVEY.name(),
+                        GrassrootRelationship.Type.PARTICIPATES)).collect(Collectors.toList()));
+        graphRelationships.add(new IncomingRelationship(initiator.getPlatformUid(), GraphEntityType.ACTOR,
+                ActorType.INDIVIDUAL.name(), interaction.getId(), GraphEntityType.INTERACTION,
+                InteractionType.SURVEY.name(), GrassrootRelationship.Type.GENERATOR));
+
+        IncomingGraphAction graphAction = new IncomingGraphAction(TEST_ENTITY_PREFIX + "creating-user",
+                ActionType.CREATE_ENTITY, graphDataObjects, graphRelationships, null);
+        incomingActionProcessor.processIncomingAction(graphAction).block();
+
+        log.info("Now adding one actor to interaction, verify existing relationships are not persisted again");
+        Actor newParticipant = new Actor(ActorType.INDIVIDUAL, TEST_ENTITY_PREFIX + "new-user");
+        IncomingDataObject participant = new IncomingDataObject(GraphEntityType.ACTOR, newParticipant);
+        IncomingRelationship participation = new IncomingRelationship(newParticipant.getPlatformUid(),
+                GraphEntityType.ACTOR, ActorType.INDIVIDUAL.name(), interaction.getId(), GraphEntityType.INTERACTION,
+                InteractionType.SURVEY.name(), GrassrootRelationship.Type.PARTICIPATES);
+
+        IncomingGraphAction action = new IncomingGraphAction(TEST_ENTITY_PREFIX + "new-user", ActionType.CREATE_ENTITY,
+                Collections.singletonList(participant), Collections.singletonList(participation), null);
+        incomingActionProcessor.processIncomingAction(action).block();
 
         cleanDb();
     }

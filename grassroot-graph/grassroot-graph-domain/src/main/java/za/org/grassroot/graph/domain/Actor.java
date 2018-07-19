@@ -75,11 +75,11 @@ public class Actor extends GrassrootGraphEntity {
     }
 
     public void addTags(Set<String> newTags) {
-        this.stdTags = StringUtils.addStringsToArray(this.stdTags, newTags);
+        this.stdTags = GraphStringUtils.addStringsToArray(this.stdTags, newTags);
     }
 
     public void removeTags(Set<String> tagsToRemove) {
-        this.stdTags = StringUtils.removeStringsFromArray(this.stdTags, tagsToRemove);
+        this.stdTags = GraphStringUtils.removeStringsFromArray(this.stdTags, tagsToRemove);
     }
 
     @Override

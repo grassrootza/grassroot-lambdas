@@ -144,7 +144,7 @@ public class RelationshipBrokerImpl implements RelationshipBroker {
         if (participantEntity.isActor()) {
             Actor participant = (Actor) participantEntity;
             ActorInActor relationship = participant.getParticipatesInActors().stream()
-                    .filter(AinA -> AinA.getParticipatesIn().equals(actor)).findAny().get();
+                    .filter(AinA -> AinA.getParticipatesIn().equals(actor)).findAny().orElse(null);
             session.delete(relationship);
             return true;
         } else if (participantEntity.isEvent()) {
@@ -161,7 +161,7 @@ public class RelationshipBrokerImpl implements RelationshipBroker {
         if (participantEntity.isActor()) {
             Actor participant = (Actor) participantEntity;
             ActorInEvent relationship = participant.getParticipatesInEvents().stream()
-                    .filter(AinE -> AinE.getParticipatesIn().equals(event)).findAny().get();
+                    .filter(AinE -> AinE.getParticipatesIn().equals(event)).findAny().orElse(null);
             session.delete(relationship);
             return true;
         }
@@ -220,7 +220,7 @@ public class RelationshipBrokerImpl implements RelationshipBroker {
         switch (entityType) {
             case ACTOR:         return actorRepository.findByPlatformUid(Uid, depth);
             case EVENT:         return eventRepository.findByPlatformUid(Uid, depth);
-            case INTERACTION:   return interactionRepository.findById(Uid, depth).get();
+            case INTERACTION:   return interactionRepository.findById(Uid, depth).orElse(null);
             default:            return null;
         }
     }

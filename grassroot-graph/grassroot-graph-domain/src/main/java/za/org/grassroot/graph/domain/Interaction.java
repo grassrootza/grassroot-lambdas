@@ -26,14 +26,15 @@ public class Interaction extends GrassrootGraphEntity {
         this.entityType = GraphEntityType.INTERACTION;
     }
 
-    public Interaction(Actor initiator) {
+    public Interaction(InteractionType interactionType, Actor initiator) {
         this();
+        this.interactionType = interactionType;
         this.initiator = initiator;
     }
 
     @Override
     public String getPlatformUid() {
-        return null;
+        return id;
     }
 
     @Override

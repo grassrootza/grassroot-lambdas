@@ -1,7 +1,6 @@
 package za.org.grassroot.graph.sqs;
 
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -13,6 +12,7 @@ import software.amazon.awssdk.core.regions.Region;
 import software.amazon.awssdk.services.sqs.SQSClient;
 import software.amazon.awssdk.services.sqs.model.ChangeMessageVisibilityResponse;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse;
+import za.org.grassroot.graph.domain.GraphStringUtils;
 
 import javax.annotation.PostConstruct;
 
@@ -46,7 +46,7 @@ public class SqsPuller {
     @PostConstruct
     private void init() {
         log.info("Setting up SQS client, url: {}", sqsUrl);
-        if (!StringUtils.isEmpty(awsAccessKey) && !StringUtils.isEmpty(awsSecretKey)) {
+        if (!GraphStringUtils.isEmpty(awsAccessKey) && !GraphStringUtils.isEmpty(awsSecretKey)) {
             setUpSqsFromCredentials();
         } else {
             setUpDefaultCredentials();

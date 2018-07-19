@@ -11,14 +11,15 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.annotation.Rollback;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
 import za.org.grassroot.graph.domain.Actor;
 import za.org.grassroot.graph.domain.Event;
 import za.org.grassroot.graph.domain.Interaction;
 import za.org.grassroot.graph.domain.enums.ActorType;
 import za.org.grassroot.graph.domain.enums.EventType;
+import za.org.grassroot.graph.domain.enums.InteractionType;
 import za.org.grassroot.graph.domain.relationship.ActorInActor;
 import za.org.grassroot.graph.domain.relationship.ActorInEvent;
+import za.org.grassroot.graph.domain.GraphStringUtils;
 import za.org.grassroot.graph.repository.ActorRepository;
 import za.org.grassroot.graph.repository.EventRepository;
 import za.org.grassroot.graph.repository.InteractionRepository;
@@ -49,7 +50,7 @@ public class GraphApplicationTests {
 
 	@Before
 	public void generalSetUp() {
-        Optional<Actor> actorCheckDb = testActor == null || StringUtils.isEmpty(testActor.getId())
+        Optional<Actor> actorCheckDb = testActor == null || GraphStringUtils.isEmpty(testActor.getId())
 				? Optional.empty() : actorRepository.findById(testActor.getId());
 		if (!actorCheckDb.isPresent()) {
 			testActor = new Actor(ActorType.INDIVIDUAL, TEST_ENTITY_PREFIX + "actor");
@@ -118,7 +119,7 @@ public class GraphApplicationTests {
 		generalSetUp();
 		actorRepository.save(testActor);
 
-		Interaction testInteraction = new Interaction(testActor);
+		Interaction testInteraction = new Interaction(InteractionType.SURVEY, testActor);
 		testInteraction.setId(TEST_ENTITY_PREFIX + "interaction");
 		interactionRepository.save(testInteraction);
 
