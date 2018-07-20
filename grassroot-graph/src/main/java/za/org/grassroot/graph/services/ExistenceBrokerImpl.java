@@ -30,8 +30,7 @@ public class ExistenceBrokerImpl implements ExistenceBroker {
         this.interactionRepository = interactionRepository;
     }
 
-    @Override
-    @Transactional(readOnly = true)
+    @Override @Transactional(readOnly = true)
     public boolean doesEntityExistInGraph(PlatformEntityDTO platformEntity) {
         switch (platformEntity.getEntityType()) {
             case ACTOR:         return actorRepository.countByPlatformUid(platformEntity.getPlatformId()) > 0;
@@ -41,8 +40,7 @@ public class ExistenceBrokerImpl implements ExistenceBroker {
         return false;
     }
 
-    @Override
-    @Transactional(readOnly = true)
+    @Override @Transactional(readOnly = true)
     public boolean doesRelationshipEntityExist(PlatformEntityDTO tailEntity, PlatformEntityDTO headEntity,
                                                GrassrootRelationship.Type relationshipType) {
         switch (relationshipType) {
@@ -53,8 +51,7 @@ public class ExistenceBrokerImpl implements ExistenceBroker {
         return false;
     }
 
-    @Override
-    @Transactional
+    @Override @Transactional
     public boolean addEntityToGraph(PlatformEntityDTO platformEntity) {
         log.info("Adding entity to graph: {}", platformEntity);
         switch (platformEntity.getEntityType()) {

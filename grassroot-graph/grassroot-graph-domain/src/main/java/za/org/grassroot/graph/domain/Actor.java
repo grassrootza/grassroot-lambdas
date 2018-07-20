@@ -15,6 +15,8 @@ import za.org.grassroot.graph.domain.relationship.ActorInEvent;
 
 import java.time.Instant;
 import java.util.*;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @NodeEntity @Getter @Setter @Slf4j
 @JsonInclude(JsonInclude.Include.NON_EMPTY)
@@ -70,8 +72,11 @@ public class Actor extends GrassrootGraphEntity {
         if (newProperties != null) this.stdProps.putAll(newProperties);
     }
 
+    // don't remove keys (i.e. map.keySet.removeAll(keys) because ogm maps keys directly to node properties when
+    // annotations are first set and properties cannot be removed, so removing keys results in erroneous behavior.
     public void removeProperties(Set<String> keysToRemove) {
-        if (keysToRemove != null) this.stdProps.keySet().removeAll(keysToRemove);
+        if (keysToRemove != null)
+            for (String key : keysToRemove) this.stdProps.put(key, "");
     }
 
     public void addTags(Set<String> newTags) {

@@ -10,9 +10,12 @@ public interface EventRepository extends Neo4jRepository<Event, String> {
 
     Event findByPlatformUid(String platformId, int depth);
 
+    long countByPlatformUid(String platformUid);
+
+    @Transactional
+    Long deleteByPlatformUid(String platformId);
+
     @Transactional
     Long deleteByPlatformUidContaining(String platformUidFragment);
-
-    long countByPlatformUid(String platformUid);
 
 }

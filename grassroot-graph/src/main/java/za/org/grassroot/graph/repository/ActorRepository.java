@@ -10,18 +10,21 @@ import java.util.Collection;
 
 public interface ActorRepository extends Neo4jRepository<Actor, String> {
 
+    Actor findByPlatformUid(String platformId);
+
+    Actor findByPlatformUid(String platformId, int depth);
+
+    Collection<Actor> findByPlatformUidIn(Collection<String> platformIds);
+
     // todo : decide on optimal level here, since can't (unfortunately) parameterize depth (maybe have shallow & deep methods)
     // todo : consider using @Depth annotation on a more general method to do this (see docs)
     @Query("match (:Actor {platformUid: {platformUid}, actorType: 'MOVEMENT'})<-[:PARTICIPATES*1..5]-(actor) return actor;")
     Collection<Actor> findMovementParticipantsInDepth(@Param("platformUid") final String platformUid);
 
-    Actor findByPlatformUid(String platformId);
-
-    Actor findByPlatformUid(String platformId, int depth);
-
     long countByPlatformUid(final String platformUid);
 
-    Collection<Actor> findByPlatformUidIn(Collection<String> platformIds);
+    @Transactional
+    Long deleteByPlatformUid(String platformId);
 
     @Transactional
     Long deleteByPlatformUidContaining(String platformUidFragment);

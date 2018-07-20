@@ -40,22 +40,19 @@ public class AnnotationTests {
     @Autowired InteractionRepository interactionRepository;
 
     @Test @Rollback
-    public void annotateActor() {
+    public void annotateAndDeannotateActor() {
         Map<String, String> properties = new HashMap<>();
-        Set<String> tags = new HashSet<>();
-
         properties.put(IncomingAnnotation.language, "test-language");
         properties.put(IncomingAnnotation.province, "test-province");
         properties.put(IncomingAnnotation.latitude, "test-latitude");
         properties.put(IncomingAnnotation.longitude, "test-longitude");
         properties.put(IncomingAnnotation.description, "test-description");
+
+        Set<String> tags = new HashSet<>();
         tags.add("test-tags");
 
         IncomingDataObject user = addActor(ActorType.INDIVIDUAL, TEST_ENTITY_PREFIX + "individual");
-        IncomingAnnotation annotation = new IncomingAnnotation(user, null, properties, tags, null);
-        IncomingGraphAction action = new IncomingGraphAction(user.getGraphEntity().getPlatformUid(),
-                ActionType.ANNOTATE_ENTITY, null, null, Collections.singletonList(annotation));
-        incomingActionProcessor.processIncomingAction(action).block();
+        dispatchAnnotation(user, null, properties, tags, null, ActionType.ANNOTATE_ENTITY);
 
         Actor userFromDB = actorRepository.findByPlatformUid(user.getGraphEntity().getPlatformUid());
 
@@ -66,21 +63,23 @@ public class AnnotationTests {
         assertThat(userFromDB.getStdTags(), notNullValue());
         assertThat(userFromDB.getStdTags().length, is(1));
         assertThat(userFromDB.getStdTags()[0], is("test-tags"));
+
+        dispatchAnnotation(user, null, null, tags, properties.keySet(), ActionType.REMOVE_ANNOTATION);
+        Actor userFromDB2 = actorRepository.findByPlatformUid(user.getGraphEntity().getPlatformUid());
+        assertThat(userFromDB2.getStdProps().get(IncomingAnnotation.language), is(""));
+        assertThat(userFromDB2.getStdTags().length, is(0));
     }
 
     @Test @Rollback
-    public void annotateEvent() {
+    public void annotateAndDeannotateEvent() {
         Map<String, String> properties = new HashMap<>();
-        Set<String> tags = new HashSet<>();
-
         properties.put(IncomingAnnotation.description, "test-description");
+
+        Set<String> tags = new HashSet<>();
         tags.add("test-tags");
 
         IncomingDataObject meeting = addEvent(EventType.MEETING, TEST_ENTITY_PREFIX + "meeting");
-        IncomingAnnotation annotation = new IncomingAnnotation(meeting, null, properties, tags, null);
-        IncomingGraphAction action = new IncomingGraphAction(meeting.getGraphEntity().getPlatformUid(),
-                ActionType.ANNOTATE_ENTITY, null, null, Collections.singletonList(annotation));
-        incomingActionProcessor.processIncomingAction(action).block();
+        dispatchAnnotation(meeting, null, properties, tags, null, ActionType.ANNOTATE_ENTITY);
 
         Event meetingFromDB = eventRepository.findByPlatformUid(meeting.getGraphEntity().getPlatformUid());
 
@@ -91,10 +90,15 @@ public class AnnotationTests {
         assertThat(meetingFromDB.getStdTags(), notNullValue());
         assertThat(meetingFromDB.getStdTags().length, is(1));
         assertThat(meetingFromDB.getStdTags()[0], is("test-tags"));
+
+        dispatchAnnotation(meeting, null, null, tags, properties.keySet(), ActionType.REMOVE_ANNOTATION);
+        Event meetingFromDB2 = eventRepository.findByPlatformUid(meeting.getGraphEntity().getPlatformUid());
+        assertThat(meetingFromDB2.getStdProps().get(IncomingAnnotation.description), is(""));
+        assertThat(meetingFromDB2.getStdTags().length, is(0));
     }
 
     @Test @Rollback
-    public void annotateActorActorRelationship() {
+    public void annotateAndDeannotateActorActorRelationship() {
         Set<String> tags = new HashSet<>();
         tags.add("test-tags");
 
@@ -103,21 +107,21 @@ public class AnnotationTests {
         IncomingRelationship participation = addParticipation(user.getGraphEntity().getPlatformUid(),
                 user.getEntityType(), user.getEntitySubtype(), group.getGraphEntity().getPlatformUid(),
                 group.getEntityType(), group.getEntitySubtype());
-        IncomingAnnotation annotation = new IncomingAnnotation(null, participation, null, tags, null);
+        dispatchAnnotation(null, participation, null, tags, null, ActionType.ANNOTATE_RELATIONSHIP);
 
-        IncomingGraphAction action = new IncomingGraphAction(user.getGraphEntity().getPlatformUid(),
-                ActionType.ANNOTATE_RELATIONSHIP, null, null, Collections.singletonList(annotation));
-        incomingActionProcessor.processIncomingAction(action).block();
-
-        Actor participant = actorRepository.findByPlatformUid(user.getGraphEntity().getPlatformUid());
-        ActorInActor relationship = participant.getParticipatesInActors().stream().filter(AinA ->
+        Actor userFromDB = actorRepository.findByPlatformUid(user.getGraphEntity().getPlatformUid());
+        ActorInActor relationship = userFromDB.getParticipatesInActors().stream().filter(AinA ->
                 AinA.getParticipatesIn().equals((Actor) group.getGraphEntity())).findAny().orElse(null);
         assertThat(relationship, notNullValue());
         assertThat(relationship.getStdTags(), notNullValue());
         assertThat(relationship.getStdTags().length, is(1));
+        assertThat(relationship.getStdTags()[0], is("test-tags"));
 
-        incomingActionProcessor.processIncomingAction(new IncomingGraphAction(participant.getPlatformUid(),
-                ActionType.REMOVE_RELATIONSHIP, null, Collections.singletonList(participation), null));
+        dispatchAnnotation(null, participation, null, tags, null, ActionType.REMOVE_ANNOTATION);
+        Actor userFromDB2 = actorRepository.findByPlatformUid(user.getGraphEntity().getPlatformUid());
+        ActorInActor relationship2 = userFromDB2.getParticipatesInActors().stream().filter(AinA ->
+                AinA.getParticipatesIn().equals((Actor) group.getGraphEntity())).findAny().orElse(null);
+        assertThat(relationship2.getStdTags().length, is(0));
     }
 
     @Test @Rollback
@@ -130,20 +134,13 @@ public class AnnotationTests {
         IncomingRelationship participation = addParticipation(user.getGraphEntity().getPlatformUid(),
                 user.getEntityType(), user.getEntitySubtype(), meeting.getGraphEntity().getPlatformUid(),
                 meeting.getEntityType(), meeting.getEntitySubtype());
-        IncomingAnnotation annotation = new IncomingAnnotation(null, participation, null, tags, null);
+        dispatchAnnotation(null, participation, null, tags, null, ActionType.ANNOTATE_RELATIONSHIP);
 
-        IncomingGraphAction action = new IncomingGraphAction(user.getGraphEntity().getPlatformUid(),
-                ActionType.ANNOTATE_RELATIONSHIP, null, null, Collections.singletonList(annotation));
-        incomingActionProcessor.processIncomingAction(action).block();
-
-        Actor participant = actorRepository.findByPlatformUid(user.getGraphEntity().getPlatformUid());
-        ActorInEvent relationship = participant.getParticipatesInEvents().stream().filter(AinE ->
+        Actor userFromDB = actorRepository.findByPlatformUid(user.getGraphEntity().getPlatformUid());
+        ActorInEvent relationship = userFromDB.getParticipatesInEvents().stream().filter(AinE ->
                 AinE.getParticipatesIn().equals((Event) meeting.getGraphEntity())).findAny().orElse(null);
         assertThat(relationship, notNullValue());
         assertThat(relationship.getStdTags(), is(nullValue())); // don't yet have anything to annotate for actorInEvent
-
-        incomingActionProcessor.processIncomingAction(new IncomingGraphAction(participant.getPlatformUid(),
-                ActionType.REMOVE_RELATIONSHIP, null, Collections.singletonList(participation), null));
     }
 
     @After
@@ -158,10 +155,10 @@ public class AnnotationTests {
         IncomingDataObject dataObject = new IncomingDataObject(GraphEntityType.ACTOR, testActor);
         IncomingGraphAction graphAction = new IncomingGraphAction(platformId, ActionType.CREATE_ENTITY,
                 Collections.singletonList(dataObject), null, null);
-
         incomingActionProcessor.processIncomingAction(graphAction).block();
-        Actor actorCheckDb = actorRepository.findByPlatformUid(platformId);
-        assertThat(actorCheckDb, notNullValue());
+
+        Actor actorFromDB = actorRepository.findByPlatformUid(platformId);
+        assertThat(actorFromDB, notNullValue());
         return dataObject;
     }
 
@@ -170,10 +167,10 @@ public class AnnotationTests {
         IncomingDataObject dataObject = new IncomingDataObject(GraphEntityType.EVENT, testEvent);
         IncomingGraphAction graphAction = new IncomingGraphAction(platformId, ActionType.CREATE_ENTITY,
                 Collections.singletonList(dataObject), null, null);
-
         incomingActionProcessor.processIncomingAction(graphAction).block();
-        Event eventCheckDb = eventRepository.findByPlatformUid(platformId);
-        assertThat(eventCheckDb, notNullValue());
+
+        Event eventFromDB = eventRepository.findByPlatformUid(platformId);
+        assertThat(eventFromDB, notNullValue());
         return dataObject;
     }
 
@@ -183,8 +180,8 @@ public class AnnotationTests {
                 targetUid, targetType, targetSubtype, GrassrootRelationship.Type.PARTICIPATES);
         IncomingGraphAction graphAction = new IncomingGraphAction(participantUid, ActionType.CREATE_RELATIONSHIP,
                 null, Collections.singletonList(participation), null);
-
         incomingActionProcessor.processIncomingAction(graphAction).block();
+
         Actor participantDB = actorRepository.findByPlatformUid(participantUid);
         if (GraphEntityType.ACTOR.equals(targetType)) {
             assertThat(participantDB.getParticipatesInActors(), notNullValue());
@@ -197,6 +194,14 @@ public class AnnotationTests {
             assertThat(participantDB.getParticipatesInInteractions().size(), is(1));
         }
         return participation;
+    }
+
+    private void dispatchAnnotation(IncomingDataObject dataObject, IncomingRelationship relationship,
+                                    Map<String, String> properties, Set<String> tags, Set<String> toRemove, ActionType actionType) {
+        IncomingAnnotation annotation = new IncomingAnnotation(dataObject, relationship, properties, tags, toRemove);
+        IncomingGraphAction action = new IncomingGraphAction("", actionType,
+                null, null, Collections.singletonList(annotation));
+        incomingActionProcessor.processIncomingAction(action).block();
     }
 
 }

@@ -3,6 +3,7 @@ package za.org.grassroot.graph.services;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 import reactor.core.publisher.Mono;
 import za.org.grassroot.graph.domain.Actor;
@@ -263,6 +264,7 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
         }
     }
 
+    @Transactional
     private boolean persistGraphEntity(GrassrootGraphEntity graphEntity) {
         try {
             switch (graphEntity.getEntityType()) {
@@ -277,12 +279,13 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
         }
     }
 
+    @Transactional
     private boolean deleteGraphEntity(GrassrootGraphEntity graphEntity) {
         try {
             switch (graphEntity.getEntityType()) {
-                case ACTOR:         actorRepository.delete((Actor) graphEntity); break;
-                case EVENT:         eventRepository.delete((Event) graphEntity); break;
-                case INTERACTION:   interactionRepository.delete((Interaction) graphEntity); break;
+                case ACTOR:         actorRepository.deleteByPlatformUid(graphEntity.getPlatformUid()); break;
+                case EVENT:         eventRepository.deleteByPlatformUid(graphEntity.getPlatformUid()); break;
+                case INTERACTION:   interactionRepository.deleteById(((Interaction) graphEntity).getId()); break;
             }
             return true;
         } catch (IllegalArgumentException|ClassCastException e) {

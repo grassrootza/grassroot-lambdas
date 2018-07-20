@@ -1,7 +1,6 @@
 package za.org.grassroot.graph.services;
 
 import lombok.extern.slf4j.Slf4j;
-import org.neo4j.driver.v1.exceptions.ClientException;
 import org.neo4j.ogm.session.Session;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,8 +36,7 @@ public class AnnotationBrokerImpl implements AnnotationBroker {
         this.session = session;
     }
 
-    @Override
-    @Transactional
+    @Override @Transactional
     public boolean annotateEntity(PlatformEntityDTO platformEntity, Map<String, String> properties, Set<String> tags) {
         log.info("Wiring up entity annotation");
         GrassrootGraphEntity entity = fetchGraphEntity(platformEntity.getEntityType(), platformEntity.getPlatformId(), 0);
@@ -57,15 +55,14 @@ public class AnnotationBrokerImpl implements AnnotationBroker {
         }
     }
 
-    @Override
-    @Transactional
+    @Override @Transactional
     public boolean removeEntityAnnotation(PlatformEntityDTO platformEntity, Set<String> keysToRemove, Set<String> tagsToRemove) {
         log.info("Wiring up removing entity annotation");
         GrassrootGraphEntity entity = fetchGraphEntity(platformEntity.getEntityType(), platformEntity.getPlatformId(), 0);
         log.info("Got entity: {}", entity);
 
         if (entity == null) {
-            log.error("Error! Entity does not exist in graph, could not be annotated");
+            log.error("Error! Entity does not exist in graph, annotation could not be removed.");
             return false;
         }
 
@@ -77,8 +74,7 @@ public class AnnotationBrokerImpl implements AnnotationBroker {
         }
     }
 
-    @Override
-    @Transactional
+    @Override @Transactional
     public boolean annotateParticipation(PlatformEntityDTO tailEntity, PlatformEntityDTO headEntity, Set<String> tags) {
         log.info("Wiring up participation annotation");
         GrassrootGraphEntity participant = fetchGraphEntity(tailEntity.getEntityType(), tailEntity.getPlatformId(), 0);
@@ -99,8 +95,7 @@ public class AnnotationBrokerImpl implements AnnotationBroker {
         }
     }
 
-    @Override
-    @Transactional
+    @Override @Transactional
     public boolean removeParticipationAnnotation(PlatformEntityDTO tailEntity, PlatformEntityDTO headEntity, Set<String> tagsToRemove) {
         log.info("Wiring up removing participation annotation");
         GrassrootGraphEntity participant = fetchGraphEntity(tailEntity.getEntityType(), tailEntity.getPlatformId(), 0);
@@ -121,25 +116,14 @@ public class AnnotationBrokerImpl implements AnnotationBroker {
         }
     }
 
-    // movement should be able to be annotated, but it is not yet incorporated in main platform.
     private boolean annotateActor(Actor actor, Map<String, String> properties, Set<String> tags) {
         if (INDIVIDUAL.equals(actor.getActorType()) || GROUP.equals(actor.getActorType())) {
-            return addTagsAndPropertiesToActor(actor, properties, tags);
-        } else {
-            log.error("Only individuals and groups can be annotated (for now)");
-            return false;
-        }
-    }
-
-    private boolean addTagsAndPropertiesToActor(Actor actor, Map<String, String> properties, Set<String> tags) {
-        try {
             actor.addProperties(properties);
             actor.addTags(tags);
             actorRepository.save(actor, 0);
             return true;
-        } catch (ClientException e) {
-            log.error("Error annotating actor, properties: {}, tags: {}", properties, tags);
-            log.error("Original error: ", e);
+        } else {
+            log.error("Only individuals and groups can be annotated (for now)");
             return false;
         }
     }

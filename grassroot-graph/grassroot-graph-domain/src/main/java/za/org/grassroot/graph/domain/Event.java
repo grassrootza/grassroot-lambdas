@@ -81,7 +81,8 @@ public class Event extends GrassrootGraphEntity {
     }
 
     public void removeProperties(Set<String> keysToRemove) {
-        if (keysToRemove != null) this.stdProps.keySet().removeAll(keysToRemove);
+        if (keysToRemove != null)
+            for (String key : keysToRemove) this.stdProps.put(key, "");
     }
 
     public void addTags(Set<String> newTags) {
