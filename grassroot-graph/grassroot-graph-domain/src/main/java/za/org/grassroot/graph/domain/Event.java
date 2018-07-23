@@ -29,9 +29,9 @@ public class Event extends GrassrootGraphEntity {
 
     @Property private long eventStartTimeEpochMilli;
 
-    @Property private Map<String, String> properties;
+    @Properties private Map<String, String> stdProps;
 
-    @Property private Set<String> tags;
+    @Property private String[] stdTags;
 
     @Relationship(type = GrassrootRelationship.TYPE_PARTICIPATES)
     private Set<Actor> participatesIn;
@@ -47,6 +47,7 @@ public class Event extends GrassrootGraphEntity {
 
     public Event() {
         this.entityType = GraphEntityType.EVENT;
+        this.stdProps = new HashMap<>();
         this.participatesIn = new HashSet<>();
         this.childEvents = new HashSet<>();
         this.childInteractions = new HashSet<>();
@@ -76,23 +77,20 @@ public class Event extends GrassrootGraphEntity {
     }
 
     public void addProperties(Map<String, String> newProperties) {
-        if (this.properties == null)
-            this.properties = new HashMap<>();
-        this.properties.putAll(newProperties);
-    }
-
-    public void addTags(Set<String> newTags) {
-        if (this.tags == null)
-            this.tags = new HashSet<>();
-        this.tags.addAll(newTags);
+        if (newProperties != null) this.stdProps.putAll(newProperties);
     }
 
     public void removeProperties(Set<String> keysToRemove) {
-        if (this.properties != null) this.properties.keySet().removeAll(keysToRemove);
+        if (keysToRemove != null)
+            for (String key : keysToRemove) this.stdProps.put(key, "");
+    }
+
+    public void addTags(Set<String> newTags) {
+        this.stdTags = GraphStringUtils.addStringsToArray(this.stdTags, newTags);
     }
 
     public void removeTags(Set<String> tagsToRemove) {
-        if (this.tags != null) this.tags.removeAll(tagsToRemove);
+        this.stdTags = GraphStringUtils.removeStringsFromArray(this.stdTags, tagsToRemove);
     }
 
     @Override

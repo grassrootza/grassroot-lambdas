@@ -2,11 +2,11 @@ package za.org.grassroot.graph.services;
 
 import lombok.Getter;
 import lombok.Setter;
-import org.springframework.util.StringUtils;
 import za.org.grassroot.graph.domain.enums.ActorType;
 import za.org.grassroot.graph.domain.enums.EventType;
 import za.org.grassroot.graph.domain.enums.InteractionType;
 import za.org.grassroot.graph.domain.enums.GraphEntityType;
+import za.org.grassroot.graph.domain.GraphStringUtils;
 
 @Getter @Setter
 public class PlatformEntityDTO {
@@ -25,7 +25,7 @@ public class PlatformEntityDTO {
     }
 
     private void setSubTypeIfPresent(String givenSubType) {
-        if (givenSubType != null && !StringUtils.isEmpty(givenSubType)) {
+        if (!GraphStringUtils.isEmpty(givenSubType)) {
             switch (entityType) {
                 case ACTOR:
                     try {

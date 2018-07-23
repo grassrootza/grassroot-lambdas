@@ -30,8 +30,7 @@ public class ExistenceBrokerImpl implements ExistenceBroker {
         this.interactionRepository = interactionRepository;
     }
 
-    @Override
-    @Transactional(readOnly = true)
+    @Override @Transactional(readOnly = true)
     public boolean doesEntityExistInGraph(PlatformEntityDTO platformEntity) {
         switch (platformEntity.getEntityType()) {
             case ACTOR:         return actorRepository.countByPlatformUid(platformEntity.getPlatformId()) > 0;
@@ -41,8 +40,7 @@ public class ExistenceBrokerImpl implements ExistenceBroker {
         return false;
     }
 
-    @Override
-    @Transactional(readOnly = true)
+    @Override @Transactional(readOnly = true)
     public boolean doesRelationshipEntityExist(PlatformEntityDTO tailEntity, PlatformEntityDTO headEntity,
                                                GrassrootRelationship.Type relationshipType) {
         switch (relationshipType) {
@@ -53,8 +51,7 @@ public class ExistenceBrokerImpl implements ExistenceBroker {
         return false;
     }
 
-    @Override
-    @Transactional
+    @Override @Transactional
     public boolean addEntityToGraph(PlatformEntityDTO platformEntity) {
         log.info("Adding entity to graph: {}", platformEntity);
         switch (platformEntity.getEntityType()) {
@@ -75,6 +72,7 @@ public class ExistenceBrokerImpl implements ExistenceBroker {
                 return true;
             case INTERACTION:
                 Interaction interaction = new Interaction();
+                interaction.setId(platformEntity.getPlatformId());
                 if (platformEntity.getInteractionType() != null)
                     interaction.setInteractionType(platformEntity.getInteractionType());
                 interactionRepository.save(interaction);
@@ -103,9 +101,10 @@ public class ExistenceBrokerImpl implements ExistenceBroker {
 
     private GrassrootGraphEntity fetchGraphEntity(GraphEntityType entityType, String Uid, int depth) {
         switch (entityType) {
-            case ACTOR: return actorRepository.findByPlatformUid(Uid, depth);
-            case EVENT: return eventRepository.findByPlatformUid(Uid, depth);
-            default:    return null;
+            case ACTOR:         return actorRepository.findByPlatformUid(Uid, depth);
+            case EVENT:         return eventRepository.findByPlatformUid(Uid, depth);
+            case INTERACTION:   return interactionRepository.findById(Uid, depth).orElse(null);
+            default:            return null;
         }
     }
 

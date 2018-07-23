@@ -7,15 +7,13 @@ public enum ActionType {
     // it back in queue or not accept the message, and instead put it back into the queue
 
     CREATE_ENTITY,
-    ALTER_ENTITY,
     REMOVE_ENTITY,
+    ANNOTATE_ENTITY,
 
     CREATE_RELATIONSHIP,
-    ALTER_RELATIONSHIP,
     REMOVE_RELATIONSHIP,
-
-    ANNOTATE_ENTITY,
     ANNOTATE_RELATIONSHIP,
+
     REMOVE_ANNOTATION
 
 }

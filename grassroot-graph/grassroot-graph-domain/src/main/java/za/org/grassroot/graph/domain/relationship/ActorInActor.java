@@ -6,6 +6,7 @@ import lombok.Setter;
 import org.neo4j.ogm.annotation.*;
 import org.neo4j.ogm.id.UuidStrategy;
 import za.org.grassroot.graph.domain.Actor;
+import za.org.grassroot.graph.domain.GraphStringUtils;
 import za.org.grassroot.graph.domain.enums.GrassrootRelationship;
 
 import java.time.Instant;
@@ -23,7 +24,7 @@ public class ActorInActor {
 
     @Property private Instant establishedTime; // on the platform
 
-    @Property private Set<String> tags;
+    @Property private String[] stdTags;
 
     public ActorInActor(Actor participant, Actor participatesIn, Instant establishedTime) {
         this.participant = participant;
@@ -32,13 +33,11 @@ public class ActorInActor {
     }
 
     public void addTags(Set<String> newTags) {
-        if (this.tags == null)
-            this.tags = new HashSet<>();
-        this.tags.addAll(newTags);
+        this.stdTags = GraphStringUtils.addStringsToArray(this.stdTags, newTags);
     }
 
     public void removeTags(Set<String> tagsToRemove) {
-        if (this.tags != null) this.tags.removeAll(tagsToRemove);
+        this.stdTags = GraphStringUtils.removeStringsFromArray(this.stdTags, tagsToRemove);
     }
 
     @Override
@@ -50,4 +49,5 @@ public class ActorInActor {
                 ", establishedTime=" + establishedTime +
                 '}';
     }
+
 }

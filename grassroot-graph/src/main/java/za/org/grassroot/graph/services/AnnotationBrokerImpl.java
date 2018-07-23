@@ -1,11 +1,9 @@
 package za.org.grassroot.graph.services;
 
 import lombok.extern.slf4j.Slf4j;
-import org.neo4j.driver.v1.exceptions.ClientException;
 import org.neo4j.ogm.session.Session;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import za.org.grassroot.graph.domain.enums.GrassrootRelationship;
 import za.org.grassroot.graph.domain.enums.GraphEntityType;
 import za.org.grassroot.graph.domain.relationship.ActorInActor;
 import za.org.grassroot.graph.domain.GrassrootGraphEntity;
@@ -13,11 +11,12 @@ import za.org.grassroot.graph.domain.Actor;
 import za.org.grassroot.graph.domain.Event;
 import za.org.grassroot.graph.repository.ActorRepository;
 import za.org.grassroot.graph.repository.EventRepository;
+import za.org.grassroot.graph.repository.InteractionRepository;
+
 import static za.org.grassroot.graph.domain.enums.ActorType.GROUP;
 import static za.org.grassroot.graph.domain.enums.ActorType.INDIVIDUAL;
 import static za.org.grassroot.graph.domain.enums.EventType.SAFETY_ALERT;
 
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -26,17 +25,18 @@ public class AnnotationBrokerImpl implements AnnotationBroker {
 
     private final ActorRepository actorRepository;
     private final EventRepository eventRepository;
+    private final InteractionRepository interactionRepository;
 
     private final Session session;
 
-    public AnnotationBrokerImpl(ActorRepository actorRepository, EventRepository eventRepository, Session session) {
+    public AnnotationBrokerImpl(ActorRepository actorRepository, EventRepository eventRepository, InteractionRepository interactionRepository, Session session) {
         this.actorRepository = actorRepository;
         this.eventRepository = eventRepository;
+        this.interactionRepository = interactionRepository;
         this.session = session;
     }
 
-    @Override
-    @Transactional
+    @Override @Transactional
     public boolean annotateEntity(PlatformEntityDTO platformEntity, Map<String, String> properties, Set<String> tags) {
         log.info("Wiring up entity annotation");
         GrassrootGraphEntity entity = fetchGraphEntity(platformEntity.getEntityType(), platformEntity.getPlatformId(), 0);
@@ -55,15 +55,14 @@ public class AnnotationBrokerImpl implements AnnotationBroker {
         }
     }
 
-    @Override
-    @Transactional
+    @Override @Transactional
     public boolean removeEntityAnnotation(PlatformEntityDTO platformEntity, Set<String> keysToRemove, Set<String> tagsToRemove) {
         log.info("Wiring up removing entity annotation");
         GrassrootGraphEntity entity = fetchGraphEntity(platformEntity.getEntityType(), platformEntity.getPlatformId(), 0);
         log.info("Got entity: {}", entity);
 
         if (entity == null) {
-            log.error("Error! Entity does not exist in graph, could not be annotated");
+            log.error("Error! Entity does not exist in graph, annotation could not be removed.");
             return false;
         }
 
@@ -75,8 +74,7 @@ public class AnnotationBrokerImpl implements AnnotationBroker {
         }
     }
 
-    @Override
-    @Transactional
+    @Override @Transactional
     public boolean annotateParticipation(PlatformEntityDTO tailEntity, PlatformEntityDTO headEntity, Set<String> tags) {
         log.info("Wiring up participation annotation");
         GrassrootGraphEntity participant = fetchGraphEntity(tailEntity.getEntityType(), tailEntity.getPlatformId(), 0);
@@ -97,8 +95,7 @@ public class AnnotationBrokerImpl implements AnnotationBroker {
         }
     }
 
-    @Override
-    @Transactional
+    @Override @Transactional
     public boolean removeParticipationAnnotation(PlatformEntityDTO tailEntity, PlatformEntityDTO headEntity, Set<String> tagsToRemove) {
         log.info("Wiring up removing participation annotation");
         GrassrootGraphEntity participant = fetchGraphEntity(tailEntity.getEntityType(), tailEntity.getPlatformId(), 0);
@@ -119,25 +116,14 @@ public class AnnotationBrokerImpl implements AnnotationBroker {
         }
     }
 
-    // movement should be able to be annotated, but it is not yet incorporated in main platform.
     private boolean annotateActor(Actor actor, Map<String, String> properties, Set<String> tags) {
         if (INDIVIDUAL.equals(actor.getActorType()) || GROUP.equals(actor.getActorType())) {
-            return addTagsAndPropertiesToActor(actor, properties, tags);
-        } else {
-            log.error("Only individuals and groups can be annotated (for now)");
-            return false;
-        }
-    }
-
-    private boolean addTagsAndPropertiesToActor(Actor actor, Map<String, String> properties, Set<String> tags) {
-        try {
             actor.addProperties(properties);
             actor.addTags(tags);
             actorRepository.save(actor, 0);
             return true;
-        } catch (ClientException e) {
-            log.error("Error annotating actor, properties: {}, tags: {}", properties, tags);
-            log.error("Original error: ", e);
+        } else {
+            log.error("Only individuals and groups can be annotated (for now)");
             return false;
         }
     }
@@ -180,7 +166,7 @@ public class AnnotationBrokerImpl implements AnnotationBroker {
 
     private boolean annotateActorInActor(Actor participant, Actor participatesIn, Set<String> tags) {
         ActorInActor relationship = participant.getParticipatesInActors().stream()
-                .filter(AinA -> AinA.getParticipatesIn().equals(participatesIn)).findAny().get();
+                .filter(AinA -> AinA.getParticipatesIn().equals(participatesIn)).findAny().orElse(null);
         if (relationship == null) {
             log.error("No ActorInActor relationship entity found between {} and {}, aborting", participant, participatesIn);
             return false;
@@ -193,7 +179,7 @@ public class AnnotationBrokerImpl implements AnnotationBroker {
 
     private boolean removeActorInActorAnnotation(Actor participant, Actor participatesIn, Set<String> tagsToRemove) {
         ActorInActor relationship = participant.getParticipatesInActors().stream()
-                .filter(AinA -> AinA.getParticipatesIn().equals(participatesIn)).findAny().get();
+                .filter(AinA -> AinA.getParticipatesIn().equals(participatesIn)).findAny().orElse(null);
         if (relationship == null) {
             log.error("No ActorInActor relationship entity found between {} and {}, aborting", participant, participatesIn);
             return false;
@@ -208,6 +194,7 @@ public class AnnotationBrokerImpl implements AnnotationBroker {
         switch (entityType) {
             case ACTOR:         return actorRepository.findByPlatformUid(Uid, depth);
             case EVENT:         return eventRepository.findByPlatformUid(Uid, depth);
+            case INTERACTION:   return interactionRepository.findById(Uid, depth).orElse(null);
             default:            return null;
         }
     }
