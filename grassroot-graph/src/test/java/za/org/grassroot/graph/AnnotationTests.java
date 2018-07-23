@@ -15,7 +15,6 @@ import za.org.grassroot.graph.domain.enums.EventType;
 import za.org.grassroot.graph.domain.enums.GraphEntityType;
 import za.org.grassroot.graph.domain.enums.GrassrootRelationship;
 import za.org.grassroot.graph.domain.relationship.ActorInActor;
-import za.org.grassroot.graph.domain.relationship.ActorInEvent;
 import za.org.grassroot.graph.dto.*;
 import za.org.grassroot.graph.repository.ActorRepository;
 import za.org.grassroot.graph.repository.EventRepository;
@@ -110,8 +109,7 @@ public class AnnotationTests {
         dispatchAnnotation(null, participation, null, tags, null, ActionType.ANNOTATE_RELATIONSHIP);
 
         Actor userFromDB = actorRepository.findByPlatformUid(user.getGraphEntity().getPlatformUid());
-        ActorInActor relationship = userFromDB.getParticipatesInActors().stream().filter(AinA ->
-                AinA.getParticipatesIn().equals((Actor) group.getGraphEntity())).findAny().orElse(null);
+        ActorInActor relationship = userFromDB.getRelationshipWith((Actor) group.getGraphEntity());
         assertThat(relationship, notNullValue());
         assertThat(relationship.getStdTags(), notNullValue());
         assertThat(relationship.getStdTags().length, is(1));
@@ -119,28 +117,8 @@ public class AnnotationTests {
 
         dispatchAnnotation(null, participation, null, tags, null, ActionType.REMOVE_ANNOTATION);
         Actor userFromDB2 = actorRepository.findByPlatformUid(user.getGraphEntity().getPlatformUid());
-        ActorInActor relationship2 = userFromDB2.getParticipatesInActors().stream().filter(AinA ->
-                AinA.getParticipatesIn().equals((Actor) group.getGraphEntity())).findAny().orElse(null);
+        ActorInActor relationship2 = userFromDB2.getRelationshipWith((Actor) group.getGraphEntity());
         assertThat(relationship2.getStdTags().length, is(0));
-    }
-
-    @Test @Rollback
-    public void annotateActorEventRelationship() {
-        Set<String> tags = new HashSet<>();
-        tags.add("test-tags");
-
-        IncomingDataObject user = addActor(ActorType.INDIVIDUAL, TEST_ENTITY_PREFIX + "individual");
-        IncomingDataObject meeting = addEvent(EventType.MEETING, TEST_ENTITY_PREFIX + "meeting");
-        IncomingRelationship participation = addParticipation(user.getGraphEntity().getPlatformUid(),
-                user.getEntityType(), user.getEntitySubtype(), meeting.getGraphEntity().getPlatformUid(),
-                meeting.getEntityType(), meeting.getEntitySubtype());
-        dispatchAnnotation(null, participation, null, tags, null, ActionType.ANNOTATE_RELATIONSHIP);
-
-        Actor userFromDB = actorRepository.findByPlatformUid(user.getGraphEntity().getPlatformUid());
-        ActorInEvent relationship = userFromDB.getParticipatesInEvents().stream().filter(AinE ->
-                AinE.getParticipatesIn().equals((Event) meeting.getGraphEntity())).findAny().orElse(null);
-        assertThat(relationship, notNullValue());
-        assertThat(relationship.getStdTags(), is(nullValue())); // don't yet have anything to annotate for actorInEvent
     }
 
     @After

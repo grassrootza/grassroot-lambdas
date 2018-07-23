@@ -24,20 +24,10 @@ public class ActorInEvent {
     @Property private boolean responded;
     @Property private String response;
 
-    @Property private String[] stdTags;
-
     public ActorInEvent(Actor participant, Event participatesIn) {
         this.participant = participant;
         this.participatesIn = participatesIn;
         this.responded = false;
-    }
-
-    public void addTags(Set<String> newTags) {
-        this.stdTags = GraphStringUtils.addStringsToArray(this.stdTags, newTags);
-    }
-
-    public void removeTags(Set<String> tagsToRemove) {
-        this.stdTags = GraphStringUtils.removeStringsFromArray(this.stdTags, tagsToRemove);
     }
 
     @Override

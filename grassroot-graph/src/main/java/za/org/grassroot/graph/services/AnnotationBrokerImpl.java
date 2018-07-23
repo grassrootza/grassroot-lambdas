@@ -36,7 +36,8 @@ public class AnnotationBrokerImpl implements AnnotationBroker {
         this.session = session;
     }
 
-    @Override @Transactional
+    @Override
+    @Transactional
     public boolean annotateEntity(PlatformEntityDTO platformEntity, Map<String, String> properties, Set<String> tags) {
         log.info("Wiring up entity annotation");
         GrassrootGraphEntity entity = fetchGraphEntity(platformEntity.getEntityType(), platformEntity.getPlatformId(), 0);
@@ -55,7 +56,8 @@ public class AnnotationBrokerImpl implements AnnotationBroker {
         }
     }
 
-    @Override @Transactional
+    @Override
+    @Transactional
     public boolean removeEntityAnnotation(PlatformEntityDTO platformEntity, Set<String> keysToRemove, Set<String> tagsToRemove) {
         log.info("Wiring up removing entity annotation");
         GrassrootGraphEntity entity = fetchGraphEntity(platformEntity.getEntityType(), platformEntity.getPlatformId(), 0);
@@ -165,8 +167,7 @@ public class AnnotationBrokerImpl implements AnnotationBroker {
     }
 
     private boolean annotateActorInActor(Actor participant, Actor participatesIn, Set<String> tags) {
-        ActorInActor relationship = participant.getParticipatesInActors().stream()
-                .filter(AinA -> AinA.getParticipatesIn().equals(participatesIn)).findAny().orElse(null);
+        ActorInActor relationship = participant.getRelationshipWith(participatesIn);
         if (relationship == null) {
             log.error("No ActorInActor relationship entity found between {} and {}, aborting", participant, participatesIn);
             return false;
@@ -178,8 +179,7 @@ public class AnnotationBrokerImpl implements AnnotationBroker {
     }
 
     private boolean removeActorInActorAnnotation(Actor participant, Actor participatesIn, Set<String> tagsToRemove) {
-        ActorInActor relationship = participant.getParticipatesInActors().stream()
-                .filter(AinA -> AinA.getParticipatesIn().equals(participatesIn)).findAny().orElse(null);
+        ActorInActor relationship = participant.getRelationshipWith(participatesIn);
         if (relationship == null) {
             log.error("No ActorInActor relationship entity found between {} and {}, aborting", participant, participatesIn);
             return false;

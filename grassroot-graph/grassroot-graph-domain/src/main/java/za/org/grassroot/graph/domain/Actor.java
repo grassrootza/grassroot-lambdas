@@ -15,8 +15,6 @@ import za.org.grassroot.graph.domain.relationship.ActorInEvent;
 
 import java.time.Instant;
 import java.util.*;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 @NodeEntity @Getter @Setter @Slf4j
 @JsonInclude(JsonInclude.Include.NON_EMPTY)
@@ -85,6 +83,16 @@ public class Actor extends GrassrootGraphEntity {
 
     public void removeTags(Set<String> tagsToRemove) {
         this.stdTags = GraphStringUtils.removeStringsFromArray(this.stdTags, tagsToRemove);
+    }
+
+    public ActorInActor getRelationshipWith(Actor actor) {
+        return this.participatesInActors.stream()
+                .filter(AinA -> AinA.getParticipatesIn().equals(actor)).findAny().orElse(null);
+    }
+
+    public ActorInEvent getRelationshipWith(Event event) {
+        return this.participatesInEvents.stream()
+                .filter(AinE -> AinE.getParticipatesIn().equals(event)).findAny().orElse(null);
     }
 
     @Override

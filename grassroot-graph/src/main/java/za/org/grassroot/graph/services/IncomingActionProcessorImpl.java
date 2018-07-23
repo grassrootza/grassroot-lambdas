@@ -62,8 +62,6 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
         });
     }
 
-    // note: although it allows for multiple entities at once, to preserve integrity, any such multiple entities must
-    // be related to each other, i.e., have relationships among each other - the validation checks if this is not the case
     private boolean createEntitiesAndRelationships(IncomingGraphAction action) {
         log.info("Handling entity and relationship creation");
         return createEntities(action.getDataObjects()) && establishRelationships(action.getRelationships());
@@ -80,14 +78,12 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
                 dataObject.getEntityType(), dataObject.getEntitySubtype());
 
         if (existenceBroker.doesEntityExistInGraph(entityDTO))
-            return true; // by definition, execution succeeded, as we do not do any updating in here, because of too much potential fragility
+            return true;
 
         log.info("Data object did not exist, has entity type: {}, entity: {}", dataObject.getEntityType(), dataObject);
         return persistGraphEntity(dataObject.getGraphEntity());
     }
 
-    // this will only remove entities that are related to the primary one (first in list);
-    // doesn't need a relationship call as OGM will handle that for us.
     private boolean removeEntities(List<IncomingDataObject> entities) {
         if (CollectionUtils.isEmpty(entities)) return true;
         log.info("Removing {} entities", entities.size());
@@ -105,6 +101,28 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
 
         log.info("Entity {} exists, deleting now.", entityDTO);
         return deleteGraphEntity(dataObject.getGraphEntity());
+    }
+
+    private boolean annotateEntities(List<IncomingAnnotation> annotations) {
+        if (CollectionUtils.isEmpty(annotations)) return true;
+        log.info("Annotating {} entities", annotations.size());
+        return annotations.stream().map(this::annotateSingleEntity).reduce(true, (a, b) -> a && b);
+    }
+
+    private boolean annotateSingleEntity(IncomingAnnotation annotation) {
+        IncomingDataObject entity = annotation.getEntity();
+        PlatformEntityDTO entityDTO = new PlatformEntityDTO(entity.getGraphEntity().getPlatformUid(),
+                entity.getEntityType(), entity.getEntitySubtype());
+
+        if (!existenceBroker.doesEntityExistInGraph(entityDTO)) {
+            if (!existenceBroker.addEntityToGraph(entityDTO)) {
+                log.error("Entity did not previously exist in graph and could not be added, aborting");
+                return false;
+            }
+        }
+
+        log.info("Verified entity exists, annotating entity to graph");
+        return annotationBroker.annotateEntity(entityDTO, annotation.getProperties(), annotation.getTags());
     }
 
     private boolean establishRelationships(List<IncomingRelationship> relationships) {
@@ -132,7 +150,6 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
         }
     }
 
-    // again, only relevant from single, central node
     private boolean removeRelationships(List<IncomingRelationship> relationships) {
         if (CollectionUtils.isEmpty(relationships)) return true;
         log.info("Removing {} relationships", relationships.size());
@@ -154,28 +171,6 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
             case OBSERVES:      log.error("Observer relationship not yet implemented"); return false;
             default:            log.error("Unsupported relationship type provided"); return false;
         }
-    }
-
-    private boolean annotateEntities(List<IncomingAnnotation> annotations) {
-        if (CollectionUtils.isEmpty(annotations)) return true;
-        log.info("Annotating {} entities", annotations.size());
-        return annotations.stream().map(this::annotateSingleEntity).reduce(true, (a, b) -> a && b);
-    }
-
-    private boolean annotateSingleEntity(IncomingAnnotation annotation) {
-        IncomingDataObject entity = annotation.getEntity();
-        PlatformEntityDTO entityDTO = new PlatformEntityDTO(entity.getGraphEntity().getPlatformUid(),
-                entity.getEntityType(), entity.getEntitySubtype());
-
-        if (!existenceBroker.doesEntityExistInGraph(entityDTO)) {
-            if (!existenceBroker.addEntityToGraph(entityDTO)) {
-                log.error("Entity did not previously exist in graph and could not be added, aborting");
-                return false;
-            }
-        }
-
-        log.info("Verified entity exists, annotating entity to graph");
-        return annotationBroker.annotateEntity(entityDTO, annotation.getProperties(), annotation.getTags());
     }
 
     private boolean annotateRelationships(List<IncomingAnnotation> annotations) {
@@ -201,7 +196,6 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
                 log.error("Invalid relationship annotation, only supporting ActorInActor at the moment");
                 return false;
             }
-
             if (!relationshipBroker.addParticipation(tailEntity, headEntity)) {
                 log.error("Relationship entity did not previously exist in graph and could not be added, aborting");
                 return false;
@@ -230,8 +224,7 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
             log.error("Error! One annotation cannot serve for both a relationship and entity"); // because tags overlap.
             return false;
         }
-        if (annotation.getEntity() != null) return removeEntityAnnotation(annotation);
-        else return removeRelationshipAnnotation(annotation);
+        return annotation.getEntity() == null ? removeRelationshipAnnotation(annotation) : removeEntityAnnotation(annotation);
     }
 
     private boolean removeEntityAnnotation(IncomingAnnotation annotation) {
