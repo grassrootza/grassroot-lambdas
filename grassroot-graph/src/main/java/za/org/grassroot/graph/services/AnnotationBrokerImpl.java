@@ -106,7 +106,7 @@ public class AnnotationBrokerImpl implements AnnotationBroker {
         log.info("Got head entity: {}", participatesIn);
 
         if (participant == null || participatesIn == null) {
-            log.error("Error! One or both entities do not exist in graph, relationship could not be annotated");
+            log.error("Error! One or both entities do not exist in graph, annotation could not be removed.");
             return false;
         }
 

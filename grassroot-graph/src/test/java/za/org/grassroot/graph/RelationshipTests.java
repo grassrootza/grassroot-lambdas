@@ -22,7 +22,6 @@ import za.org.grassroot.graph.repository.EventRepository;
 import za.org.grassroot.graph.repository.InteractionRepository;
 import za.org.grassroot.graph.services.IncomingActionProcessor;
 
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -34,6 +33,9 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static za.org.grassroot.graph.GraphApplicationTests.TEST_ENTITY_PREFIX;
+import static za.org.grassroot.graph.TestUtils.wrapActorAction;
+import static za.org.grassroot.graph.TestUtils.wrapEventAction;
+import static za.org.grassroot.graph.TestUtils.wrapInteractionAction;
 
 @RunWith(SpringRunner.class) @Slf4j
 @SpringBootTest(properties = {"sqs.pull.enabled=false","sqs.push.enabled=false"})
@@ -47,13 +49,13 @@ public class RelationshipTests {
 
     @Test
     @Rollback
-    public void addValidGenerationRelationships() {
-        dispatchActorAction(ActorType.INDIVIDUAL, TEST_ENTITY_PREFIX + "generatorActor", ActionType.CREATE_ENTITY);
-        dispatchActorAction(ActorType.GROUP, TEST_ENTITY_PREFIX + "group", ActionType.CREATE_ENTITY);
-        dispatchEventAction(EventType.MEETING, TEST_ENTITY_PREFIX + "meeting", ActionType.CREATE_ENTITY);
-        dispatchInteractionAction(InteractionType.SURVEY, TEST_ENTITY_PREFIX + "survey", ActionType.CREATE_ENTITY);
-        dispatchEventAction(EventType.MEETING, TEST_ENTITY_PREFIX + "generatorEvent", ActionType.CREATE_ENTITY);
-        dispatchEventAction(EventType.VOTE, TEST_ENTITY_PREFIX + "vote", ActionType.CREATE_ENTITY);
+    public void addAndRemoveValidGenerationRelationships() {
+        dispatchActor(ActorType.INDIVIDUAL, TEST_ENTITY_PREFIX + "generatorActor", ActionType.CREATE_ENTITY);
+        dispatchEvent(EventType.MEETING, TEST_ENTITY_PREFIX + "generatorEvent", ActionType.CREATE_ENTITY);
+        dispatchActor(ActorType.GROUP, TEST_ENTITY_PREFIX + "group", ActionType.CREATE_ENTITY);
+        dispatchEvent(EventType.MEETING, TEST_ENTITY_PREFIX + "meeting", ActionType.CREATE_ENTITY);
+        dispatchInteraction(InteractionType.SURVEY, TEST_ENTITY_PREFIX + "survey", ActionType.CREATE_ENTITY);
+        dispatchEvent(EventType.VOTE, TEST_ENTITY_PREFIX + "vote", ActionType.CREATE_ENTITY);
 
         IncomingGraphAction action = new IncomingGraphAction(TEST_ENTITY_PREFIX + "generatorActor",
                 ActionType.CREATE_RELATIONSHIP, null, new ArrayList<>(), null);
@@ -70,23 +72,21 @@ public class RelationshipTests {
                 GraphEntityType.EVENT, EventType.MEETING.name(), TEST_ENTITY_PREFIX + "vote",
                 GraphEntityType.EVENT, EventType.VOTE.name(), GrassrootRelationship.Type.GENERATOR));
         incomingActionProcessor.processIncomingAction(action).block();
+        verifyGeneratorRelationshipsExist();
 
-        Actor groupFromDB = actorRepository.findByPlatformUid(TEST_ENTITY_PREFIX + "group");
-        Event meetingFromDB = eventRepository.findByPlatformUid(TEST_ENTITY_PREFIX + "meeting");
-        Interaction surveyFromDB = interactionRepository.findById(TEST_ENTITY_PREFIX + "survey").orElse(null);
-        Event voteFromDB = eventRepository.findByPlatformUid(TEST_ENTITY_PREFIX + "vote");
-        assertThat(groupFromDB.getCreatedByActor(), is(notNullValue()));
-        assertThat(meetingFromDB.getCreator(), is(notNullValue()));
-        assertThat(surveyFromDB.getInitiator(), is(notNullValue()));
-        assertThat(voteFromDB.getCreator(), is(notNullValue()));
+        // try to (invalidly) remove generation relationships
+        action.setActionType(ActionType.REMOVE_RELATIONSHIP);
+        boolean removedRelationships = incomingActionProcessor.processIncomingAction(action).block();
+        assertThat(removedRelationships, is(false));
+        verifyGeneratorRelationshipsExist();
     }
 
     @Test
     @Rollback
     public void addInvalidGenerationRelationships() {
-        dispatchEventAction(EventType.MEETING, TEST_ENTITY_PREFIX + "meeting", ActionType.CREATE_ENTITY);
-        dispatchActorAction(ActorType.INDIVIDUAL, TEST_ENTITY_PREFIX + "person", ActionType.CREATE_ENTITY);
-        dispatchInteractionAction(InteractionType.SURVEY, TEST_ENTITY_PREFIX + "survey", ActionType.CREATE_ENTITY);
+        dispatchEvent(EventType.MEETING, TEST_ENTITY_PREFIX + "meeting", ActionType.CREATE_ENTITY);
+        dispatchActor(ActorType.INDIVIDUAL, TEST_ENTITY_PREFIX + "person", ActionType.CREATE_ENTITY);
+        dispatchInteraction(InteractionType.SURVEY, TEST_ENTITY_PREFIX + "survey", ActionType.CREATE_ENTITY);
 
         IncomingGraphAction action = new IncomingGraphAction(TEST_ENTITY_PREFIX + "meeting",
                 ActionType.CREATE_RELATIONSHIP, null, new ArrayList<>(), null);
@@ -117,129 +117,43 @@ public class RelationshipTests {
 
     @Test
     @Rollback
-    public void addAndRemoveActorActorRelationships() {
-        dispatchActorAction(ActorType.GROUP, TEST_ENTITY_PREFIX + "group", ActionType.CREATE_ENTITY);
-        List<Actor> participatingActors = IntStream.range(0, 5).mapToObj(index ->
-                new Actor(ActorType.INDIVIDUAL, TEST_ENTITY_PREFIX + "participant-" + index)).collect(Collectors.toList());
+    public void addAndRemoveValidParticipationRelationships() {
+        dispatchActor(ActorType.INDIVIDUAL, TEST_ENTITY_PREFIX + "participantActor", ActionType.CREATE_ENTITY);
+        dispatchEvent(EventType.MEETING, TEST_ENTITY_PREFIX + "participantEvent", ActionType.CREATE_ENTITY);
+        dispatchActor(ActorType.GROUP, TEST_ENTITY_PREFIX + "group", ActionType.CREATE_ENTITY);
+        dispatchEvent(EventType.VOTE, TEST_ENTITY_PREFIX + "vote", ActionType.CREATE_ENTITY);
+        dispatchInteraction(InteractionType.SURVEY, TEST_ENTITY_PREFIX + "survey", ActionType.CREATE_ENTITY);
 
-        List<IncomingDataObject> dataObjects = participatingActors.stream().map(a ->
-                new IncomingDataObject(GraphEntityType.ACTOR, a)).collect(Collectors.toList());
-        List<IncomingRelationship> relationships = participatingActors.stream().map(actor ->
-                new IncomingRelationship(actor.getPlatformUid(), actor.getEntityType(), actor.getActorType().name(),
-                        TEST_ENTITY_PREFIX + "group", GraphEntityType.ACTOR, ActorType.GROUP.name(),
-                        GrassrootRelationship.Type.PARTICIPATES)).collect(Collectors.toList());
-
-        incomingActionProcessor.processIncomingAction(new IncomingGraphAction(TEST_ENTITY_PREFIX + "group",
-                ActionType.CREATE_ENTITY, dataObjects, relationships, null)).block();
-        verifyRelationshipPersistence(participatingActors, GraphEntityType.ACTOR);
-
-        incomingActionProcessor.processIncomingAction(new IncomingGraphAction(TEST_ENTITY_PREFIX + "group",
-                ActionType.REMOVE_RELATIONSHIP, null, relationships, null)).block();
-        verifyRelationshipRemoval(participatingActors, GraphEntityType.ACTOR);
-    }
-
-    @Test
-    @Rollback
-    public void addAndRemoveActorEventRelationships() {
-        dispatchEventAction(EventType.MEETING, TEST_ENTITY_PREFIX + "meeting", ActionType.CREATE_ENTITY);
-        List<Actor> participatingActors = IntStream.range(0, 5).mapToObj(index ->
-                new Actor(ActorType.INDIVIDUAL, TEST_ENTITY_PREFIX + "participant-" + index)).collect(Collectors.toList());
-
-        List<IncomingDataObject> dataObjects = participatingActors.stream().map(a ->
-                new IncomingDataObject(GraphEntityType.ACTOR, a)).collect(Collectors.toList());
-        List<IncomingRelationship> relationships = participatingActors.stream().map(actor ->
-                new IncomingRelationship(actor.getPlatformUid(), actor.getEntityType(), actor.getActorType().name(),
-                        TEST_ENTITY_PREFIX + "meeting", GraphEntityType.EVENT, EventType.MEETING.name(),
-                        GrassrootRelationship.Type.PARTICIPATES)).collect(Collectors.toList());
-
-        incomingActionProcessor.processIncomingAction(new IncomingGraphAction(TEST_ENTITY_PREFIX + "meeting",
-                ActionType.CREATE_ENTITY, dataObjects, relationships, null)).block();
-        verifyRelationshipPersistence(participatingActors, GraphEntityType.EVENT);
-
-        incomingActionProcessor.processIncomingAction(new IncomingGraphAction(TEST_ENTITY_PREFIX + "meeting",
-                ActionType.REMOVE_RELATIONSHIP, null, relationships, null)).block();
-        verifyRelationshipRemoval(participatingActors, GraphEntityType.EVENT);
-    }
-
-    @Test
-    @Rollback
-    public void addAndRemoveActorInteractionRelationships() {
-        dispatchInteractionAction(InteractionType.SURVEY, TEST_ENTITY_PREFIX + "survey", ActionType.CREATE_ENTITY);
-        List<Actor> participatingActors = IntStream.range(0, 5).mapToObj(index ->
-                new Actor(ActorType.INDIVIDUAL, TEST_ENTITY_PREFIX + "participant-" + index)).collect(Collectors.toList());
-
-        List<IncomingDataObject> dataObjects = participatingActors.stream().map(a ->
-                new IncomingDataObject(GraphEntityType.ACTOR, a)).collect(Collectors.toList());
-        List<IncomingRelationship> relationships = participatingActors.stream().map(actor ->
-                new IncomingRelationship(actor.getPlatformUid(), actor.getEntityType(), actor.getActorType().name(),
-                        TEST_ENTITY_PREFIX + "survey", GraphEntityType.INTERACTION, InteractionType.SURVEY.name(),
-                        GrassrootRelationship.Type.PARTICIPATES)).collect(Collectors.toList());
-
-        incomingActionProcessor.processIncomingAction(new IncomingGraphAction(TEST_ENTITY_PREFIX + "survey",
-                ActionType.CREATE_ENTITY, dataObjects, relationships, null)).block();
-        verifyRelationshipPersistence(participatingActors, GraphEntityType.INTERACTION);
-
-        incomingActionProcessor.processIncomingAction(new IncomingGraphAction(TEST_ENTITY_PREFIX + "survey",
-                ActionType.REMOVE_RELATIONSHIP, null, relationships, null)).block();
-        verifyRelationshipRemoval(participatingActors, GraphEntityType.INTERACTION);
-    }
-
-    @Test
-    @Rollback
-    public void addEventRelationships() {
-        dispatchEventAction(EventType.MEETING, TEST_ENTITY_PREFIX + "meeting", ActionType.CREATE_ENTITY);
-        dispatchActorAction(ActorType.GROUP, TEST_ENTITY_PREFIX + "graphParent", ActionType.CREATE_ENTITY);
-        dispatchEventAction(EventType.VOTE, TEST_ENTITY_PREFIX + "childEvent", ActionType.CREATE_ENTITY);
-
-        IncomingGraphAction action = new IncomingGraphAction(TEST_ENTITY_PREFIX + "meeting",
+        IncomingGraphAction action = new IncomingGraphAction(TEST_ENTITY_PREFIX + "participantActor",
                 ActionType.CREATE_RELATIONSHIP, null, new ArrayList<>(), null);
-        action.addRelationship(new IncomingRelationship(TEST_ENTITY_PREFIX + "meeting",
-                GraphEntityType.EVENT, EventType.MEETING.name(), TEST_ENTITY_PREFIX + "graphParent",
+        action.addRelationship(new IncomingRelationship(TEST_ENTITY_PREFIX + "participantActor",
+                GraphEntityType.ACTOR, ActorType.INDIVIDUAL.name(), TEST_ENTITY_PREFIX + "group",
                 GraphEntityType.ACTOR, ActorType.GROUP.name(), GrassrootRelationship.Type.PARTICIPATES));
-        action.addRelationship(new IncomingRelationship(TEST_ENTITY_PREFIX + "meeting",
-                GraphEntityType.EVENT, EventType.MEETING.name(), TEST_ENTITY_PREFIX + "childEvent",
-                GraphEntityType.EVENT, EventType.VOTE.name(), GrassrootRelationship.Type.GENERATOR));
-        incomingActionProcessor.processIncomingAction(action).block();
-
-        Event eventFromDb = eventRepository.findByPlatformUid(TEST_ENTITY_PREFIX + "meeting");
-        assertThat(eventFromDb, notNullValue());
-        assertThat(!CollectionUtils.isEmpty(eventFromDb.getParticipatesIn()), is(true));
-        assertThat(!CollectionUtils.isEmpty(eventFromDb.getChildEvents()), is(true));
-    }
-
-    @Test
-    @Rollback
-    public void checkDuplication() {
-        log.info("Creating interaction with 25 participating actors.");
-        dispatchInteractionAction(InteractionType.SURVEY, TEST_ENTITY_PREFIX + "survey", ActionType.CREATE_ENTITY);
-        List<Actor> participatingActors = IntStream.range(0, 25).mapToObj(index ->
-                new Actor(ActorType.INDIVIDUAL, TEST_ENTITY_PREFIX + "participant-" + index)).collect(Collectors.toList());
-
-        List<IncomingDataObject> dataObjects = participatingActors.stream().map(a ->
-                new IncomingDataObject(GraphEntityType.ACTOR, a)).collect(Collectors.toList());
-        List<IncomingRelationship> relationships = participatingActors.stream().map(actor ->
-                new IncomingRelationship(actor.getPlatformUid(), actor.getEntityType(), actor.getActorType().name(),
-                        TEST_ENTITY_PREFIX + "survey", GraphEntityType.INTERACTION, InteractionType.SURVEY.name(),
-                        GrassrootRelationship.Type.PARTICIPATES)).collect(Collectors.toList());
-
-        incomingActionProcessor.processIncomingAction(new IncomingGraphAction(TEST_ENTITY_PREFIX + "survey",
-                ActionType.CREATE_ENTITY, dataObjects, relationships, null)).block();
-
-        log.info("Now adding one actor to interaction, verify existing relationships are not persisted again");
-        dispatchActorAction(ActorType.INDIVIDUAL, TEST_ENTITY_PREFIX + "new-user", ActionType.CREATE_ENTITY);
-        IncomingRelationship participation = new IncomingRelationship(TEST_ENTITY_PREFIX + "new-user",
+        action.addRelationship(new IncomingRelationship(TEST_ENTITY_PREFIX + "participantActor",
+                GraphEntityType.ACTOR, ActorType.INDIVIDUAL.name(), TEST_ENTITY_PREFIX + "vote",
+                GraphEntityType.EVENT, EventType.VOTE.name(), GrassrootRelationship.Type.PARTICIPATES));
+        action.addRelationship(new IncomingRelationship(TEST_ENTITY_PREFIX + "participantActor",
                 GraphEntityType.ACTOR, ActorType.INDIVIDUAL.name(), TEST_ENTITY_PREFIX + "survey",
-                GraphEntityType.INTERACTION, InteractionType.SURVEY.name(), GrassrootRelationship.Type.PARTICIPATES);
-        incomingActionProcessor.processIncomingAction(new IncomingGraphAction(TEST_ENTITY_PREFIX + "new-user",
-                ActionType.CREATE_RELATIONSHIP, null, Collections.singletonList(participation), null)).block();
+                GraphEntityType.INTERACTION, InteractionType.SURVEY.name(), GrassrootRelationship.Type.PARTICIPATES));
+        action.addRelationship(new IncomingRelationship(TEST_ENTITY_PREFIX + "participantEvent",
+                GraphEntityType.EVENT, EventType.MEETING.name(), TEST_ENTITY_PREFIX + "group",
+                GraphEntityType.ACTOR, ActorType.GROUP.name(), GrassrootRelationship.Type.PARTICIPATES));
+        incomingActionProcessor.processIncomingAction(action).block();
+        verifyParticipationRelationshipsExist(true);
+
+        // unlike in generation, removal is valid here.
+        action.setActionType(ActionType.REMOVE_RELATIONSHIP);
+        boolean removedRelationships = incomingActionProcessor.processIncomingAction(action).block();
+        assertThat(removedRelationships, is(true));
+        verifyParticipationRelationshipsExist(false);
     }
 
     @Test
     @Rollback
     public void addInvalidParticipationRelationships() {
-        dispatchEventAction(EventType.MEETING, TEST_ENTITY_PREFIX + "meeting", ActionType.CREATE_ENTITY);
-        dispatchActorAction(ActorType.INDIVIDUAL, TEST_ENTITY_PREFIX + "person", ActionType.CREATE_ENTITY);
-        dispatchInteractionAction(InteractionType.SURVEY, TEST_ENTITY_PREFIX + "survey", ActionType.CREATE_ENTITY);
+        dispatchEvent(EventType.MEETING, TEST_ENTITY_PREFIX + "meeting", ActionType.CREATE_ENTITY);
+        dispatchActor(ActorType.INDIVIDUAL, TEST_ENTITY_PREFIX + "person", ActionType.CREATE_ENTITY);
+        dispatchInteraction(InteractionType.SURVEY, TEST_ENTITY_PREFIX + "survey", ActionType.CREATE_ENTITY);
 
         IncomingGraphAction action = new IncomingGraphAction(TEST_ENTITY_PREFIX + "meeting",
                 ActionType.CREATE_RELATIONSHIP, null, new ArrayList<>(), null);
@@ -264,67 +178,66 @@ public class RelationshipTests {
         assertThat(CollectionUtils.isEmpty(meetingFromDB.getParticipatesIn()), is(true));
     }
 
-    private void dispatchActorAction(ActorType actorType, String platformId, ActionType actionType) {
-        Actor testActor = new Actor(actorType, platformId);
-        IncomingDataObject dataObject = new IncomingDataObject(GraphEntityType.ACTOR, testActor);
-        IncomingGraphAction graphAction = new IncomingGraphAction(platformId, actionType,
-                Collections.singletonList(dataObject), null, null);
+    @Test
+    @Rollback
+    public void checkDuplicationWhenSaveNewRelationship() {
+        log.info("Creating event that participates in 25 actors.");
+        dispatchEvent(EventType.MEETING, TEST_ENTITY_PREFIX + "meeting", ActionType.CREATE_ENTITY);
+        List<Actor> groups = IntStream.range(0, 25).mapToObj(index ->
+                new Actor(ActorType.GROUP, TEST_ENTITY_PREFIX + "group-" + index)).collect(Collectors.toList());
 
-        incomingActionProcessor.processIncomingAction(graphAction).block();
+        List<IncomingDataObject> dataObjects = groups.stream().map(g ->
+                new IncomingDataObject(GraphEntityType.ACTOR, g)).collect(Collectors.toList());
+        List<IncomingRelationship> relationships = groups.stream().map(g ->
+                new IncomingRelationship(TEST_ENTITY_PREFIX + "meeting", GraphEntityType.EVENT,
+                        EventType.MEETING.name(), g.getPlatformUid(), g.getEntityType(), g.getActorType().name(),
+                        GrassrootRelationship.Type.PARTICIPATES)).collect(Collectors.toList());
+        incomingActionProcessor.processIncomingAction(new IncomingGraphAction(TEST_ENTITY_PREFIX + "meeting",
+                ActionType.CREATE_ENTITY, dataObjects, relationships, null)).block();
+
+        Event meetingFromDB = eventRepository.findByPlatformUid(TEST_ENTITY_PREFIX + "meeting");
+        assertThat(CollectionUtils.isEmpty(meetingFromDB.getParticipatesIn()), is(false));
+        assertThat(meetingFromDB.getParticipatesIn().size(), is(25));
+
+        log.info("Now adding one more participation, verify existing relationships are not persisted again");
+        dispatchActor(ActorType.GROUP, TEST_ENTITY_PREFIX + "new-group", ActionType.CREATE_ENTITY);
+        IncomingRelationship participation = new IncomingRelationship(TEST_ENTITY_PREFIX + "meeting",
+                GraphEntityType.EVENT, EventType.MEETING.name(),TEST_ENTITY_PREFIX + "new-group",
+                GraphEntityType.ACTOR, ActorType.GROUP.name(), GrassrootRelationship.Type.PARTICIPATES);
+        incomingActionProcessor.processIncomingAction(new IncomingGraphAction(TEST_ENTITY_PREFIX + "meeting",
+                ActionType.CREATE_RELATIONSHIP, null, Collections.singletonList(participation), null)).block();
     }
 
-    private void dispatchEventAction(EventType eventType, String platformId, ActionType actionType) {
-        Event testEvent = new Event(eventType, platformId, Instant.now().toEpochMilli());
-        IncomingDataObject dataObject = new IncomingDataObject(GraphEntityType.EVENT, testEvent);
-        IncomingGraphAction graphAction = new IncomingGraphAction(platformId, actionType,
-                Collections.singletonList(dataObject), null,null);
-
-        incomingActionProcessor.processIncomingAction(graphAction).block();
+    private boolean dispatchActor(ActorType actorType, String platformId, ActionType actionType) {
+        return incomingActionProcessor.processIncomingAction(wrapActorAction(actorType, platformId, actionType)).block();
     }
 
-    private void dispatchInteractionAction(InteractionType interactionType, String id, ActionType actionType) {
-        Interaction testInteraction = new Interaction();
-        testInteraction.setId(id);
-        testInteraction.setInteractionType(interactionType);
-        IncomingDataObject dataObject = new IncomingDataObject(GraphEntityType.INTERACTION, testInteraction);
-        IncomingGraphAction graphAction = new IncomingGraphAction(id, actionType,
-                Collections.singletonList(dataObject), null, null);
-
-        incomingActionProcessor.processIncomingAction(graphAction).block();
+    private boolean dispatchEvent(EventType eventType, String platformId, ActionType actionType) {
+        return incomingActionProcessor.processIncomingAction(wrapEventAction(eventType, platformId, actionType)).block();
     }
 
-    private void verifyRelationshipPersistence(List<Actor> participants, GraphEntityType headEntityType) {
-        List<Actor> actorsFromDB = participants.stream().map(actor ->
-                actorRepository.findByPlatformUid(actor.getPlatformUid())).collect(Collectors.toList());
-        assertThat(actorsFromDB.size(), is(participants.size()));
-
-        boolean relationshipsPersisted = false;
-        switch (headEntityType) {
-            case ACTOR:         relationshipsPersisted = actorsFromDB.stream().map(a ->
-                    !CollectionUtils.isEmpty(a.getParticipatesInActors())).reduce(true, (a, b) -> a && b); break;
-            case EVENT:         relationshipsPersisted = actorsFromDB.stream().map(a ->
-                    !CollectionUtils.isEmpty(a.getParticipatesInEvents())).reduce(true, (a, b) -> a && b); break;
-            case INTERACTION:   relationshipsPersisted = actorsFromDB.stream().map(a ->
-                    !CollectionUtils.isEmpty(a.getParticipatesInInteractions())).reduce(true, (a, b) -> a && b); break;
-        }
-        assertThat(relationshipsPersisted, is(true));
+    private boolean dispatchInteraction(InteractionType interactionType, String id, ActionType actionType) {
+        return incomingActionProcessor.processIncomingAction(wrapInteractionAction(interactionType, id, actionType)).block();
     }
 
-    private void verifyRelationshipRemoval(List<Actor> participants, GraphEntityType headEntityType) {
-        List<Actor> actorsFromDB = participants.stream().map(actor ->
-                actorRepository.findByPlatformUid(actor.getPlatformUid())).collect(Collectors.toList());
-        assertThat(actorsFromDB.size(), is(participants.size()));
+    private void verifyGeneratorRelationshipsExist() {
+        Actor groupFromDB = actorRepository.findByPlatformUid(TEST_ENTITY_PREFIX + "group");
+        Event meetingFromDB = eventRepository.findByPlatformUid(TEST_ENTITY_PREFIX + "meeting");
+        Interaction surveyFromDB = interactionRepository.findById(TEST_ENTITY_PREFIX + "survey").orElse(null);
+        Event voteFromDB = eventRepository.findByPlatformUid(TEST_ENTITY_PREFIX + "vote");
+        assertThat(groupFromDB.getCreatedByActor(), is(notNullValue()));
+        assertThat(meetingFromDB.getCreator(), is(notNullValue()));
+        assertThat(surveyFromDB.getInitiator(), is(notNullValue()));
+        assertThat(voteFromDB.getCreator(), is(notNullValue()));
+    }
 
-        boolean relationshipsRemoved = false;
-        switch (headEntityType) {
-            case ACTOR:         relationshipsRemoved = actorsFromDB.stream().map(a ->
-                    CollectionUtils.isEmpty(a.getParticipatesInActors())).reduce(true, (a, b) -> a && b); break;
-            case EVENT:         relationshipsRemoved = actorsFromDB.stream().map(a ->
-                    CollectionUtils.isEmpty(a.getParticipatesInEvents())).reduce(true, (a, b) -> a && b); break;
-            case INTERACTION:   relationshipsRemoved = actorsFromDB.stream().map(a ->
-                    CollectionUtils.isEmpty(a.getParticipatesInInteractions())).reduce(true, (a, b) -> a && b); break;
-        }
-        assertThat(relationshipsRemoved, is(true));
+    private void verifyParticipationRelationshipsExist(boolean exist) {
+        Actor actorFromDB = actorRepository.findByPlatformUid(TEST_ENTITY_PREFIX + "participantActor");
+        Event eventFromDB = eventRepository.findByPlatformUid(TEST_ENTITY_PREFIX + "participantEvent");
+        assertThat(!CollectionUtils.isEmpty(actorFromDB.getParticipatesInActors()), is(exist));
+        assertThat(!CollectionUtils.isEmpty(actorFromDB.getParticipatesInEvents()), is(exist));
+        assertThat(!CollectionUtils.isEmpty(actorFromDB.getParticipatesInInteractions()), is(exist));
+        assertThat(!CollectionUtils.isEmpty(eventFromDB.getParticipatesIn()), is(exist));
     }
 
     @After
