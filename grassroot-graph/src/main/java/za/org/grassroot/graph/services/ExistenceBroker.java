@@ -4,10 +4,10 @@ import za.org.grassroot.graph.domain.enums.GrassrootRelationship;
 
 public interface ExistenceBroker {
 
-    boolean doesEntityExistInGraph(PlatformEntityDTO platformEntity);
+    boolean entityExists(PlatformEntityDTO platformEntity);
 
-    boolean doesRelationshipEntityExist(PlatformEntityDTO tailEntity, PlatformEntityDTO headEntity,
-                                        GrassrootRelationship.Type relationshipType);
+    boolean relationshipExists(PlatformEntityDTO tailEntity, PlatformEntityDTO headEntity,
+                                  GrassrootRelationship.Type relationshipType);
 
     boolean addEntityToGraph(PlatformEntityDTO platformEntity);
 

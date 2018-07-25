@@ -30,7 +30,8 @@ public class ExistenceBrokerImpl implements ExistenceBroker {
 
     @Override
     @Transactional(readOnly = true)
-    public boolean doesEntityExistInGraph(PlatformEntityDTO platformEntity) {
+    public boolean entityExists(PlatformEntityDTO platformEntity) {
+        log.info("Checking existence of entity with id {}", platformEntity.getPlatformId());
         switch (platformEntity.getEntityType()) {
             case ACTOR:         return actorRepository.countByPlatformUid(platformEntity.getPlatformId()) > 0;
             case EVENT:         return eventRepository.countByPlatformUid(platformEntity.getPlatformId()) > 0;
@@ -41,12 +42,13 @@ public class ExistenceBrokerImpl implements ExistenceBroker {
 
     @Override
     @Transactional(readOnly = true)
-    public boolean doesRelationshipEntityExist(PlatformEntityDTO tailEntity, PlatformEntityDTO headEntity,
-                                               GrassrootRelationship.Type relationshipType) {
+    public boolean relationshipExists(PlatformEntityDTO tailEntity, PlatformEntityDTO headEntity,
+                                      GrassrootRelationship.Type relationshipType) {
+        log.info("Checking existence of relationship between {} and {}", tailEntity.getPlatformId(), headEntity.getPlatformId());
         switch (relationshipType) {
             case PARTICIPATES:  return doesParticipationExist(tailEntity, headEntity);
-            case GENERATOR:     log.error("Generator relationship check not currently supported"); return false;
-            case OBSERVES:      log.error("Observer relationship check not currently supported"); return false;
+            case GENERATOR:     return doesGenerationExist(tailEntity, headEntity);
+            case OBSERVES:      log.error("Observer relationship not yet implemented"); return false;
         }
         return false;
     }
@@ -83,18 +85,52 @@ public class ExistenceBrokerImpl implements ExistenceBroker {
     }
 
     private boolean doesParticipationExist(PlatformEntityDTO tailEntity, PlatformEntityDTO headEntity) {
-        Actor participant = (Actor) fetchGraphEntity(tailEntity.getEntityType(), tailEntity.getPlatformId(), 0);
+        GrassrootGraphEntity participant = fetchGraphEntity(tailEntity.getEntityType(), tailEntity.getPlatformId(), 0);
         GrassrootGraphEntity participatesIn = fetchGraphEntity(headEntity.getEntityType(), headEntity.getPlatformId(), 0);
 
         if (participant == null || participatesIn == null) {
-            log.error("Error, one of the entities does not exist in graph, relationship could not be verified");
+            log.error("Error, one of the entities does not exist in graph, participation could not be checked");
             return false;
         }
 
+        switch (participant.getEntityType()) {
+            case ACTOR:         return checkActorParticipation((Actor) participant, participatesIn);
+            case EVENT:         return checkEventParticipation((Event) participant, participatesIn);
+            case INTERACTION:   log.error("Error! Interactions cannot participate in other entities"); return false;
+            default:            log.error("Error! Participant has unsupported entity type"); return false;
+        }
+    }
+
+    private boolean doesGenerationExist(PlatformEntityDTO tailEntity, PlatformEntityDTO headEntity) {
+        GrassrootGraphEntity generator = fetchGraphEntity(tailEntity.getEntityType(), tailEntity.getPlatformId(), 0);
+        GrassrootGraphEntity generated = fetchGraphEntity(headEntity.getEntityType(), headEntity.getPlatformId(), 0);
+
+        if (generator == null || generated == null) {
+            log.error("Error! One of the entities does not exist in graph, generation could not be checked");
+            return false;
+        }
+
+        switch (generated.getEntityType()) {
+            case ACTOR:         return generator.equals(((Actor) generated).getCreatedByActor());
+            case EVENT:         return generator.equals(((Event) generated).getCreator());
+            case INTERACTION:   return generator.equals(((Interaction) generated).getInitiator());
+            default:            log.error("Error! Participant has unsupported entity type"); return false;
+        }
+    }
+
+    private boolean checkActorParticipation(Actor participant, GrassrootGraphEntity participatesIn) {
         switch (participatesIn.getEntityType()) {
-            case ACTOR: return participant.getRelationshipWith((Actor) participatesIn) != null;
-            case EVENT: return participant.getRelationshipWith((Event) participatesIn) != null;
-            default:    log.error("Existence check only supported for ActorInActor and ActorInEvent"); return false;
+            case ACTOR:         return participant.getRelationshipWith((Actor) participatesIn) != null;
+            case EVENT:         return participant.getRelationshipWith((Event) participatesIn) != null;
+            case INTERACTION:   return participant.isParticipantIn((Interaction) participatesIn);
+            default:            log.error("Error! Target has unsupported entity type"); return false;
+        }
+    }
+
+    private boolean checkEventParticipation(Event participant, GrassrootGraphEntity participatesIn) {
+        switch (participatesIn.getEntityType()) {
+            case ACTOR:         return participant.isParticipantIn((Actor) participatesIn);
+            default:            log.error("Error! Event can only participate in actor"); return false;
         }
     }
 

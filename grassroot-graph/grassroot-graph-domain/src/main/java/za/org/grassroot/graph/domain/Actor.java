@@ -95,6 +95,11 @@ public class Actor extends GrassrootGraphEntity {
                 .filter(AinE -> AinE.getParticipatesIn().equals(event)).findAny().orElse(null);
     }
 
+    public boolean isParticipantIn(Interaction interaction) {
+        if (this.participatesInInteractions == null) return false;
+        return this.participatesInInteractions.contains(interaction);
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;

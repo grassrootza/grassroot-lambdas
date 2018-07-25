@@ -77,8 +77,10 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
         PlatformEntityDTO entityDTO = new PlatformEntityDTO(dataObject.getGraphEntity().getPlatformUid(),
                 dataObject.getEntityType(), dataObject.getEntitySubtype());
 
-        if (existenceBroker.doesEntityExistInGraph(entityDTO))
+        if (existenceBroker.entityExists(entityDTO)) {
+            log.info("Entity already exists in graph");
             return true;
+        }
 
         log.info("Data object did not exist, has entity type: {}, entity: {}", dataObject.getEntityType(), dataObject);
         return persistGraphEntity(dataObject.getGraphEntity());
@@ -94,8 +96,8 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
         PlatformEntityDTO entityDTO = new PlatformEntityDTO(dataObject.getGraphEntity().getPlatformUid(),
                 dataObject.getEntityType(), dataObject.getEntitySubtype());
 
-        if (!existenceBroker.doesEntityExistInGraph(entityDTO)) {
-            log.error("Entity does not exist in graph");
+        if (!existenceBroker.entityExists(entityDTO)) {
+            log.error("Error! Entity does not exist in graph so it cannot be removed");
             return false;
         }
 
@@ -114,7 +116,7 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
         PlatformEntityDTO entityDTO = new PlatformEntityDTO(entity.getGraphEntity().getPlatformUid(),
                 entity.getEntityType(), entity.getEntitySubtype());
 
-        if (!existenceBroker.doesEntityExistInGraph(entityDTO)) {
+        if (!existenceBroker.entityExists(entityDTO)) {
             if (!existenceBroker.addEntityToGraph(entityDTO)) {
                 log.error("Entity did not previously exist in graph and could not be added, aborting");
                 return false;
@@ -142,6 +144,11 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
             return false;
         }
 
+        if (existenceBroker.relationshipExists(tailEntity, headEntity, relationship.getRelationshipType())) {
+            log.info("Relationship already exists in graph");
+            return true;
+        }
+
         switch (relationship.getRelationshipType()) {
             case PARTICIPATES:  return relationshipBroker.addParticipation(tailEntity, headEntity);
             case GENERATOR:     return relationshipBroker.setGeneration(tailEntity, headEntity);
@@ -162,8 +169,15 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
         PlatformEntityDTO headEntity = new PlatformEntityDTO(relationship.getHeadEntityPlatformId(),
                 relationship.getHeadEntityType(), relationship.getHeadEntitySubtype());
 
-        if (!existenceBroker.doesEntityExistInGraph(tailEntity) || !existenceBroker.doesEntityExistInGraph(headEntity))
+        if (!existenceBroker.entityExists(tailEntity) || !existenceBroker.entityExists(headEntity)) {
+            log.info("At least one of relationship entities does not exist in graph");
             return true;
+        }
+
+        if (!existenceBroker.relationshipExists(tailEntity, headEntity, relationship.getRelationshipType())) {
+            log.error("Error! Relationship does not exist in graph so it cannot be removed");
+            return false;
+        }
 
         switch (relationship.getRelationshipType()) {
             case PARTICIPATES:  return relationshipBroker.removeParticipation(tailEntity, headEntity);
@@ -191,7 +205,7 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
             return false;
         }
 
-        if (!existenceBroker.doesRelationshipEntityExist(tailEntity, headEntity, relationship.getRelationshipType())) {
+        if (!existenceBroker.relationshipExists(tailEntity, headEntity, relationship.getRelationshipType())) {
             if (!isValidAnnotation(tailEntity, headEntity, relationship.getRelationshipType())) {
                 log.error("Invalid relationship annotation, only supporting ActorInActor at the moment");
                 return false;
@@ -232,8 +246,10 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
         PlatformEntityDTO entityDTO = new PlatformEntityDTO(entity.getGraphEntity().getPlatformUid(),
                 entity.getEntityType(), entity.getEntitySubtype());
 
-        if (!existenceBroker.doesEntityExistInGraph(entityDTO))
+        if (!existenceBroker.entityExists(entityDTO)) {
+            log.info("Entity to have annotation removed does not exist in graph.");
             return true;
+        }
 
         log.info("Verified entity exists, removing entity annotation from graph");
         return annotationBroker.removeEntityAnnotation(entityDTO, annotation.getKeysToRemove(), annotation.getTags());
@@ -246,9 +262,11 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
         PlatformEntityDTO headEntity = new PlatformEntityDTO(relationship.getHeadEntityPlatformId(),
                 relationship.getHeadEntityType(), relationship.getHeadEntitySubtype());
 
-        if (!existenceBroker.doesEntityExistInGraph(tailEntity) || !existenceBroker.doesEntityExistInGraph(headEntity) ||
-                !existenceBroker.doesRelationshipEntityExist(tailEntity, headEntity, relationship.getRelationshipType()))
+        if (!existenceBroker.entityExists(tailEntity) || !existenceBroker.entityExists(headEntity) ||
+                !existenceBroker.relationshipExists(tailEntity, headEntity, relationship.getRelationshipType())) {
+            log.info("Relationship to have annotation removed does not exist in graph.");
             return true;
+        }
 
         log.info("Verified relationship exists, removing relationship annotation from graph");
         switch (relationship.getRelationshipType()) {
@@ -290,10 +308,10 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
     private boolean entitiesExist(PlatformEntityDTO tailEntity, PlatformEntityDTO headEntity) {
         boolean entitiesExist = true;
 
-        if (!existenceBroker.doesEntityExistInGraph(tailEntity))
+        if (!existenceBroker.entityExists(tailEntity))
             entitiesExist = existenceBroker.addEntityToGraph(tailEntity);
 
-        if (!existenceBroker.doesEntityExistInGraph(headEntity))
+        if (!existenceBroker.entityExists(headEntity))
             entitiesExist = entitiesExist && existenceBroker.addEntityToGraph(headEntity);
 
         return entitiesExist;
