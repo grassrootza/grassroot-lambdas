@@ -36,8 +36,8 @@ public class ExistenceBrokerImpl implements ExistenceBroker {
             case ACTOR:         return actorRepository.countByPlatformUid(platformEntity.getPlatformId()) > 0;
             case EVENT:         return eventRepository.countByPlatformUid(platformEntity.getPlatformId()) > 0;
             case INTERACTION:   return interactionRepository.countById(platformEntity.getPlatformId()) > 0;
+            default:            log.error("Error! Unsupported entity type provided."); return false;
         }
-        return false;
     }
 
     @Override
@@ -49,8 +49,8 @@ public class ExistenceBrokerImpl implements ExistenceBroker {
             case PARTICIPATES:  return doesParticipationExist(tailEntity, headEntity);
             case GENERATOR:     return doesGenerationExist(tailEntity, headEntity);
             case OBSERVES:      log.error("Observer relationship not yet implemented"); return false;
+            default:            log.error("Error! Unsupported relationship type provided."); return false;
         }
-        return false;
     }
 
     @Override

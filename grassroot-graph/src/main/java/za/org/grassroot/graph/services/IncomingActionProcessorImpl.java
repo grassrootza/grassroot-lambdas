@@ -118,7 +118,7 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
 
         if (!existenceBroker.entityExists(entityDTO)) {
             if (!existenceBroker.addEntityToGraph(entityDTO)) {
-                log.error("Entity did not previously exist in graph and could not be added, aborting");
+                log.error("Error! Entity did not previously exist in graph and could not be added, aborting");
                 return false;
             }
         }
@@ -140,7 +140,7 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
                 relationship.getHeadEntityType(), relationship.getHeadEntitySubtype());
 
         if (!entitiesExist(tailEntity, headEntity)) {
-            log.error("Entities did not previously exist in graph and could not be added, aborting");
+            log.error("Error! Entities did not previously exist in graph and could not be added, aborting");
             return false;
         }
 
@@ -170,8 +170,8 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
                 relationship.getHeadEntityType(), relationship.getHeadEntitySubtype());
 
         if (!existenceBroker.entityExists(tailEntity) || !existenceBroker.entityExists(headEntity)) {
-            log.info("At least one of relationship entities does not exist in graph");
-            return true;
+            log.error("Error! The head or tail of the relationship does not exist in graph");
+            return false;
         }
 
         if (!existenceBroker.relationshipExists(tailEntity, headEntity, relationship.getRelationshipType())) {
@@ -248,7 +248,7 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
 
         if (!existenceBroker.entityExists(entityDTO)) {
             log.info("Entity to have annotation removed does not exist in graph.");
-            return true;
+            return false;
         }
 
         log.info("Verified entity exists, removing entity annotation from graph");
@@ -265,7 +265,7 @@ public class IncomingActionProcessorImpl implements IncomingActionProcessor {
         if (!existenceBroker.entityExists(tailEntity) || !existenceBroker.entityExists(headEntity) ||
                 !existenceBroker.relationshipExists(tailEntity, headEntity, relationship.getRelationshipType())) {
             log.info("Relationship to have annotation removed does not exist in graph.");
-            return true;
+            return false;
         }
 
         log.info("Verified relationship exists, removing relationship annotation from graph");

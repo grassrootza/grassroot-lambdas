@@ -49,19 +49,9 @@ public class EntityTests {
         Actor individualFromDB = actorRepository.findByPlatformUid(TEST_ENTITY_PREFIX + "individual");
         assertThat(individualFromDB, notNullValue());
 
-        // try adding when actor already exists.
-        dispatchActor(ActorType.INDIVIDUAL, TEST_ENTITY_PREFIX + "individual", ActionType.CREATE_ENTITY);
-        assertThat(actorRepository.count(), is(1L));
-        Actor individualFromDB2 = actorRepository.findByPlatformUid(TEST_ENTITY_PREFIX + "individual");
-        assertThat(individualFromDB2.getCreationTime(), is(individualFromDB.getCreationTime()));
-
         dispatchActor(ActorType.INDIVIDUAL, TEST_ENTITY_PREFIX + "individual", ActionType.REMOVE_ENTITY);
         Actor individualFromDB3 = actorRepository.findByPlatformUid(TEST_ENTITY_PREFIX + "individual");
         assertThat(individualFromDB3, nullValue());
-
-        // try removing after actor already removed.
-        boolean removalSuccessful = dispatchActor(ActorType.INDIVIDUAL, TEST_ENTITY_PREFIX + "individual", ActionType.REMOVE_ENTITY);
-        assertThat(removalSuccessful, is(false));
     }
 
     @Test
@@ -73,19 +63,9 @@ public class EntityTests {
         assertThat(meetingFromDB, notNullValue());
         assertThat(meetingFromDB.getCreator().getPlatformUid(), is(TEST_ENTITY_PREFIX + "creator"));
 
-        // try adding when event already exists
-        dispatchEvent(EventType.MEETING, TEST_ENTITY_PREFIX + "meeting", ActionType.CREATE_ENTITY);
-        assertThat(eventRepository.count(), is(1L));
-        Event meetingFromDB2 = eventRepository.findByPlatformUid(TEST_ENTITY_PREFIX + "meeting");
-        assertThat(meetingFromDB2.getCreationTime(), is(meetingFromDB.getCreationTime()));
-
         dispatchEvent(EventType.MEETING, TEST_ENTITY_PREFIX + "meeting", ActionType.REMOVE_ENTITY);
         Event meetingFromDB3 = eventRepository.findByPlatformUid(TEST_ENTITY_PREFIX + "meeting");
         assertThat(meetingFromDB3, nullValue());
-
-        // try removing after event already removed
-        boolean removalSuccessful = dispatchEvent(EventType.MEETING, TEST_ENTITY_PREFIX + "meeting", ActionType.REMOVE_ENTITY);
-        assertThat(removalSuccessful, is(false));
     }
 
     @Test
@@ -97,19 +77,9 @@ public class EntityTests {
         assertThat(surveyFromDB, notNullValue());
         assertThat(surveyFromDB.getInitiator().getPlatformUid(), is(TEST_ENTITY_PREFIX + "creator"));
 
-        // try adding when interaction already exists
-        dispatchInteraction(InteractionType.SURVEY, TEST_ENTITY_PREFIX + "survey", ActionType.CREATE_ENTITY);
-        assertThat(interactionRepository.count(), is(1L));
-        Interaction surveyFromDB2 = interactionRepository.findById(TEST_ENTITY_PREFIX + "survey").orElse(null);
-        assertThat(surveyFromDB2.getCreationTime(), is(surveyFromDB.getCreationTime()));
-
         dispatchInteraction(InteractionType.SURVEY, TEST_ENTITY_PREFIX + "survey", ActionType.REMOVE_ENTITY);
         Interaction surveyFromDB3 = interactionRepository.findById(TEST_ENTITY_PREFIX + "survey").orElse(null);
         assertThat(surveyFromDB3, nullValue());
-
-        // try removing after interaction already removed
-        boolean removalSuccessful = dispatchInteraction(InteractionType.SURVEY, TEST_ENTITY_PREFIX + "survey", ActionType.REMOVE_ENTITY);
-        assertThat(removalSuccessful, is(false));
     }
 
     private boolean dispatchActor(ActorType actorType, String platformId, ActionType actionType) {
