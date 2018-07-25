@@ -83,7 +83,7 @@ public class RelationshipTests {
 
     @Test
     @Rollback
-    public void addInvalidGenerationRelationships() {
+    public void addAndRemoveInvalidGenerationRelationships() {
         dispatchEvent(EventType.MEETING, TEST_ENTITY_PREFIX + "meeting", ActionType.CREATE_ENTITY);
         dispatchActor(ActorType.INDIVIDUAL, TEST_ENTITY_PREFIX + "person", ActionType.CREATE_ENTITY);
         dispatchInteraction(InteractionType.SURVEY, TEST_ENTITY_PREFIX + "survey", ActionType.CREATE_ENTITY);
@@ -113,6 +113,10 @@ public class RelationshipTests {
         assertThat(personFromDB.getCreatedByActor(), is(nullValue()));
         assertThat(meetingFromDB.getCreator(), is(nullValue()));
         assertThat(surveyFromDB.getInitiator(), is(nullValue()));
+
+        action.setActionType(ActionType.REMOVE_RELATIONSHIP);
+        boolean removedRelationships = incomingActionProcessor.processIncomingAction(action).block();
+        assertThat(removedRelationships, is(false));
     }
 
     @Test
@@ -150,7 +154,7 @@ public class RelationshipTests {
 
     @Test
     @Rollback
-    public void addInvalidParticipationRelationships() {
+    public void addAndRemoveInvalidParticipationRelationships() {
         dispatchEvent(EventType.MEETING, TEST_ENTITY_PREFIX + "meeting", ActionType.CREATE_ENTITY);
         dispatchActor(ActorType.INDIVIDUAL, TEST_ENTITY_PREFIX + "person", ActionType.CREATE_ENTITY);
         dispatchInteraction(InteractionType.SURVEY, TEST_ENTITY_PREFIX + "survey", ActionType.CREATE_ENTITY);
@@ -176,6 +180,10 @@ public class RelationshipTests {
 
         Event meetingFromDB = eventRepository.findByPlatformUid(TEST_ENTITY_PREFIX + "meeting");
         assertThat(CollectionUtils.isEmpty(meetingFromDB.getParticipatesIn()), is(true));
+
+        action.setActionType(ActionType.REMOVE_RELATIONSHIP);
+        boolean removedRelationships = incomingActionProcessor.processIncomingAction(action).block();
+        assertThat(removedRelationships, is(false));
     }
 
     @Test
@@ -206,6 +214,34 @@ public class RelationshipTests {
                 GraphEntityType.ACTOR, ActorType.GROUP.name(), GrassrootRelationship.Type.PARTICIPATES);
         incomingActionProcessor.processIncomingAction(new IncomingGraphAction(TEST_ENTITY_PREFIX + "meeting",
                 ActionType.CREATE_RELATIONSHIP, null, Collections.singletonList(participation), null)).block();
+    }
+
+    @Test
+    @Rollback
+    public void checkRelationshipRemovedWhenEntityDeleted() {
+        dispatchEvent(EventType.MEETING, TEST_ENTITY_PREFIX + "meeting", ActionType.CREATE_ENTITY);
+        dispatchActor(ActorType.INDIVIDUAL, TEST_ENTITY_PREFIX + "person", ActionType.CREATE_ENTITY);
+        dispatchInteraction(InteractionType.SURVEY, TEST_ENTITY_PREFIX + "survey", ActionType.CREATE_ENTITY);
+
+        IncomingGraphAction action = new IncomingGraphAction(TEST_ENTITY_PREFIX + "person",
+                ActionType.CREATE_RELATIONSHIP, null, new ArrayList<>(), null);
+        action.addRelationship(new IncomingRelationship(TEST_ENTITY_PREFIX + "person",
+                GraphEntityType.ACTOR, ActorType.INDIVIDUAL.name(), TEST_ENTITY_PREFIX + "meeting",
+                GraphEntityType.EVENT, EventType.MEETING.name(), GrassrootRelationship.Type.PARTICIPATES));
+        action.addRelationship(new IncomingRelationship(TEST_ENTITY_PREFIX + "person",
+                GraphEntityType.ACTOR, ActorType.INDIVIDUAL.name(), TEST_ENTITY_PREFIX + "survey",
+                GraphEntityType.INTERACTION, InteractionType.SURVEY.name(), GrassrootRelationship.Type.PARTICIPATES));
+        incomingActionProcessor.processIncomingAction(action).block();
+
+        Actor personFromDB = actorRepository.findByPlatformUid(TEST_ENTITY_PREFIX + "person");
+        assertThat(CollectionUtils.isEmpty(personFromDB.getParticipatesInEvents()), is(false));
+        assertThat(CollectionUtils.isEmpty(personFromDB.getParticipatesInInteractions()), is(false));
+
+        dispatchEvent(EventType.MEETING, TEST_ENTITY_PREFIX + "meeting", ActionType.REMOVE_ENTITY);
+        dispatchInteraction(InteractionType.SURVEY, TEST_ENTITY_PREFIX + "survey", ActionType.REMOVE_ENTITY);
+        personFromDB = actorRepository.findByPlatformUid(TEST_ENTITY_PREFIX + "person");
+        assertThat(CollectionUtils.isEmpty(personFromDB.getParticipatesInEvents()), is(true));
+        assertThat(CollectionUtils.isEmpty(personFromDB.getParticipatesInInteractions()), is(true));
     }
 
     private boolean dispatchActor(ActorType actorType, String platformId, ActionType actionType) {
