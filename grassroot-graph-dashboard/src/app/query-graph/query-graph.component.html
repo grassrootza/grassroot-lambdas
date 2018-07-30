@@ -1,0 +1,14 @@
+<mat-grid-list cols="1" rowHeight="80px">
+  <mat-grid-tile>
+    <mat-form-field class="query-box-holder" appearance="outline">
+        <mat-label>Enter query</mat-label>
+        <input type="text" (keyup.enter)="executeQuery()" matInput [formControl]="queryControl" [matAutocomplete]="auto">
+    </mat-form-field>
+    <mat-autocomplete #auto="matAutocomplete">
+        <mat-option *ngFor="let option of options" [value]="option">
+          {{ option }}
+        </mat-option>
+    </mat-autocomplete>
+    <button type="button" (click)="executeQuery()" mat-button class="query-submit-button">Go</button>
+  </mat-grid-tile>
+</mat-grid-list>

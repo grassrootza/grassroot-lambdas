@@ -1,0 +1,10 @@
+<mat-toolbar class="mat-elevation-z6" color="primary">
+    <span style="color: white">Grassroot</span>
+    <div class="flex-spacer"></div>
+    <a mat-button [routerLink]="['/query']" class="navbar-item">Query graph</a>
+    <div class="flex-spacer"></div>
+    <a mat-button [routerLink]="['/dashboard']" class="navbar-item">Summary statistics</a>
+    <div class="flex-spacer"></div>
+    <a mat-button [routerLink]="['/document']" class="navbar-item">Add a document</a>
+</mat-toolbar>
+<router-outlet></router-outlet>

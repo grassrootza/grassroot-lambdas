@@ -1,0 +1,8 @@
+/* 
+Should really do this in SCSS, but Angular Material is being more trouble than it's worth for an internal console, at the moment 
+*/
+.navbar-item {
+    color: white;
+    margin-left: 14px;
+    margin-right: 14px;
+}

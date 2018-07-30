@@ -1,0 +1,11 @@
+.query-box-holder {
+    width: 65%;
+    margin-top: 24px;
+}
+
+.query-submit-button {
+    height: 60px;
+    margin-left: 24px;
+    text-transform: uppercase;
+    color: #66BB6A;
+}
