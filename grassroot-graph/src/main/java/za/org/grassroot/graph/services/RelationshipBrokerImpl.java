@@ -51,7 +51,7 @@ public class RelationshipBrokerImpl implements RelationshipBroker {
             case ACTOR:         return addParticipantToActor(participant, (Actor) participatesIn);
             case EVENT:         return addParticipantToEvent(participant, (Event) participatesIn);
             case INTERACTION:   return addParticipantToInteraction(participant, (Interaction) participatesIn);
-            default:            log.error("Unsupported entity type provided"); return false;
+            default:            log.error("Unsupported entity type provided for target entity"); return false;
         }
     }
 
@@ -73,7 +73,7 @@ public class RelationshipBrokerImpl implements RelationshipBroker {
             case ACTOR:         return removeParticipantFromActor(participant, (Actor) participatesIn);
             case EVENT:         return removeParticipantFromEvent(participant, (Event) participatesIn);
             case INTERACTION:   return removeParticipantFromInteraction(participant, (Interaction) participatesIn);
-            default:            log.error("Unsupported entity type provided"); return false;
+            default:            log.error("Unsupported entity type provided for target entity"); return false;
         }
     }
 
@@ -95,7 +95,7 @@ public class RelationshipBrokerImpl implements RelationshipBroker {
             case ACTOR:         return setGeneratorForActor(generator, (Actor) generated);
             case EVENT:         return setGeneratorForEvent(generator, (Event) generated);
             case INTERACTION:   return setGeneratorForInteraction(generator, (Interaction) generated);
-            default:            log.error("Unsupported entity type provided"); return false;
+            default:            log.error("Unsupported entity type provided for target entity"); return false;
         }
     }
 
@@ -142,9 +142,7 @@ public class RelationshipBrokerImpl implements RelationshipBroker {
 
     private boolean removeParticipantFromActor(GrassrootGraphEntity participantEntity, Actor actor) {
         if (participantEntity.isActor()) {
-            Actor participant = (Actor) participantEntity;
-            ActorInActor relationship = participant.getParticipatesInActors().stream()
-                    .filter(AinA -> AinA.getParticipatesIn().equals(actor)).findAny().orElse(null);
+            ActorInActor relationship = ((Actor) participantEntity).getRelationshipWith(actor);
             session.delete(relationship);
             return true;
         } else if (participantEntity.isEvent()) {
@@ -159,9 +157,7 @@ public class RelationshipBrokerImpl implements RelationshipBroker {
 
     private boolean removeParticipantFromEvent(GrassrootGraphEntity participantEntity, Event event) {
         if (participantEntity.isActor()) {
-            Actor participant = (Actor) participantEntity;
-            ActorInEvent relationship = participant.getParticipatesInEvents().stream()
-                    .filter(AinE -> AinE.getParticipatesIn().equals(event)).findAny().orElse(null);
+            ActorInEvent relationship = ((Actor) participantEntity).getRelationshipWith(event);
             session.delete(relationship);
             return true;
         }

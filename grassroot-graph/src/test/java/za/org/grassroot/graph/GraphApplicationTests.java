@@ -112,8 +112,7 @@ public class GraphApplicationTests {
 		assertThat(relationshipsPersisted, is(true));
 
 		for (Actor actor : participatingActors) {
-			ActorInActor relationship = actor.getParticipatesInActors().stream().filter(AinA ->
-					AinA.getParticipatesIn().equals(testActor)).findAny().orElse(null);
+			ActorInActor relationship = actor.getRelationshipWith(testActor);
 			assertThat(relationship, is(notNullValue()));
 			session.delete(relationship);
 		}
@@ -148,8 +147,7 @@ public class GraphApplicationTests {
 		assertThat(relationshipsPersisted, is(true));
 
 		for (Actor actor : participatingActors) {
-			ActorInEvent relationship = actor.getParticipatesInEvents().stream().filter(AinE ->
-					AinE.getParticipatesIn().equals(testEvent)).findAny().orElse(null);
+			ActorInEvent relationship = actor.getRelationshipWith(testEvent);
 			assertThat(relationship, is(notNullValue()));
 			session.delete(relationship);
 		}

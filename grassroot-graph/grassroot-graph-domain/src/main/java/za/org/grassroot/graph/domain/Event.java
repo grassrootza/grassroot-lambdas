@@ -93,6 +93,11 @@ public class Event extends GrassrootGraphEntity {
         this.stdTags = GraphStringUtils.removeStringsFromArray(this.stdTags, tagsToRemove);
     }
 
+    public boolean isParticipantIn(Actor actor) {
+        if (this.participatesIn == null) return false;
+        return this.participatesIn.contains(actor);
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;

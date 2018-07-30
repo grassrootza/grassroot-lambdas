@@ -27,13 +27,7 @@ public class PlatformEntityDTO {
     private void setSubTypeIfPresent(String givenSubType) {
         if (!GraphStringUtils.isEmpty(givenSubType)) {
             switch (entityType) {
-                case ACTOR:
-                    try {
-                        this.actorType = ActorType.valueOf(givenSubType);
-                    } catch (Exception e) {
-                        this.actorType = ActorType.INDIVIDUAL; // todo : fix once straightened out on platform
-                    }
-                    break;
+                case ACTOR:         this.actorType = ActorType.valueOf(givenSubType); break;
                 case EVENT:         this.eventType = EventType.valueOf(givenSubType); break;
                 case INTERACTION:   this.interactionType = InteractionType.valueOf(givenSubType); break;
             }
@@ -46,10 +40,6 @@ public class PlatformEntityDTO {
 
     public boolean isEvent() {
         return GraphEntityType.EVENT.equals(entityType);
-    }
-
-    public boolean isInteraction() {
-        return GraphEntityType.INTERACTION.equals(entityType);
     }
 
 }
