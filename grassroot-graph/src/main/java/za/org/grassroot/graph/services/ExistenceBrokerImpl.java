@@ -32,12 +32,18 @@ public class ExistenceBrokerImpl implements ExistenceBroker {
     @Transactional(readOnly = true)
     public boolean entityExists(PlatformEntityDTO platformEntity) {
         log.info("Checking existence of entity with id {}", platformEntity.getPlatformId());
+        boolean exists = false;
         switch (platformEntity.getEntityType()) {
-            case ACTOR:         return actorRepository.countByPlatformUid(platformEntity.getPlatformId()) > 0;
-            case EVENT:         return eventRepository.countByPlatformUid(platformEntity.getPlatformId()) > 0;
-            case INTERACTION:   return interactionRepository.countById(platformEntity.getPlatformId()) > 0;
-            default:            log.error("Error! Unsupported entity type provided."); return false;
+            case ACTOR:         exists = actorRepository.countByPlatformUid(platformEntity.getPlatformId()) > 0; break;
+            case EVENT:         exists = eventRepository.countByPlatformUid(platformEntity.getPlatformId()) > 0; break;
+            case INTERACTION:   exists = interactionRepository.countById(platformEntity.getPlatformId()) > 0; break;
+            default:            log.error("Error! Unsupported entity type provided."); exists = false; break;
         }
+        if (exists && platformEntity.isActor()) {
+            Actor actor = actorRepository.findByPlatformUid(platformEntity.getPlatformId());
+            if (actor.getActorType() == null) actor.setActorType(platformEntity.getActorType());
+        }
+        return exists;
     }
 
     @Override
