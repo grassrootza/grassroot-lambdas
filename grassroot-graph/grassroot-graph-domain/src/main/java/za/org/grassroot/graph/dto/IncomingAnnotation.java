@@ -9,7 +9,7 @@ import java.util.Set;
 public class IncomingAnnotation {
 
     // keys for properties map
-    public static final String title = "TITLE";
+    public static final String name = "NAME";
     public static final String language = "LANGUAGE";
     public static final String province = "PROVINCE";
     public static final String latitude = "LATITUDE";
