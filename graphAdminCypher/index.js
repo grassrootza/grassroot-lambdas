@@ -54,19 +54,30 @@ app.get('/document/create/extract', (req, res) => {
 });
 
 app.get('/document/name/available', (req, res) => {
+    console.log("Checking availability of name: ", req.query.machine_name);
     return session.run(
-        'MATCH ()',
+        'MATCH (d: Document) WHERE d.machineName=$machine_name RETURN COUNT(d)=0',
         { machine_name: req.query.machine_name }
     ).then(result => {
-
+        res.json(result);
     }).catch(error => {
         res.json(error);
     })
 });
 
 app.get('/document/query', (req, res) => {
-    req.query.queryWord;
-    res.json('result');
+    console.log("Querying documents with keyword: ", req.query.query_word);
+    return session.run(
+        "MATCH (d:Document) " +
+        "WHERE d.humanName=$query_word OR d.machineName CONTAINS $query_word OR d.stageRelevance CONTAINS $query_word OR " +
+        "$query_word IN d.issues OR $query_word IN d.procedures OR $query_word IN d.problems " +
+        "RETURN d",
+        { query_word: req.query.query_word }
+    ).then(result => {
+        res.json(result);
+    }).catch(error => {
+        res.json(error);
+    })
 });
 
 app.listen(3000, () => console.log(`Listening on port 3000`));
