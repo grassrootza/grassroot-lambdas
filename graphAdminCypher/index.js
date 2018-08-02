@@ -18,31 +18,29 @@ const paramToArray = (req, paramName) => {
     return req.query[paramName] ? JSON.parse(req.query[paramName]) : [];
 }
 
-app.get('/document/create/extract', (req, res) => {
-
-    console.log('Creating extract document ...');
+app.get('/document/create', (req, res) => {
+    console.log('Creating document, type: ', req.query.doc_type);;
 
     const machine_name = req.query.machine_name; // note: must be UNIQUE
     const human_name = req.query.human_name;
-
     const doc_type = req.query.doc_type; // extract or full
+
     const issues = paramToArray(req, 'issues'); // make sure in JSON on other side, e.g., housing, water, etc.
     const procedures = paramToArray(req, 'procedures'); // e.g., rights, actions, contacts
     const problems = paramToArray(req, 'problems'); // e.g., land proclamation
 
     const stage_relevance = req.query.stage_relevance; // BEGINNER, INTERMEDIATE, ADVANCED
-
-    const main_text = req.query.main_text;
+    const text_or_link = req.query.text_or_link; // extract text or full doc s3 link
 
     session.run(
-        'CREATE (d: Document {' + 
+        'CREATE (d: Document {' +
             'machineName: $machine_name, humanName: $human_name, docType: $doc_type, ' +
             'issues: $issues, procedures: $procedures, problems: $problems, ' +
-            'stageRelevance: $stage_relevance, mainText: $main_text' +
+            'stageRelevance: $stage_relevance, textOrLink: $text_or_link' +
         '}) return d',
         { machine_name: machine_name, human_name: human_name, doc_type: doc_type,
           issues: issues, procedures: procedures, problems: problems,
-          stage_relevance: stage_relevance, main_text: main_text }
+          stage_relevance: stage_relevance, text_or_link: text_or_link }
     ).then(result => {
         console.log('result: ', result);
         res.json(result);
@@ -50,7 +48,6 @@ app.get('/document/create/extract', (req, res) => {
         console.log('error: ', error);
         res.json(error);
     })
-
 });
 
 app.get('/document/name/available', (req, res) => {
@@ -73,6 +70,17 @@ app.get('/document/query', (req, res) => {
         "$query_word IN d.issues OR $query_word IN d.procedures OR $query_word IN d.problems " +
         "RETURN d",
         { query_word: req.query.query_word }
+    ).then(result => {
+        res.json(result);
+    }).catch(error => {
+        res.json(error);
+    })
+});
+
+app.get('/document/list', (req, res) => {
+    console.log("Getting list of all docs");
+    return session.run(
+        "MATCH (d:Document) RETURN d"
     ).then(result => {
         res.json(result);
     }).catch(error => {
