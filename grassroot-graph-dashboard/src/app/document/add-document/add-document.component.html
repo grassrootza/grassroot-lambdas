@@ -1,0 +1,32 @@
+<div class="example-container" [formGroup]="extractForm">
+  <mat-form-field>
+    <input matInput placeholder="Name (descriptive ID)" [formControlName]="'machine_name'">
+  </mat-form-field>
+  <mat-form-field>
+    <input matInput placeholder="Description" [formControlName]="'description'">
+  </mat-form-field>
+  <mat-form-field>
+    <input matInput placeholder="Relates to issues (split by comma)" [formControlName]="'issues'">
+  </mat-form-field>
+  <mat-form-field>
+    <input matInput placeholder="Relates to procedures (split by comma)" [formControlName]="'procedures'">
+  </mat-form-field>
+  <mat-form-field>
+    <input matInput placeholder="Relevant to problems (split by comma)" [formControlName]="'problems'">
+  </mat-form-field>
+  <mat-form-field>
+    <mat-select placeholder="Relevant to stage of action" [formControlName]="'stage'">
+      <mat-option value="BEGINNER">Beginner</mat-option>
+      <mat-option value="INTERMEDIATE">Intermediate</mat-option>
+      <mat-option value="ADVANCED">Advanced</mat-option>
+    </mat-select>
+  </mat-form-field>
+  <mat-form-field>
+    <textarea matInput placeholder="Content" [formControlName]="'content'" rows="10 "></textarea>
+  </mat-form-field>
+  <div class="button-row">
+    <button (click)="submit()" mat-raised-button color="primary" style="color: white">
+      Submit
+    </button>
+  </div>
+</div>
