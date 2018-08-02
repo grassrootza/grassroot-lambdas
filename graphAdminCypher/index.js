@@ -15,30 +15,34 @@ const session = driver.session();
 const app = express();
 
 const paramToArray = (req, paramName) => {
-    return req.query[paramName] ? JSON.parse(req.query.paramName) : [];
+    return req.query[paramName] ? JSON.parse(req.query[paramName]) : [];
 }
 
 app.get('/document/create/extract', (req, res) => {
 
     console.log('Creating extract document ...');
 
-    const docType = req.query.documentType; // extract or full
+    const machine_name = req.query.machine_name; // note: must be UNIQUE
+    const human_name = req.query.human_name;
+
+    const doc_type = req.query.doc_type; // extract or full
     const issues = paramToArray(req, 'issues'); // make sure in JSON on other side, e.g., housing, water, etc.
     const procedures = paramToArray(req, 'procedures'); // e.g., rights, actions, contacts
     const problems = paramToArray(req, 'problems'); // e.g., land proclamation
 
-    const stage_relevance = req.query.stageRelevance; // BEGINNER, INTERMEDIATE, ADVANCED
-    
-    const human_name = req.query.description;
-    const machine_name = req.query.name; // note: must be UNIQUE 
+    const stage_relevance = req.query.stage_relevance; // BEGINNER, INTERMEDIATE, ADVANCED
 
-    const mainText = req.query.mainText;
+    const main_text = req.query.main_text;
 
     session.run(
         'CREATE (d: Document {' + 
-            'name: $machine_name, description: $human_name, doc_type: $docType' + 
+            'machineName: $machine_name, humanName: $human_name, docType: $doc_type, ' +
+            'issues: $issues, procedures: $procedures, problems: $problems, ' +
+            'stageRelevance: $stage_relevance, mainText: $main_text' +
         '}) return d',
-        { machine_name: machine_name, human_name: human_name, doc_type: docType }
+        { machine_name: machine_name, human_name: human_name, doc_type: doc_type,
+          issues: issues, procedures: procedures, problems: problems,
+          stage_relevance: stage_relevance, main_text: main_text }
     ).then(result => {
         res.json(result);
     }).catch(error => {
