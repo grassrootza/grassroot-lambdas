@@ -20,11 +20,16 @@ app.post('/inbound', (req, res) => {
     const content = getMessageContent(req);
     console.log('decoded content: ', content); 
 
-    const response = getMessageReply(content);
-    res.writeHead(200, {'Content-Type': response.content_type});
-    res.end(response.body);
-
-    logIncoming(content);
+    logIncoming(content).then((data, error) => {
+        if (error)
+            console.log('aargh, error: ', error);
+        else
+            console.log('logged, result: ', data);
+        
+        const response = getMessageReply(content);
+        res.writeHead(200, {'Content-Type': response.content_type});
+        res.end(response.body);
+    });
 });
 
 // module.exports = app;
@@ -67,10 +72,5 @@ const logIncoming = (content) => {
         }
     };
 
-    docClient.put(params, (err, data) => {
-        if (err)
-            console.log('Aargh, error: ', JSON.stringify(err, null, 2));
-        else
-            console.log('Worked! Result: ', JSON.stringify(data, null, 2));
-    });
+    return docClient.put(params).promise();
 }
