@@ -19,7 +19,7 @@ export class DocumentService {
     this.creationKeysForTransform.forEach(key =>
       docParams[key] = this.transformToString(docParams[key]));
     console.log('issues transformed: ', docParams['issues']);
-    let params = new HttpParams();
+    let params = new HttpParams().set('doc_type', 'EXTRACT');
     Object.keys(docParams).forEach(key => params = params.set(key, docParams[key]));
     console.log('posting to: ', this.addExtractUrl);
     return this.httpClient.get(this.addExtractUrl, { params: params });

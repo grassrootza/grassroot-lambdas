@@ -44,8 +44,10 @@ app.get('/document/create/extract', (req, res) => {
           issues: issues, procedures: procedures, problems: problems,
           stage_relevance: stage_relevance, main_text: main_text }
     ).then(result => {
+        console.log('result: ', result);
         res.json(result);
     }).catch(error => {
+        console.log('error: ', error);
         res.json(error);
     })
 
@@ -60,6 +62,11 @@ app.get('/document/name/available', (req, res) => {
     }).catch(error => {
         res.json(error);
     })
+});
+
+app.get('/document/query', (req, res) => {
+    req.query.queryWord;
+    res.json('result');
 });
 
 app.listen(3000, () => console.log(`Listening on port 3000`));

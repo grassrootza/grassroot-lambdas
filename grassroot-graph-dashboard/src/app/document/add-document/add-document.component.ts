@@ -17,12 +17,12 @@ export class AddDocumentComponent implements OnInit {
   ngOnInit() {
     this.extractForm = this.fb.group({
       'machine_name': ['', Validators.required],
-      'description': ['', Validators.required],
+      'human_name': ['', Validators.required],
       'issues': ['', Validators.required],
       'procedures': ['', Validators.required],
       'problems': ['', Validators.required],
-      'stage': ['', Validators.required],
-      'content': ['', Validators.required]
+      'stage_relevance': ['', Validators.required],
+      'main_text': ['', Validators.required]
     });
   }
 
