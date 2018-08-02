@@ -37,6 +37,9 @@ public class SqsPuller {
     @Value("${aws.secretAccessKey:}")
     private String awsSecretKey;
 
+    @Value("${sqs.delete.failure:false}")
+    private boolean deleteEvenOnFailure;
+
     private SQSClient sqs;
 
     public SqsPuller(SqsProcessor sqsProcessor) {
@@ -110,7 +113,7 @@ public class SqsPuller {
                     .subscribeOn(Schedulers.elastic())
                     .subscribe(success -> {
                         log.info("Successfully handled message? : {}", success);
-                        if (success) {
+                        if (success || deleteEvenOnFailure) {
                             try {
                                 sqs.deleteMessage(builder -> builder.queueUrl(sqsUrl).receiptHandle(message.receiptHandle()));
                                 log.info("Message handled, deleted");
