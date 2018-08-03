@@ -1,0 +1,62 @@
+{
+    "conversationName": "general",
+    "version": "1.0.0",
+    "lastUpdated": "2018-08-03",
+    "stopWords": ["stop"],
+    "errorMessage": {
+        "text": "Oops. I did not understand what you asked!",
+        "speech": "Oops. I did not understand what you asked!"
+    },
+    "opening": [
+        {
+            "_id": "1",
+            "_intent": "opening",
+            "_source": {
+                "response": [
+                    ["Dumelang. Welcome. What do you want to do? Grassroot Zonke can help you:", 
+                    "<<OPTIONS::OPENING_OPTION>>",
+                    "Feel free to answer with a number or word, as you prefer. Note: messages may be jumbled, and nothing works except this opening repeating, for now."]
+                ]
+            }
+        },
+        {
+            "_id": "OPENING_OPTION",
+            "_source": {
+                "act": "Take action (e.g., call a meeting, issue an alert)",
+                "know": "Get knowledge (e.g., on housing rights, ideas for action)",
+                "find": "Find services (e.g., health clinics, shelters)",
+                "connect": "Talk to people (e.g., other activists, experts)"
+            }
+        }
+    ],
+    "know": [
+        {
+            "_id": "1",
+            "_source": {
+                "intent": "help",
+                "response": [{
+                    "text": "What can we help you with?",
+                    "options": "opening" 
+                }]
+        }
+        }, 
+        {
+            "_id": "2",
+            "_source": {
+                "intent": "none",
+                "response": [{
+                    "text": "Dumelang. Welcome. What can we help you with? GR Zonke can help with questions about:"
+                }]
+            }
+        },
+        {
+            "_id": "OPTION_SETS",
+            "_source": {
+                "zonke": {
+                    "RIGHTS": "Knowing your rights",
+                    "CONTACT": "Who you can talk to",
+                    "ACTION": "How to take action"
+                }
+            }
+    }]
+}
