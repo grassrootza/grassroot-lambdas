@@ -22,20 +22,27 @@ app.post('/inbound', (req, res) => {
     const content = getMessageContent(req);
     console.log('decoded content: ', content); 
 
-    const response = getMessageReply(content);
-    console.log('created response: ', response);
+    // const response = getMessageReply(content);
+    // console.log('created response: ', response);
 
-    logIncoming(content, response).then((data, error) => {
-        if (error)
-            console.log('aargh, error: ', error);
-        else
-            console.log('logged, result: ', data);
-
-        res.writeHead(200, {'Content-Type': response.content_type});
-        res.end(response.body);
+    getMostRecent(content).then(data => {
+        console.log('data: ', data);
+        res.end('Done!');
     }).catch(error => {
-        console.log('failure in dynamo db write: ', error);
-    });
+        console.log('error: ', error);
+    })
+
+    // logIncoming(content, response).then((data, error) => {
+    //     if (error)
+    //         console.log('aargh, error: ', error);
+    //     else
+    //         console.log('logged, result: ', data);
+
+    //     res.writeHead(200, {'Content-Type': response.content_type});
+    //     res.end(response.body);
+    // }).catch(error => {
+    //     console.log('failure in dynamo db write: ', error);
+    // });
 });
 
 // module.exports = app;
@@ -120,6 +127,27 @@ const extractOptionsKeys = (optionsEntity) => {
     return Object.keys(optionsEntity._source);
 }
 
+const getMostRecent = (content) => {
+    const userMsisdn = content.from;
+    const cutoff = daysInPast(1);
+    console.log('timestamp in past: ', cutoff);
+    const params = {
+        'TableName': 'chatConversationLogs',
+        'KeyConditionExpression': 'userId = :val and #timestamp > :cutoff',
+        'ExpressionAttributeNames': {
+            '#timestamp': 'timestamp'
+        },     
+        'ExpressionAttributeValues': {
+            ':val': userMsisdn,
+            ':cutoff': cutoff
+        },
+        'Limit': 1,
+        'ScanIndexForward': false
+    }
+
+    return docClient.query(params).promise();
+}
+
 const logIncoming = (content, reply) => {
     const item = {
         'userId': content.from,
@@ -141,4 +169,10 @@ const logIncoming = (content, reply) => {
     };
 
     return docClient.put(params).promise();
+}
+
+const daysInPast = (number) => {
+    var d = new Date();
+    d.setDate(d.getDate()-number);
+    return d.getTime();
 }
