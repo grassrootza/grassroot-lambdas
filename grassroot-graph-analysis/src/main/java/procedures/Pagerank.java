@@ -16,8 +16,8 @@ public class Pagerank {
 
     @Context public Log log;
 
-    public static final String nameRaw = "pagerankScore";
-    public static final String nameNorm = "pagerankNorm";
+    public static final String pagerankRaw = "pagerankRaw";
+    public static final String pagerankNorm = "pagerankNorm";
 
     @Procedure(name = "pagerank.write", mode = Mode.WRITE)
     @Description("Write raw pagerank for all entities")
@@ -26,7 +26,7 @@ public class Pagerank {
                 " 'MATCH (n) WHERE EXISTS( (n)-[:PARTICIPATES]-() ) RETURN id(n) as id', " +
                 " 'MATCH (n1)-[:PARTICIPATES]->(n2) RETURN id(n1) as source, id(n2) as target UNION " +
                 "  MATCH (n1)-[:PARTICIPATES]->(n2) RETURN id(n2) as source, id(n1) as target', " +
-                " {graph:'cypher', iterations:100, dampingFactor:0.85, write: true, writeProperty:'pagerankScore'} " +
+                " {graph:'cypher', iterations:100, dampingFactor:0.85, write: true, writeProperty:'" + pagerankRaw + "'} " +
                 ") YIELD nodes, loadMillis, computeMillis, writeMillis");
         return getResultStream(results);
     }
@@ -35,45 +35,51 @@ public class Pagerank {
     @Description("Write normalized pagerank for user entities")
     public void normalizeScores() {
         db.execute("MATCH (n:Actor) " +
-                " WHERE n.actorType='INDIVIDUAL' AND n.pagerankScore IS NOT NULL " +
-                " WITH n AS user, n.pagerankScore AS pagerankScore " +
-                " WITH collect({user:user, pageRank:pagerankScore}) AS usersInfo,  " +
-                " avg(pagerankScore) AS average,  " +
-                " stDevP(pagerankScore) AS stddev " +
+                " WHERE n.actorType='INDIVIDUAL' AND n." + pagerankRaw + " IS NOT NULL " +
+                " WITH n AS user, n." + pagerankRaw + " AS " + pagerankRaw + " " +
+                " WITH collect({user:user, pageRank:" + pagerankRaw + "}) AS usersInfo,  " +
+                " avg(" + pagerankRaw + ") AS average,  " +
+                " stDevP(" + pagerankRaw + ") AS stddev " +
                 " UNWIND usersInfo as userInfo " +
-                " SET userInfo.user.pagerankNorm=(userInfo.pageRank-average)/stddev");
+                " SET userInfo.user." + pagerankNorm + "=(userInfo.pageRank-average)/stddev");
     }
 
     @Procedure(name = "pagerank.stats")
     @Description("Return summary pagerank statistics for user entities")
-    public Stream<RecordWrapper> getStats() {
+    public Stream<RecordWrapper> getStats(@Name("normalized") boolean normalized) {
+        String pagerank = normalized ? pagerankNorm : pagerankRaw;
         Result results = db.execute("MATCH (n:Actor) " +
                 " WHERE n.actorType='INDIVIDUAL' " +
-                " WITH min(n.pagerankScore) AS minimum,  " +
-                " max(n.pagerankScore) AS maximum,  " +
-                " avg(n.pagerankScore) AS average, " +
-                " percentileDisc(n.pagerankScore, 0.5) AS median, " +
-                " stDevP(n.pagerankScore) AS stddev " +
+                " WITH n." + pagerank + " AS pagerank " +
+                " WITH min(pagerank) AS minimum,  " +
+                " max(pagerank) AS maximum,  " +
+                " avg(pagerank) AS average, " +
+                " percentileDisc(pagerank, 0.5) AS median, " +
+                " stDevP(pagerank) AS stddev " +
                 " RETURN minimum, maximum, maximum - minimum AS range, average, median, stddev");
         return getResultStream(results);
     }
 
     @Procedure(name = "pagerank.scores")
     @Description("Return list of pagerank scores for user entities")
-    public Stream<RecordWrapper> getScores() {
+    public Stream<RecordWrapper> getScores(@Name("normalized") boolean normalized) {
+        String pagerank = normalized ? pagerankNorm : pagerankRaw;
         Result results = db.execute("MATCH (n:Actor) " +
-                " WHERE n.actorType='INDIVIDUAL' AND n.pagerankScore IS NOT NULL " +
-                " RETURN n.pagerankScore ORDER BY n.pagerankScore DESC");
+                " WHERE n.actorType='INDIVIDUAL' AND n." + pagerank + " IS NOT NULL " +
+                " WITH n." + pagerank + " AS pagerank " +
+                " RETURN pagerank ORDER BY pagerank DESC");
         return getResultStream(results);
     }
 
     @Procedure(name = "pagerank.range")
     @Description("Return user entities in specified pagerank range")
-    public Stream<RecordWrapper> getRange(@Name("upperBound") long upperBound, @Name("lowerBound") long lowerBound) {
+    public Stream<RecordWrapper> getRange(@Name("upperBound") long upperBound, @Name("lowerBound") long lowerBound,
+                                          @Name("normalized") boolean normalized) {
+        String pagerank = normalized ? pagerankNorm : pagerankRaw;
         long limit = lowerBound - upperBound;
         Result results = db.execute("MATCH (n)" +
-                " WHERE n.actorType='INDIVIDUAL' AND n.pagerankScore IS NOT NULL" +
-                " RETURN n AS actor, n.pagerankScore AS pagerank" +
+                " WHERE n.actorType='INDIVIDUAL' AND n." + pagerank + " IS NOT NULL" +
+                " RETURN n AS actor, n." + pagerank + " AS pagerank" +
                 " ORDER BY pagerank DESC " +
                 " SKIP " + Long.toString(upperBound) +
                 " LIMIT " + Long.toString(limit));
@@ -82,12 +88,13 @@ public class Pagerank {
 
     @Procedure(name = "pagerank.meanEntitiesAtDepth")
     @Description("Calculate mean entities reached at the specified depth for entities in a given pagerank range")
-    public Stream<RecordWrapper> getMeanEntitiesAtDepth(@Name("depth") long depth, @Name("upperBound") long upperBound,
-                                                        @Name("lowerBound") long lowerBound) {
+    public Stream<RecordWrapper> getMeanEntitiesAtDepth(@Name("upperBound") long upperBound, @Name("lowerBound") long lowerBound,
+                                                        @Name("depth") long depth, @Name("normalized") boolean normalized) {
+        String pagerank = normalized ? pagerankNorm : pagerankRaw;
         long limit = lowerBound - upperBound;
         Result results = db.execute("MATCH (n:Actor) " +
-                " WHERE n.actorType='INDIVIDUAL' AND n.pagerankNorm IS NOT NULL " +
-                " WITH n AS user, n.pagerankNorm as pagerank " +
+                " WHERE n.actorType='INDIVIDUAL' AND n." + pagerank + " IS NOT NULL " +
+                " WITH n AS user, n." + pagerank + " as pagerank " +
                 " ORDER BY pagerank DESC " +
                 " SKIP " + Long.toString(upperBound) +
                 " LIMIT " + Long.toString(limit) +
@@ -100,12 +107,13 @@ public class Pagerank {
 
     @Procedure(name = "pagerank.meanRelationshipsAtDepth")
     @Description("Calculate mean relationships at the specified depth for entities in a given pagerank range")
-    public Stream<RecordWrapper> getMeanRelationshipsAtDepth(@Name("depth") long depth, @Name("upperBound") long upperBound,
-                                                             @Name("lowerBound") long lowerBound) {
+    public Stream<RecordWrapper> getMeanRelationshipsAtDepth(@Name("upperBound") long upperBound, @Name("lowerBound") long lowerBound,
+                                                             @Name("depth") long depth, @Name("normalized") boolean normalized) {
+        String pagerank = normalized ? pagerankNorm : pagerankRaw;
         long limit = lowerBound - upperBound;
         Result results = db.execute("MATCH (n:Actor) " +
-                " WHERE n.actorType='INDIVIDUAL' AND n.pagerankNorm IS NOT NULL " +
-                " WITH n AS user, n.pagerankNorm as pagerank " +
+                " WHERE n.actorType='INDIVIDUAL' AND n." + pagerank + " IS NOT NULL " +
+                " WITH n AS user, n." + pagerank + " as pagerank " +
                 " ORDER BY pagerank DESC " +
                 " SKIP " + Long.toString(upperBound) +
                 " LIMIT " + Long.toString(limit) +
