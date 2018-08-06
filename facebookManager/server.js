@@ -21,7 +21,7 @@ const docClient = new AWS.DynamoDB.DocumentClient();
 
 app.post('/facebook/connect/request/:userId', (req, res) => { 
   const callBackParam = encodeURIComponent(JSON.stringify({userId: req.params.userId}));
-  const redirectUrl = `https://www.facebook.com/${FB_API_VERSION}/dialog/oauth?client_id=${FB_APP_ID}&response_type=code&redirect_uri=${REDIRECT_URI}&state=${callBackParam}&scope=publish_actions,manage_pages,publish_pages`;
+  const redirectUrl = `https://www.facebook.com/${FB_API_VERSION}/dialog/oauth?client_id=${FB_APP_ID}&response_type=code&redirect_uri=${REDIRECT_URI}&state=${callBackParam}&scope=manage_pages,publish_pages`;
   console.log('redirectUrl: ', redirectUrl);
   return res.redirect(301, redirectUrl);
 });

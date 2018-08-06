@@ -3,10 +3,24 @@
     "version": "1.0.0",
     "lastUpdated": "2018-08-03",
     "stopWords": ["stop"],
-    "errorMessage": {
-        "text": "Oops. I did not understand what you asked!",
-        "speech": "Oops. I did not understand what you asked!"
-    },
+    "error": [
+        {
+            "_id": "general",
+            "_source": {
+                "response": [
+                    ["Oops. I did not understand what you asked!"]
+                ]
+            }            
+        },
+        {
+            "_id": "unimplemented",
+            "_source": {
+                "response": [
+                    ["Sorry! We haven't built this any further. Please come back later. Thanks!"]
+                ]
+            }            
+        }
+    ],
     "opening": [
         {
             "_id": "1",

@@ -14,33 +14,30 @@ const session = driver.session();
 
 const app = express();
 
+app.use(function(req, res, next) {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+    next();
+  });
+
 const paramToArray = (req, paramName) => {
     return req.query[paramName] ? JSON.parse(req.query[paramName]) : [];
 }
 
-app.get('/document/create', (req, res) => {
-    console.log('Creating document, type: ', req.query.doc_type);;
+app.get('/document/create/:doc_type', (req, res) => {
+    console.log('Creating document, type: ', req.params.doc_type);;
 
-    const machine_name = req.query.machine_name; // note: must be UNIQUE
-    const human_name = req.query.human_name;
-    const doc_type = req.query.doc_type; // extract or full
+    let params = buildParams(req);
 
-    const issues = paramToArray(req, 'issues'); // make sure in JSON on other side, e.g., housing, water, etc.
-    const procedures = paramToArray(req, 'procedures'); // e.g., rights, actions, contacts
-    const problems = paramToArray(req, 'problems'); // e.g., land proclamation
+    if (params.doc_type == 'EXTRACT')
+        params.main_text = req.query.main_text;
+    else
+        params.doc_link = req.query.doc_link;
 
-    const stage_relevance = req.query.stage_relevance; // BEGINNER, INTERMEDIATE, ADVANCED
-    const text_or_link = req.query.text_or_link; // extract text or full doc s3 link
+    console.log('build params: ', params);
 
     session.run(
-        'CREATE (d: Document {' +
-            'machineName: $machine_name, humanName: $human_name, docType: $doc_type, ' +
-            'issues: $issues, procedures: $procedures, problems: $problems, ' +
-            'stageRelevance: $stage_relevance, textOrLink: $text_or_link' +
-        '}) return d',
-        { machine_name: machine_name, human_name: human_name, doc_type: doc_type,
-          issues: issues, procedures: procedures, problems: problems,
-          stage_relevance: stage_relevance, text_or_link: text_or_link }
+        commonPropertyQuery('main_text'), params
     ).then(result => {
         console.log('result: ', result);
         res.json(result);
@@ -49,6 +46,26 @@ app.get('/document/create', (req, res) => {
         res.json(error);
     })
 });
+
+const commonPropertyQuery = (final_param) => 'CREATE (d: Document {' +
+    'machineName: $machine_name, humanName: $human_name, docType: $doc_type, ' +
+    'issues: $issues, procedures: $procedures, problems: $problems, ' +
+    'stageRelevance: $stage_relevance, ' + final_param + ': $' + final_param + 
+    '}) return d';
+
+const buildParams = (req) => {
+    return {
+        machine_name: req.query.machine_name, // note: must be UNIQUE
+        human_name: req.query.human_name,
+        doc_type: req.params.doc_type, // extract or full
+
+        issues: paramToArray(req, 'issues'), // make sure in JSON on other side, e.g., housing, water, etc.
+        procedures: paramToArray(req, 'procedures'), // e.g., rights, actions, contacts
+        problems: paramToArray(req, 'problems'), // e.g., land proclamation
+
+        stage_relevance: req.query.stage_relevance // BEGINNER, INTERMEDIATE, ADVANCED
+    };
+}
 
 app.get('/document/name/available', (req, res) => {
     console.log("Checking availability of name: ", req.query.machine_name);

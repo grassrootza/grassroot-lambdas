@@ -7,7 +7,7 @@ import { AppComponent } from './app.component';
 import { LayoutModule } from '@angular/cdk/layout';
 import { MatToolbarModule, MatButtonModule, MatIconModule, MatListModule,
    MatGridListModule, MatCardModule, MatMenuModule,
-   MatInputModule, MatFormFieldModule, MatAutocompleteModule, MatOptionModule, MatSelectModule } from '@angular/material';
+   MatInputModule, MatFormFieldModule, MatAutocompleteModule, MatOptionModule, MatSelectModule, MatTableModule, MatSortModule } from '@angular/material';
 import { QueryGraphComponent } from './query-graph/query-graph.component';
 import { DashboardComponent } from './dashboard/dashboard.component';
 import { ReactiveFormsModule } from '@angular/forms';
@@ -46,7 +46,9 @@ const routes: Routes = [
     MatFormFieldModule,
     MatAutocompleteModule,
     MatOptionModule,
-    MatSelectModule
+    MatSelectModule,
+    MatTableModule,
+    MatSortModule
   ],
   providers: [],
   bootstrap: [AppComponent]
