@@ -19,11 +19,19 @@
                     ["Sorry! We haven't built this any further. Please come back later. Thanks!"]
                 ]
             }            
+        },
+        {
+            "_id": "server",
+            "_source": {
+                "response": [
+                    ["Sorry, something failed inside me. My makers will try to fix it. In the meantime, dial *134*1994#, or visit https://www.grassroot.org.za"]
+                ]
+            }
         }
     ],
     "opening": [
         {
-            "_id": "1",
+            "_id": "start",
             "_intent": "opening",
             "_source": {
                 "response": [
@@ -40,6 +48,27 @@
                 "know": "Get knowledge (e.g., on housing rights, ideas for action)",
                 "find": "Find services (e.g., health clinics, shelters)",
                 "connect": "Talk to people (e.g., other activists, experts)"
+            }
+        }
+    ],
+    "act": [
+        {
+            "_id": "start",
+            "_intent": "opening",
+            "_source": {
+                "response": [
+                    ["Okay. You can go through the action menus just like when you dial *134*1994#",
+                    "<<OPTIONS::ACTION_MAIN_MENU>>",
+                    "Or you can just type something like, 'call a meeting for Saturday 9am' and we'll do our best to understand"]
+                ]
+            }
+        },
+        {
+            "_id": "ACTION_MAIN_MENU",
+            "_source": {
+                "meet": "Meet",
+                "vote": "Vote",
+                "act": "Act"
             }
         }
     ],
