@@ -46,11 +46,11 @@ public class Pagerank {
 
     @Procedure(name = "pagerank.stats")
     @Description("Return summary pagerank statistics for user entities")
-    public Stream<RecordWrapper> getStats(@Name("normalized") boolean normalized) {
-        String pagerank = normalized ? pagerankNorm : pagerankRaw;
-        Result results = db.execute("MATCH (n:Actor) " +
-                " WHERE n.actorType='INDIVIDUAL' " +
-                " WITH n." + pagerank + " AS pagerank " +
+    public Stream<RecordWrapper> getStats(@Name(value = "upperBound", defaultValue = "0") long upperBound,
+                                          @Name(value = "lowerBound", defaultValue = "0") long lowerBound,
+                                          @Name(value = "normalized", defaultValue = "true") boolean normalized) {
+        String pagerank = String.valueOf(normalized).equals("true") ? pagerankNorm : pagerankRaw;
+        Result results = db.execute(getRangeQuery(pagerank, upperBound, lowerBound) +
                 " WITH min(pagerank) AS minimum,  " +
                 " max(pagerank) AS maximum,  " +
                 " avg(pagerank) AS average, " +
@@ -61,66 +61,34 @@ public class Pagerank {
     }
 
     @Procedure(name = "pagerank.scores")
-    @Description("Return list of pagerank scores for user entities")
-    public Stream<RecordWrapper> getScores(@Name("normalized") boolean normalized) {
-        String pagerank = normalized ? pagerankNorm : pagerankRaw;
-        Result results = db.execute("MATCH (n:Actor) " +
-                " WHERE n.actorType='INDIVIDUAL' AND n." + pagerank + " IS NOT NULL " +
-                " WITH n." + pagerank + " AS pagerank " +
-                " RETURN pagerank ORDER BY pagerank DESC");
-        return getResultStream(results);
-    }
-
-    @Procedure(name = "pagerank.range")
     @Description("Return user entities in specified pagerank range")
-    public Stream<RecordWrapper> getRange(@Name("upperBound") long upperBound, @Name("lowerBound") long lowerBound,
-                                          @Name("normalized") boolean normalized) {
-        String pagerank = normalized ? pagerankNorm : pagerankRaw;
-        long limit = lowerBound - upperBound;
-        Result results = db.execute("MATCH (n)" +
-                " WHERE n.actorType='INDIVIDUAL' AND n." + pagerank + " IS NOT NULL" +
-                " RETURN n AS actor, n." + pagerank + " AS pagerank" +
-                " ORDER BY pagerank DESC " +
-                " SKIP " + Long.toString(upperBound) +
-                " LIMIT " + Long.toString(limit));
+    public Stream<RecordWrapper> getScores(@Name(value = "upperBound", defaultValue = "0") long upperBound,
+                                           @Name(value = "lowerBound", defaultValue = "0") long lowerBound,
+                                           @Name(value = "normalized", defaultValue = "true") boolean normalized) {
+        String pagerank = String.valueOf(normalized).equals("true") ? pagerankNorm : pagerankRaw;
+        Result results = db.execute(getRangeQuery(pagerank, upperBound, lowerBound) + " RETURN actor, pagerank");
         return getResultStream(results);
     }
 
     @Procedure(name = "pagerank.meanEntitiesAtDepth")
-    @Description("Calculate mean entities reached at the specified depth for entities in a given pagerank range")
-    public Stream<RecordWrapper> getMeanEntitiesAtDepth(@Name("upperBound") long upperBound, @Name("lowerBound") long lowerBound,
-                                                        @Name("depth") long depth, @Name("normalized") boolean normalized) {
-        String pagerank = normalized ? pagerankNorm : pagerankRaw;
-        long limit = lowerBound - upperBound;
-        Result results = db.execute("MATCH (n:Actor) " +
-                " WHERE n.actorType='INDIVIDUAL' AND n." + pagerank + " IS NOT NULL " +
-                " WITH n AS user, n." + pagerank + " as pagerank " +
-                " ORDER BY pagerank DESC " +
-                " SKIP " + Long.toString(upperBound) +
-                " LIMIT " + Long.toString(limit) +
-                " WITH COLLECT({user:user}) as users " +
-                " UNWIND users AS user " +
-                " WITH user.user as actor " +
-                getDepthQuery(depth, false));
+    @Description("Calculate mean entities reached at depth 1, 2, or 3")
+    public Stream<RecordWrapper> getMeanEntitiesAtDepth(@Name(value = "depth") long depth,
+                                                        @Name(value = "upperBound") long upperBound,
+                                                        @Name(value = "lowerBound") long lowerBound,
+                                                        @Name(value = "normalized", defaultValue = "true") boolean normalized) {
+        String pagerank = String.valueOf(normalized).equals("true") ? pagerankNorm : pagerankRaw;
+        Result results = db.execute(getRangeQuery(pagerank, upperBound, lowerBound) + getDepthQuery(depth, false));
         return getResultStream(results);
     }
 
     @Procedure(name = "pagerank.meanRelationshipsAtDepth")
-    @Description("Calculate mean relationships at the specified depth for entities in a given pagerank range")
-    public Stream<RecordWrapper> getMeanRelationshipsAtDepth(@Name("upperBound") long upperBound, @Name("lowerBound") long lowerBound,
-                                                             @Name("depth") long depth, @Name("normalized") boolean normalized) {
-        String pagerank = normalized ? pagerankNorm : pagerankRaw;
-        long limit = lowerBound - upperBound;
-        Result results = db.execute("MATCH (n:Actor) " +
-                " WHERE n.actorType='INDIVIDUAL' AND n." + pagerank + " IS NOT NULL " +
-                " WITH n AS user, n." + pagerank + " as pagerank " +
-                " ORDER BY pagerank DESC " +
-                " SKIP " + Long.toString(upperBound) +
-                " LIMIT " + Long.toString(limit) +
-                " WITH COLLECT({user:user}) as users " +
-                " UNWIND users AS user " +
-                " WITH user.user as actor " +
-                getDepthQuery(depth, true));
+    @Description("Calculate mean relationships at depth 1, 2, or 3")
+    public Stream<RecordWrapper> getMeanRelationshipsAtDepth(@Name(value = "depth") long depth,
+                                                             @Name(value = "upperBound") long upperBound,
+                                                             @Name(value = "lowerBound") long lowerBound,
+                                                             @Name(value = "normalized", defaultValue = "true") boolean normalized) {
+        String pagerank = String.valueOf(normalized).equals("true") ? pagerankNorm : pagerankRaw;
+        Result results = db.execute(getRangeQuery(pagerank, upperBound, lowerBound) + getDepthQuery(depth, true));
         return getResultStream(results);
     }
 
@@ -156,18 +124,35 @@ public class Pagerank {
         return true;
     }
 
+    private String getRangeQuery(String pagerank, long upperBound, long lowerBound) {
+        if (lowerBound == 0) {
+            Result userCount = db.execute("MATCH (n:Actor) WHERE n.actorType='INDIVIDUAL' RETURN COUNT(n)");
+            for (String key : userCount.columns()) lowerBound = (long) userCount.next().get(key);
+        }
+        long limit = lowerBound - upperBound;
+        return  " MATCH (n)" +
+                " WHERE n.actorType='INDIVIDUAL' AND n." + pagerank + " IS NOT NULL" +
+                " WITH n AS actor, n." + pagerank + " AS pagerank" +
+                " ORDER BY pagerank DESC " +
+                " SKIP " + Long.toString(upperBound) +
+                " LIMIT " + Long.toString(limit);
+    }
+
+
     private String getDepthQuery(long depth, boolean participations) {
-        String count = "d";
-        if (participations) count = "p";
+        String letter = participations ? "p" : "d";
+        String baseQuery = " WITH COLLECT({user:actor}) as users " +
+                " UNWIND users AS user " +
+                " WITH user.user as actor ";
         switch ((int) depth) {
-            case 1: return  "MATCH (actor)-[p1:PARTICIPATES]-(d1) " +
-                    " WITH actor, COUNT(DISTINCT " + count + "1) AS depth1Connections " +
+            case 1: return  baseQuery + "MATCH (actor)-[p1:PARTICIPATES]-(d1) " +
+                    " WITH actor, COUNT(DISTINCT " + letter + "1) AS depth1Connections " +
                     " RETURN avg(depth1Connections)";
-            case 2: return  "MATCH (actor)-[p1:PARTICIPATES]-(d1)-[p2:PARTICIPATES]-(d2) " +
-                    " WITH actor, COUNT(DISTINCT " + count + "2) AS depth2Connections " +
+            case 2: return  baseQuery + "MATCH (actor)-[p1:PARTICIPATES]-(d1)-[p2:PARTICIPATES]-(d2) " +
+                    " WITH actor, COUNT(DISTINCT " + letter + "2) AS depth2Connections " +
                     " RETURN avg(depth2Connections)";
-            case 3: return  "MATCH (actor)-[p1:PARTICIPATES]-(d1)-[p2:PARTICIPATES]-(d2)-[p3:PARTICIPATES]-(d3) " +
-                    " WITH actor, COUNT(DISTINCT " + count + "3) AS depth3Connections " +
+            case 3: return  baseQuery + "MATCH (actor)-[p1:PARTICIPATES]-(d1)-[p2:PARTICIPATES]-(d2)-[p3:PARTICIPATES]-(d3) " +
+                    " WITH actor, COUNT(DISTINCT " + letter + "3) AS depth3Connections " +
                     " RETURN avg(depth3Connections)";
         }
         log.error("Must query for depth 1, 2, or 3.");
