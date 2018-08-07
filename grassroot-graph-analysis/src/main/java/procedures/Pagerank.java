@@ -48,8 +48,8 @@ public class Pagerank {
 
     @Procedure(name = "pagerank.stats")
     @Description("Return summary pagerank statistics for user entities")
-    public Stream<RecordWrapper> getStats(@Name(value = "entityType", defaultValue = "ACTOR") String entityType,
-                                          @Name(value = "subType", defaultValue = "INDIVIDUAL") String subType,
+    public Stream<RecordWrapper> getStats(@Name(value = "entityType", defaultValue = "") String entityType,
+                                          @Name(value = "subType", defaultValue = "") String subType,
                                           @Name(value = "normalized", defaultValue = "true") boolean normalized,
                                           @Name(value = "upperBound", defaultValue = "0") long upperBound,
                                           @Name(value = "lowerBound", defaultValue = "0") long lowerBound) {
@@ -70,8 +70,8 @@ public class Pagerank {
 
     @Procedure(name = "pagerank.scores")
     @Description("Return user entities in specified pagerank range")
-    public Stream<RecordWrapper> getScores(@Name(value = "entityType", defaultValue = "ACTOR") String entityType,
-                                           @Name(value = "subType", defaultValue = "INDIVIDUAL") String subType,
+    public Stream<RecordWrapper> getScores(@Name(value = "entityType", defaultValue = "") String entityType,
+                                           @Name(value = "subType", defaultValue = "") String subType,
                                            @Name(value = "upperBound", defaultValue = "0") long upperBound,
                                            @Name(value = "lowerBound", defaultValue = "0") long lowerBound,
                                            @Name(value = "normalized", defaultValue = "true") boolean normalized) {
@@ -80,6 +80,7 @@ public class Pagerank {
             return null;
         }
         String pagerank = String.valueOf(normalized).equals("true") ? pagerankNorm : pagerankRaw;
+        log.info(getRangeQuery(entityType, subType, upperBound, lowerBound, pagerank) + " RETURN entity, pagerank");
         Result results = db.execute(getRangeQuery(entityType, subType, upperBound, lowerBound, pagerank) + " RETURN entity, pagerank");
         return getResultStream(results);
     }
@@ -139,26 +140,33 @@ public class Pagerank {
 
     private boolean typesAreValid(String entityType, String subType) {
         if (entityType == null || subType == null) return false;
-//        if ("".equals(entityType) && !"".equals(subType)) return false;
+        if ("".equals(entityType) && !"".equals(subType)) return false;
 
         entityType = entityType.toUpperCase();
         subType = subType.toUpperCase();
 
-        if (!("ACTOR".equals(entityType) || "EVENT".equals(entityType))) return false;
-        if ("ACTOR".equals(entityType) && !("INDIVIDUAL".equals(subType) || "GROUP".equals(subType) || "MOVEMENT".equals(subType))) return false;
-        if ("EVENT".equals(entityType) && !("MEETING".equals(subType) || "VOTE".equals(subType) || "TODO".equals(subType))) return false;
+        if (!("ACTOR".equals(entityType) || "EVENT".equals(entityType) || "".equals(entityType))) return false;
+        if ("ACTOR".equals(entityType) && !("INDIVIDUAL".equals(subType) || "GROUP".equals(subType)
+                || "MOVEMENT".equals(subType) || subType.isEmpty())) return false;
+        if ("EVENT".equals(entityType) && !("MEETING".equals(subType) || "VOTE".equals(subType) ||
+                "TODO".equals(subType) || subType.isEmpty())) return false;
         return true;
     }
 
     private String getRangeQuery(String entityType, String subType, long upperBound, long lowerBound, String pagerank) {
-        String entityTypeQuery = "ACTOR".equals(entityType.toUpperCase()) ? "n.actorType" : "n.eventType";
+        String entityTypeFilter = entityType.isEmpty() ? "MATCH (n) " :
+                "ACTOR".equals(entityType) ? "MATCH (n:Actor) " : "MATCH (n:Event) ";
+        String subTypeFilter = (subType.isEmpty() ? "WHERE " :
+                "ACTOR".equals(entityType) ? "WHERE n.actorType='" + subType + "' AND " :
+                        "WHERE n.eventType='" + subType + "' AND ") + "n." + pagerank + " IS NOT NULL";
+
         if (lowerBound == 0) {
-            Result userCount = db.execute("MATCH (n:Actor) WHERE n.actorType='INDIVIDUAL' RETURN COUNT(n)");
+            Result userCount = db.execute(entityTypeFilter + subTypeFilter + " RETURN COUNT(n)");
             for (String key : userCount.columns()) lowerBound = (long) userCount.next().get(key);
         }
         long limit = lowerBound - upperBound;
-        return  " MATCH (n)" +
-                " WHERE " + entityTypeQuery + "='" + subType + "' AND n." + pagerank + " IS NOT NULL" +
+
+        return  entityTypeFilter + subTypeFilter +
                 " WITH n AS entity, n." + pagerank + " AS pagerank" +
                 " ORDER BY pagerank DESC " +
                 " SKIP " + Long.toString(upperBound) +
