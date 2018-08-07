@@ -18,7 +18,7 @@ app.use(function(req, res, next) {
     res.header("Access-Control-Allow-Origin", "*");
     res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
     next();
-  });
+});
 
 const paramToArray = (req, paramName) => {
     return req.query[paramName] ? JSON.parse(req.query[paramName]) : [];
@@ -94,6 +94,8 @@ app.get('/document/query', (req, res) => {
     })
 });
 
+// pagerank queries
+
 app.get('/document/list', (req, res) => {
     console.log("Getting list of all docs");
     return session.run(
@@ -104,5 +106,104 @@ app.get('/document/list', (req, res) => {
         res.json(error);
     })
 });
+
+app.get('/pagerank/write', (req, res) => {
+    console.log("Writing raw pagerank to graph");
+    return session.run(
+        "CALL pagerank.write()"
+    ).then(result => {
+        res.json(result);
+    }).catch(error => {
+        res.json(error);
+    })
+})
+
+app.get('/pagerank/normalize', (req, res) => {
+    const entity_type = req.query.entity_type;
+    const sub_type = req.query.sub_type;
+
+    console.log("Writing normalized pagerank to graph");
+    return session.run(
+        "CALL pagerank.normalize()"
+    ).then(result => {
+        res.json(result);
+    }).catch(error => {
+        res.json(error);
+    })
+})
+
+app.get('/pagerank/stats', (req, res) => {
+    const entity_type = req.query.entity_type;
+    const sub_type = req.query.sub_type;
+    const normalized = req.query.normalized;
+    const upper_bound = req.query.upper_bound;
+    const lower_bound = req.query.lower_bound;
+
+    console.log("Getting pagerank stats");
+    return session.run(
+        "CALL pagerank.stats($entity_type, $sub_type, toBoolean($normalized), toInteger($upper_bound), toInteger($lower_bound))",
+        { entity_type: entity_type, sub_type: sub_type, normalized: normalized, upper_bound: upper_bound, lower_bound: lower_bound }
+    ).then(result => {
+        res.json(result);
+    }).catch(error => {
+        res.json(error);
+    })
+})
+
+app.get('/pagerank/scores', (req, res) => {
+    const entity_type = req.query.entity_type;
+    const sub_type = req.query.sub_type;
+    const normalized = req.query.normalized;
+    const upper_bound = req.query.upper_bound;
+    const lower_bound = req.query.lower_bound;
+
+    console.log("Getting pagerank scores");
+    return session.run(
+        "CALL pagerank.scores($entity_type, $sub_type, toInteger($upper_bound), toInteger($lower_bound), toBoolean($normalized))",
+        { entity_type: entity_type, sub_type: sub_type, upper_bound: upper_bound, lower_bound: lower_bound, normalized: normalized }
+    ).then(result => {
+        res.json(result);
+    }).catch(error => {
+        res.json(error);
+    })
+})
+
+app.get('/pagerank/meanEntities', (req, res) => {
+    const depth = req.query.depth;
+    const entity_type = req.query.entity_type;
+    const sub_type = req.query.sub_type;
+    const normalized = req.query.normalized;
+    const upper_bound = req.query.upper_bound;
+    const lower_bound = req.query.lower_bound;
+
+    console.log("Getting mean entities reached");
+    return session.run(
+        "CALL pagerank.meanEntitiesAtDepth(toInteger($depth), $entity_type, $sub_type, toInteger($upper_bound), toInteger($lower_bound), toBoolean($normalized))",
+        { depth: depth, entity_type: entity_type, sub_type: sub_type, upper_bound: upper_bound, lower_bound: lower_bound, normalized: normalized }
+    ).then(result => {
+        res.json(result);
+    }).catch(error => {
+        res.json(error);
+    })
+})
+
+app.get('/pagerank/meanRelationships', (req, res) => {
+    const depth = req.query.depth;
+    const entity_type = req.query.entity_type;
+    const sub_type = req.query.sub_type;
+    const normalized = req.query.normalized;
+    const upper_bound = req.query.upper_bound;
+    const lower_bound = req.query.lower_bound;
+
+    console.log("Getting mean relationships reached");
+    return session.run(
+        "CALL pagerank.meanRelationshipsAtDepth(toInteger($depth), $entity_type, $sub_type, toInteger($upper_bound), toInteger($lower_bound), toBoolean($normalized))",
+        { depth: depth, entity_type: entity_type, sub_type: sub_type, upper_bound: upper_bound, lower_bound: lower_bound, normalized: normalized }
+    ).then(result => {
+        res.json(result);
+    }).catch(error => {
+        res.json(error);
+    })
+})
 
 app.listen(3000, () => console.log(`Listening on port 3000`));
