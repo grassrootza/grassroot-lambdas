@@ -8,14 +8,14 @@ Instructions for setting up neo4j graph analysis procedures:
 4. Copy the jar file produced in the preceding step to $NEO4J_HOME/plugins
 5. Start (/restart) neo4j. 
 6. To verify access to the algorithms, type "pagerank." and a list of callable procedures should be listed.
-6. Write raw pagerank scores to the graph by calling “pagerank.write()”
+6. Write raw pagerank scores to the graph by calling "pagerank.write()"
 7. Write normalized pagerank scores to the graph with the following calls:
-- CALL pagerank.normalize(“ACTOR”, “GROUP”)
-- CALL pagerank.normalize(“ACTOR”, “INDIVIDUAL”)
-- CALL pagerank.normalize(“EVENT”, “MEETING”)
-- CALL pagerank.normalize(“EVENT”, “VOTE”)
-- CALL pagerank.normalize(“EVENT”, “TODO”)
-8. Test by calling “CALL pagerank.stats(“ACTOR”, “INDIVIDUAL”, true, 0, 100)". The following output should be yielded:
+- CALL pagerank.normalize("ACTOR", "GROUP")
+- CALL pagerank.normalize("ACTOR", "INDIVIDUAL")
+- CALL pagerank.normalize("EVENT", "MEETING")
+- CALL pagerank.normalize("EVENT", "VOTE")
+- CALL pagerank.normalize("EVENT", "TODO")
+8. Test by calling "CALL pagerank.stats("ACTOR", "INDIVIDUAL", true, 0, 10)". The following output should be yielded:
 {
   "maximum": 139.95452372521055,
   "range": 119.7943979455026,
