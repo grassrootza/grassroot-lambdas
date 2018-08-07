@@ -21,7 +21,7 @@ const docClient = new AWS.DynamoDB.DocumentClient();
 
 app.post('/facebook/connect/request/:userId', (req, res) => { 
   const callBackParam = encodeURIComponent(JSON.stringify({userId: req.params.userId}));
-  const redirectUrl = `https://www.facebook.com/${FB_API_VERSION}/dialog/oauth?client_id=${FB_APP_ID}&response_type=code&redirect_uri=${REDIRECT_URI}&state=${callBackParam}&scope=publish_actions,manage_pages,publish_pages`;
+  const redirectUrl = `https://www.facebook.com/${FB_API_VERSION}/dialog/oauth?client_id=${FB_APP_ID}&response_type=code&redirect_uri=${REDIRECT_URI}&state=${callBackParam}&scope=manage_pages,publish_pages`;
   console.log('redirectUrl: ', redirectUrl);
   return res.redirect(301, redirectUrl);
 });
@@ -79,9 +79,27 @@ app.get('/facebook/connect/done/:userId', (req, res) => {
   });
 });
 
-app.get('/facebook/delete/:userId', (req, res) => {
+app.post('/facebook/delete/:userId', (req, res) => {
   fetchToken(req.params.userId, userData => {
-    // okay then delete the thing
+    // okay then delete the thing (well, delete our record)
+    var params = {
+      TableName: DDB_TABLE,
+      Key: {
+        "userId": req.params.userId
+      }
+    };
+
+    console.log('Deleting item: ', params);
+
+    docClient.delete(params, (err, data) => {
+      if (err) {
+        console.log('error deleting item: ', JSON.stringify(err, null, 2));
+        res.status(500).send({ error: 'Could not remove record' });
+      } else {
+        console.log('completed deletion: ', JSON.stringify(data, null, 2));
+        res.status(200).end();
+      }
+    })
   })
 });
 
@@ -199,6 +217,6 @@ function fetchPages(userData, callback) {
 
 
 
-//app.listen(3000, () => console.log(`Listening on port 3000, ddb table: ${DDB_TABLE}`));
+// app.listen(3000, () => console.log(`Listening on port 3000, ddb table: ${DDB_TABLE}`));
 
 module.exports = app;

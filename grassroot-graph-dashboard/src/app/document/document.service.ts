@@ -2,17 +2,34 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { environment } from 'src/environments/environment';
 import { Observable } from 'rxjs';
+import { map, flatMap } from 'rxjs/operators';
+import { transformDoc } from './document.model';
 
 @Injectable({
   providedIn: 'root'
 })
 export class DocumentService {
 
-  private addExtractUrl = environment.lambdaUrl + '/document/create/extract';
+  private listDocumentsUrl = environment.lambdaUrl + '/document/list';
+
+  private addExtractUrl = environment.lambdaUrl + '/document/create/EXTRACT';
 
   private creationKeysForTransform = ['issues', 'procedures', 'problems'];
 
   constructor(private httpClient: HttpClient) { }
+
+  listDocuments(): Observable<Document[]> {
+    return this.httpClient.get<any>(this.listDocumentsUrl).pipe(
+      map(result => {
+        console.log('Received from Neo4J: ', result);
+        const records = result.records;
+        console.log('records: ', records);
+        const returnedDocs: Document[] = records.map(item => transformDoc(item._fields[0].properties));
+        console.log('returned docs: ', returnedDocs);
+        console.log('first doc: ', returnedDocs[0]);
+        return returnedDocs;
+    }));
+  }
 
   addExtractToGraph(docParams: any): Observable<any> {
     console.log('adding extract to graph, params: ', docParams);
@@ -35,4 +52,5 @@ export class DocumentService {
     console.log('and made a string: ', jsonString);
     return jsonString;
   }
+
 }
