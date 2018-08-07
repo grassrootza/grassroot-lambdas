@@ -80,7 +80,6 @@ public class Pagerank {
             return null;
         }
         String pagerank = String.valueOf(normalized).equals("true") ? pagerankNorm : pagerankRaw;
-        log.info(getRangeQuery(entityType, subType, upperBound, lowerBound, pagerank) + " RETURN entity, pagerank");
         Result results = db.execute(getRangeQuery(entityType, subType, upperBound, lowerBound, pagerank) + " RETURN entity, pagerank");
         return getResultStream(results);
     }
