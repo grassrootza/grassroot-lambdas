@@ -1,27 +1,10 @@
-# grassroot-lambdas
-Collection of private lambdas to support Grassroot platform
+# grassroot-graph-analysis
+Collection of Neo4j procedures for analyzing the grassroot graph
 
-## Neo4j Graph Analysis Procedures Local Installation
-1. Verify installation of neo4j 3.4.1 or higher.
+## Installation
+1. Verify installation of Neo4j version 3.x or higher
 2. Install neo4j graph algos by following the instructions at https://neo4j.com/developer/graph-algorithms/
-3. Run “mvn clean package” in graph-analysis module to build the procedures jar file
-4. Copy the jar file produced in the preceding step to $NEO4J_HOME/plugins
-5. Start (/restart) neo4j. 
-6. To verify access to the algorithms, type "pagerank." and a list of callable procedures should be listed.
-6. Write raw pagerank scores to the graph by calling "pagerank.write()"
-7. Write normalized pagerank scores to the graph with the following calls:
-CALL pagerank.normalize("ACTOR", "GROUP")
-CALL pagerank.normalize("ACTOR", "INDIVIDUAL")
-CALL pagerank.normalize("EVENT", "MEETING")
-CALL pagerank.normalize("EVENT", "VOTE")
-CALL pagerank.normalize("EVENT", "TODO")
-8. Test by calling "CALL pagerank.stats("ACTOR", "INDIVIDUAL", true, 0, 10)". The following output should be yielded:
-{
-  "maximum": 139.95452372521055,
-  "range": 119.7943979455026,
-  "average": 51.90294189280517,
-  "median": 38.88166884023575,
-  "stddev": 33.810661706567814,
-  "minimum": 20.160125779707954
-}
-
+3. Run “mvn clean package” in this module to produce two jar files in a new "target" folder.
+4. Copy "procedures-1.0-SNAPSHOT.jar" produced from preceding step into $NEO4J_HOME/plugins
+5. Start (or restart, if already running) Neo4j. 
+6. Make the following call in the browser to set up procedures for use: "CALL pagerank.setup"
