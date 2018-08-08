@@ -28,6 +28,18 @@ public class Pagerank {
         return results.hasNext() ? results.stream().map(RecordWrapper::new) : null;
     }
 
+    @Procedure(name = "pagerank.setup", mode = Mode.WRITE)
+    @Description("Write information to graph necessary for use of procedures")
+    public void setupProcedures() {
+        log.info("Writing raw and normalized pagerank scores to graph");
+        db.execute("CALL pagerank.write()");
+        db.execute("CALL pagerank.normalize('ACTOR', 'INDIVIDUAL')");
+        db.execute("CALL pagerank.normalize('ACTOR', 'GROUP')");
+        db.execute("CALL pagerank.normalize('EVENT', 'MEETING')");
+        db.execute("CALL pagerank.normalize('EVENT', 'VOTE')");
+        db.execute("CALL pagerank.normalize('EVENT', 'TODO')");
+    }
+
     @Procedure(name = "pagerank.write", mode = Mode.WRITE)
     @Description("Write raw pagerank for all entities")
     public Stream<RecordWrapper> writeScores() {
