@@ -36,9 +36,11 @@ const executeRequest = (query, params, res) => {
 
 app.get('/document/create/:doc_type', (req, res) => {
     console.log('Creating document, type: ', req.params.doc_type);
-    let query = params.doc_type == 'EXTRACT' ? createDocumentQuery('main_text') : createDocumentQuery('doc_link');
+
     let params = buildDocumentParams(req);
-    params.doc_type == 'EXTRACT' ? params.main_text = req.query.main_text : params.doc_link = req.query.doc_link;
+    params.doc_type.toUpperCase() == 'EXTRACT' ? params.main_text = req.query.main_text : params.doc_link = req.query.doc_link;
+    let query = params.doc_type.toUpperCase() == 'EXTRACT' ? createDocumentQuery('main_text') : createDocumentQuery('doc_link');
+
     executeRequest(query, params, res);
 });
 
@@ -49,21 +51,30 @@ app.get('/document/list', (req, res) => {
 
 app.get('/document/name/available', (req, res) => {
     console.log("Checking availability of document name: ", req.query.machine_name);
-    let query = "MATCH (d:Document) WHERE d.machineName=$machine_name RETURN COUNT(d)=0";
+    let query = "MATCH (d:Document) WHERE toUpper(d.machineName)=toUpper($machine_name) RETURN COUNT(d)=0";
     let params = { machine_name: req.query.machine_name };
     executeRequest(query, params, res);
 });
 
 app.get('/document/query', (req, res) => {
     console.log("Searching for documents with keyword: ", req.query.query_word);
-    let query = "MATCH (d:Document) " +
-                "WHERE  d.humanName CONTAINS $query_word OR d.machineName CONTAINS $query_word OR " +
-                      " d.stageRelevance CONTAINS $query_word OR $query_word IN d.issues OR " +
-                      " $query_word IN d.procedures OR $query_word IN d.problems " +
-                "RETURN d";
-    let params = { query_word: req.query.query_word }
+    let query = " MATCH (d:Document)" +
+                " WHERE toUpper(d.humanName) CONTAINS $query_word OR" +
+                      " toUpper(d.machineName) CONTAINS $query_word OR" +
+                      " toUpper(d.stageRelevance) CONTAINS $query_word OR" +
+                      " ANY(word IN d.issues WHERE word =~ $query_regex) OR" +
+                      " ANY(word IN d.problems WHERE word =~ $query_regex) OR" +
+                      " ANY(word IN d.procedures WHERE word =~ $query_regex)" +
+                " RETURN d";
+    let params = { query_word: req.query.query_word.toUpperCase(), query_regex: '(?i).*' + req.query.query_word + '.*' }
     executeRequest(query, params, res);
 });
+
+const createDocumentQuery = (final_param) => 'CREATE (d:Document {' +
+    'machineName: $machine_name, humanName: $human_name, docType: $doc_type, ' +
+    'issues: $issues, procedures: $procedures, problems: $problems, ' +
+    'stageRelevance: $stage_relevance, ' + final_param + ': $' + final_param +
+    '}) RETURN d';
 
 const buildDocumentParams = (req) => {
     return {
@@ -78,12 +89,6 @@ const buildDocumentParams = (req) => {
         stage_relevance: req.query.stage_relevance // BEGINNER, INTERMEDIATE, ADVANCED
     };
 }
-
-const createDocumentQuery = (final_param) => 'CREATE (d:Document {' +
-    'machineName: $machine_name, humanName: $human_name, docType: $doc_type, ' +
-    'issues: $issues, procedures: $procedures, problems: $problems, ' +
-    'stageRelevance: $stage_relevance, ' + final_param + ': $' + final_param +
-    '}) RETURN d';
 
 const paramToArray = (req, paramName) => {
     return req.query[paramName] ? JSON.parse(req.query[paramName]) : [];
