@@ -39,6 +39,20 @@ app.get('/profile/counts', (req, res) => {
     executeRequest("CALL profile.counts()", {}, res);
 })
 
+app.get('/profile/group/membership', (req, res) => {
+    console.log('Getting group membership counts');
+    let query = "CALL profile.groupMemberships(toInteger($first_rank), toInteger($last_rank))";
+    let params = { first_rank: req.query.first_rank, last_rank: req.query.last_rank };
+    executeRequest(query, params, res);
+})
+
+app.get('/profile/user/participation', (req, res) => {
+    console.log('Getting user participation counts');
+    let query = "CALL profile.userParticipations(toInteger($first_rank), toInteger($last_rank))";
+    let params = { first_rank: req.query.first_rank, last_rank: req.query.last_rank };
+    executeRequest(query, params, res);
+})
+
 // documents
 
 app.get('/document/create/:doc_type', (req, res) => {
