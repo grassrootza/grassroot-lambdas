@@ -53,13 +53,6 @@ app.get('/profile/user/participation', (req, res) => {
     executeRequest(query, params, res);
 })
 
-app.get('/profile/compare/metrics', (req, res) => {
-    console.log('Comparing top 100 users by pagerank and closeness');
-    let query = "";
-    let params = {};
-    executeRequest(query, params, res);
-})
-
 // documents
 
 app.get('/document/create/:doc_type', (req, res) => {
@@ -164,6 +157,13 @@ app.get('/pagerank/meanEntities', (req, res) => {
 app.get('/pagerank/meanRelationships', (req, res) => {
     console.log("Getting mean relationships reached");
     wrapPagerankReadRequest(req, res, "meanRelationships", false);
+})
+
+app.get('/pagerank/compareMetrics', (req, res) => {
+    console.log('Comparing top 100 users by pagerank and closeness');
+    let query = "RETURN pagerank.compareMetrics($to_compare, toInteger($depth))";
+    let params = { to_compare: req.query.to_compare, depth: req.query.depth };
+    executeRequest(query, params, res);
 })
 
 const wrapPagerankReadRequest = (req, res, extension, procedure) => {

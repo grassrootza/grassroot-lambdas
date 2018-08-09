@@ -1,13 +1,10 @@
-package procedures;
+package extensions;
 
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.logging.Log;
 import org.neo4j.procedure.*;
 import org.neo4j.graphdb.Result;
 
-import java.util.List;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 public class Profile {
