@@ -97,7 +97,7 @@ public class Pagerank {
         log.info("Obtaining pagerank scores");
         String pagerank = normalized ? pagerankNorm : pagerankRaw;
         if (!paramsAreValid(entityType, subType, firstRank, lastRank, null)) return null;
-        Result results = db.execute(filterQuery(entityType, subType, firstRank, lastRank, pagerank) + " RETURN entity, pagerank");
+        Result results = db.execute(filterQuery(entityType, subType, firstRank, lastRank, pagerank) + " RETURN pagerank");
         return getResultStream(results);
     }
 

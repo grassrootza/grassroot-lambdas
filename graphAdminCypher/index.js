@@ -32,6 +32,13 @@ const executeRequest = (query, params, res) => {
     })
 }
 
+// profiling
+
+app.get('/profile/counts', (req, res) => {
+    console.log('Getting entity and relationship counts');
+    executeRequest("CALL profile.counts()", {}, res);
+})
+
 // documents
 
 app.get('/document/create/:doc_type', (req, res) => {

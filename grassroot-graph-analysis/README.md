@@ -1,5 +1,5 @@
 # grassroot-graph-analysis
-Collection of Neo4j procedures for analyzing the grassroot graph
+Collection of Neo4j procedures for characterizing and analyzing the grassroot graph
 
 ## Installation
 1. Verify installation of Neo4j version 3.x or higher
