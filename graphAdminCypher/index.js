@@ -144,6 +144,11 @@ app.get('/pagerank/scores', (req, res) => {
     wrapPagerankReadRequest(req, res, "scores");
 })
 
+app.get('/pagerank/tiers', (req, res) => {
+    console.log("Getting pagerank scores");
+    return executeRequest("CALL pagerank.tiers()", {}, res);
+})
+
 app.get('/pagerank/meanEntities', (req, res) => {
     console.log("Getting mean entities reached");
     wrapPagerankReadRequest(req, res, "meanEntities");

@@ -17,17 +17,6 @@ public class Pagerank {
     public static final String pagerankRaw = "pagerankRaw";
     public static final String pagerankNorm = "pagerankNorm";
 
-    public static class RecordWrapper {
-        public Map<String, Object> results;
-        public RecordWrapper(Map<String, Object> results) {
-            this.results = results;
-        }
-    }
-
-    private Stream<RecordWrapper> getResultStream(Result results) {
-        return results.hasNext() ? results.stream().map(RecordWrapper::new) : null;
-    }
-
     @Procedure(name = "pagerank.setup", mode = Mode.WRITE)
     @Description("Write information to graph necessary for use of procedures")
     public void setupProcedures() {
@@ -101,6 +90,17 @@ public class Pagerank {
         return getResultStream(results);
     }
 
+    @Procedure(name = "pagerank.tiers")
+    @Description("Return counts of users in pagerank tiers as determined by pagerank scores")
+    public Stream<PropertyRecord> getTiers() {
+        log.info("Getting user counts in three pagerank tiers");
+        Result entityCounts = db.execute("" +
+                " MATCH (n:Actor) WHERE n.actorType='INDIVIDUAL' AND n.pagerankNorm > 10.0 RETURN 'TIER1' AS tier, COUNT(n) AS count" +
+                " UNION MATCH (n:Actor) WHERE n.actorType='INDIVIDUAL' AND n.pagerankNorm > 3.0 AND n.pagerankNorm < 10.0 RETURN 'TIER2' AS tier, COUNT(n) AS count" +
+                " UNION MATCH (n:Actor) WHERE n.actorType='INDIVIDUAL' AND n.pagerankNorm < 3.0 RETURN 'TIER3' AS tier, COUNT(n) AS count");
+        return getPropertyStream(entityCounts, "tier", "count");
+    }
+
     @Procedure(name = "pagerank.meanEntities")
     @Description("Calculate mean entities reached at depth 1, 2, or 3")
     public Stream<RecordWrapper> getMeanEntitiesAtDepth(@Name(value = "entityType") String entityType,
@@ -125,6 +125,31 @@ public class Pagerank {
         if (!paramsAreValid(entityType, subType, firstRank, lastRank, depth)) return null;
         Result results = db.execute(filterQuery(entityType, subType, firstRank, lastRank, pagerankRaw) + depthQuery(depth, false));
         return getResultStream(results);
+    }
+
+    public static class RecordWrapper {
+        public Map<String, Object> results;
+        public RecordWrapper(Map<String, Object> results) {
+            this.results = results;
+        }
+    }
+
+    public static class PropertyRecord {
+        public String property;
+        public long value;
+        public PropertyRecord(String property, long value) {
+            this.property = property;
+            this.value = value;
+        }
+    }
+
+    private Stream<RecordWrapper> getResultStream(Result results) {
+        return results.hasNext() ? results.stream().map(RecordWrapper::new) : null;
+    }
+
+    private Stream<PropertyRecord> getPropertyStream(Result results, String propKey, String valueKey) {
+        return results.hasNext() ? results.stream().map(result ->
+                new PropertyRecord((String) result.get(propKey), (long) result.get(valueKey))) : null;
     }
 
     private String filterQuery(String entityType, String subType, long firstRank, long lastRank, String pagerank) {

@@ -17,8 +17,8 @@ public class Profile {
     @Description("Returns counts of graph entities")
     public Stream<PropertyRecord> getEntityAndRelationshipCounts() {
         log.info("Obtaining counts of all entities and relationships");
-        Stream<PropertyRecord> entityCounts = getEntityCounts("type", "count");
-        Stream<PropertyRecord> relationshipCounts = getRelationshipCounts("type", "count");
+        Stream<PropertyRecord> entityCounts = getEntityCounts();
+        Stream<PropertyRecord> relationshipCounts = getRelationshipCounts();
         if (entityCounts != null && relationshipCounts != null) return Stream.concat(entityCounts, relationshipCounts);
         log.error("Error! Entity or relationship counts could not be gathered from graph"); return null;
     }
@@ -71,27 +71,26 @@ public class Profile {
         }
     }
 
-
-    private Stream<PropertyRecord> getEntityCounts(String prop, String value) {
+    private Stream<PropertyRecord> getEntityCounts() {
         Result entityCounts = db.execute("" +
-                " MATCH (n) WHERE n.actorType IS NOT NULL OR n.eventType IS NOT NULL RETURN 'TOTAL-ENTITIES' AS " + prop + ", COUNT(*) AS " + value +
-                " UNION MATCH (n:Actor) WHERE n.actorType IS NOT NULL RETURN 'ACTOR' AS " + prop + ", COUNT(*) AS " + value +
-                " UNION MATCH (n:Event) WHERE n.eventType IS NOT NULL RETURN 'EVENT' AS " + prop + ", COUNT(*) AS " + value +
-                " UNION MATCH (n:Actor) WHERE n.actorType IS NOT NULL RETURN n.actorType AS " + prop + ", COUNT(*) AS " + value +
-                " UNION MATCH (n:Event) WHERE n.eventType IS NOT NULL RETURN n.eventType AS " + prop + ", COUNT(*) AS " + value);
-        return getPropertyStream(entityCounts, prop, value);
+                " MATCH (n) WHERE n.actorType IS NOT NULL OR n.eventType IS NOT NULL RETURN 'TOTAL-ENTITIES' AS type, COUNT(*) AS count" +
+                " UNION MATCH (n:Actor) WHERE n.actorType IS NOT NULL RETURN 'ACTOR' AS type, COUNT(*) AS count" +
+                " UNION MATCH (n:Event) WHERE n.eventType IS NOT NULL RETURN 'EVENT' AS type, COUNT(*) AS count" +
+                " UNION MATCH (n:Actor) WHERE n.actorType IS NOT NULL RETURN n.actorType AS type, COUNT(*) AS count" +
+                " UNION MATCH (n:Event) WHERE n.eventType IS NOT NULL RETURN n.eventType AS type, COUNT(*) AS count");
+        return getPropertyStream(entityCounts, "type", "count");
     }
 
-    private Stream<PropertyRecord> getRelationshipCounts(String prop, String value) {
+    private Stream<PropertyRecord> getRelationshipCounts() {
         Result relationshipCounts = db.execute("" +
-                " MATCH ()-[r]-() RETURN 'TOTAL-RELATIONSHIPS' AS " + prop + ", COUNT(DISTINCT r) AS " + value +
-                " UNION MATCH ()-[p:PARTICIPATES]-() RETURN 'PARTICIPATES' AS " + prop + ", COUNT(DISTINCT p) AS " + value +
-                " UNION MATCH ()-[g:GENERATOR]-() RETURN 'GENERATOR' AS " + prop + ", COUNT(DISTINCT g) AS " + value +
-                " UNION MATCH ()-[p:PARTICIPATES]->(:Actor) RETURN 'PARTICIPATIONS-IN-ACTORS' AS " + prop + ", COUNT(p) AS " + value +
-                " UNION MATCH ()-[p:PARTICIPATES]->(:Event) RETURN 'PARTICIPATIONS-IN-EVENTS' AS " + prop + ", COUNT(p) AS " + value +
-                " UNION MATCH ()-[g:GENERATOR]->(:Actor) RETURN 'ACTORS-GENERATED' AS " + prop + ", COUNT(g) AS " + value +
-                " UNION MATCH ()-[g:GENERATOR]->(:Event) RETURN 'EVENTS-GENERATED' AS " + prop + ", COUNT(g) AS " + value);
-        return getPropertyStream(relationshipCounts, prop, value);
+                " MATCH ()-[r]-() RETURN 'TOTAL-RELATIONSHIPS' AS type, COUNT(DISTINCT r) AS count" +
+                " UNION MATCH ()-[p:PARTICIPATES]-() RETURN 'PARTICIPATES' AS type, COUNT(DISTINCT p) AS count" +
+                " UNION MATCH ()-[g:GENERATOR]-() RETURN 'GENERATOR' AS type, COUNT(DISTINCT g) AS count" +
+                " UNION MATCH ()-[p:PARTICIPATES]->(:Actor) RETURN 'PARTICIPATIONS-IN-ACTORS' AS type, COUNT(p) AS count" +
+                " UNION MATCH ()-[p:PARTICIPATES]->(:Event) RETURN 'PARTICIPATIONS-IN-EVENTS' AS type, COUNT(p) AS count" +
+                " UNION MATCH ()-[g:GENERATOR]->(:Actor) RETURN 'ACTORS-GENERATED' AS type, COUNT(g) AS count" +
+                " UNION MATCH ()-[g:GENERATOR]->(:Event) RETURN 'EVENTS-GENERATED' AS type, COUNT(g) AS count");
+        return getPropertyStream(relationshipCounts, "type", "count");
     }
 
     private Stream<PropertyRecord> getPropertyStream(Result results, String propKey, String valueKey) {
