@@ -53,6 +53,13 @@ app.get('/profile/user/participation', (req, res) => {
     executeRequest(query, params, res);
 })
 
+app.get('/profile/compare/metrics', (req, res) => {
+    console.log('Comparing top 100 users by pagerank and closeness');
+    let query = "";
+    let params = {};
+    executeRequest(query, params, res);
+})
+
 // documents
 
 app.get('/document/create/:doc_type', (req, res) => {
@@ -136,12 +143,12 @@ app.get('/pagerank/normalize', (req, res) => {
 
 app.get('/pagerank/stats', (req, res) => {
     console.log("Getting pagerank stats");
-    wrapPagerankReadRequest(req, res, "stats");
+    wrapPagerankReadRequest(req, res, "stats", true);
 })
 
 app.get('/pagerank/scores', (req, res) => {
     console.log("Getting pagerank scores");
-    wrapPagerankReadRequest(req, res, "scores");
+    wrapPagerankReadRequest(req, res, "scores", true);
 })
 
 app.get('/pagerank/tiers', (req, res) => {
@@ -151,25 +158,25 @@ app.get('/pagerank/tiers', (req, res) => {
 
 app.get('/pagerank/meanEntities', (req, res) => {
     console.log("Getting mean entities reached");
-    wrapPagerankReadRequest(req, res, "meanEntities");
+    wrapPagerankReadRequest(req, res, "meanEntities", false);
 })
 
 app.get('/pagerank/meanRelationships', (req, res) => {
     console.log("Getting mean relationships reached");
-    wrapPagerankReadRequest(req, res, "meanRelationships");
+    wrapPagerankReadRequest(req, res, "meanRelationships", false);
 })
 
-const wrapPagerankReadRequest = (req, res, procedure) => {
+const wrapPagerankReadRequest = (req, res, extension, procedure) => {
     console.log("Building request with procedure: ", procedure);
 
-    let normParam = procedureNeedsNorm(procedure) ? ", toBoolean($normalized)" : "";
-    let depthParam = procedureNeedsDepth(procedure) ? ", toInteger($depth))" : "";
-    let query = "CALL pagerank." + procedure + "($entity_type, $sub_type, toInteger($first_rank), " +
-                "toInteger($last_rank)" + normParam + depthParam + ")";
+    let normParam = procedureNeedsNorm(extension) ? ", toBoolean($normalized)" : "";
+    let depthParam = procedureNeedsDepth(extension) ? ", toInteger($depth)" : "";
+    let query = (procedure ? "CALL" : "RETURN") + " pagerank." + extension + "($entity_type, $sub_type, " +
+                "toInteger($first_rank), toInteger($last_rank)" + normParam + depthParam + ")";
 
     let params = buildPagerankParams(req);
-    if (depthRequired) params.depth = req.query.depth;
-    if (normalizedRequired) params.normalized = req.query.normalized;
+    if (procedureNeedsDepth(extension)) params.depth = req.query.depth;
+    if (procedureNeedsNorm(extension)) params.normalized = req.query.normalized;
 
     executeRequest(query, params, res);
 }

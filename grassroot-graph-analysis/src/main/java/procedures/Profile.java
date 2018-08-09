@@ -5,6 +5,9 @@ import org.neo4j.logging.Log;
 import org.neo4j.procedure.*;
 import org.neo4j.graphdb.Result;
 
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 public class Profile {
@@ -65,10 +68,19 @@ public class Profile {
     }
 
     public static class CountRecord {
-        public long count;
-        public CountRecord(long count) {
+        public double count;
+        public CountRecord(double count) {
             this.count = count;
         }
+    }
+
+    private Stream<PropertyRecord> getPropertyStream(Result results, String propKey, String valueKey) {
+        return results.hasNext() ? results.stream().map(result ->
+                new PropertyRecord((String) result.get(propKey), (long) result.get(valueKey))) : null;
+    }
+
+    private Stream<CountRecord> getCountStream(Result results, String countKey) {
+        return results.hasNext() ? results.stream().map(result -> new CountRecord((long) result.get(countKey))) : null;
     }
 
     private Stream<PropertyRecord> getEntityCounts() {
@@ -91,15 +103,6 @@ public class Profile {
                 " UNION MATCH ()-[g:GENERATOR]->(:Actor) RETURN 'ACTORS-GENERATED' AS type, COUNT(g) AS count" +
                 " UNION MATCH ()-[g:GENERATOR]->(:Event) RETURN 'EVENTS-GENERATED' AS type, COUNT(g) AS count");
         return getPropertyStream(relationshipCounts, "type", "count");
-    }
-
-    private Stream<PropertyRecord> getPropertyStream(Result results, String propKey, String valueKey) {
-        return results.hasNext() ? results.stream().map(result ->
-                new PropertyRecord((String) result.get(propKey), (long) result.get(valueKey))) : null;
-    }
-    
-    private Stream<CountRecord> getCountStream(Result results, String countKey) {
-        return results.hasNext() ? results.stream().map(result -> new CountRecord((long) result.get(countKey))) : null;
     }
 
     private boolean boundsAreValid(Long firstRank, Long lastRank) {

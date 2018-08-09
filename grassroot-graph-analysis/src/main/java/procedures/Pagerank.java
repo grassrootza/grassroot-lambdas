@@ -5,7 +5,11 @@ import org.neo4j.logging.Log;
 import org.neo4j.procedure.*;
 import org.neo4j.graphdb.Result;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 public class Pagerank {
@@ -101,31 +105,101 @@ public class Pagerank {
         return getPropertyStream(entityCounts, "tier", "count");
     }
 
-    @Procedure(name = "pagerank.meanEntities")
+    @UserFunction(name = "pagerank.meanEntities")
     @Description("Calculate mean entities reached at depth 1, 2, or 3")
-    public Stream<RecordWrapper> getMeanEntitiesAtDepth(@Name(value = "entityType") String entityType,
-                                                        @Name(value = "subType") String subType,
-                                                        @Name(value = "firstRank") long firstRank,
-                                                        @Name(value = "lastRank") long lastRank,
-                                                        @Name(value = "depth") long depth) {
+    public Double getMeanEntitiesAtDepth(@Name(value = "entityType") String entityType, @Name(value = "subType") String subType,
+                                         @Name(value = "firstRank") long firstRank, @Name(value = "lastRank") long lastRank,
+                                         @Name(value = "depth") long depth) {
         log.info("Getting mean entities reached at depth {}", depth);
         if (!paramsAreValid(entityType, subType, firstRank, lastRank, depth)) return null;
-        Result results = db.execute(filterQuery(entityType, subType, firstRank, lastRank, pagerankRaw) + depthQuery(depth, true));
-        return getResultStream(results);
+        return calculateMeanEntitiesPR(entityType, subType, firstRank, lastRank, depth);
     }
 
-    @Procedure(name = "pagerank.meanRelationships")
+    @UserFunction(name = "pagerank.meanRelationships")
     @Description("Calculate mean relationships at depth 1, 2, or 3")
-    public Stream<RecordWrapper> getMeanRelationshipsAtDepth(@Name(value = "entityType") String entityType,
-                                                             @Name(value = "subType") String subType,
-                                                             @Name(value = "firstRank") long firstRank,
-                                                             @Name(value = "lastRank") long lastRank,
-                                                             @Name(value = "depth") long depth) {
+    public Double getMeanRelationshipsAtDepth(@Name(value = "entityType") String entityType, @Name(value = "subType") String subType,
+                                              @Name(value = "firstRank") long firstRank, @Name(value = "lastRank") long lastRank,
+                                              @Name(value = "depth") long depth) {
         log.info("Getting mean relationships reached at depth {}", depth);
         if (!paramsAreValid(entityType, subType, firstRank, lastRank, depth)) return null;
-        Result results = db.execute(filterQuery(entityType, subType, firstRank, lastRank, pagerankRaw) + depthQuery(depth, false));
-        return getResultStream(results);
+        return calculateMeanRelationshipsPR(entityType, subType, firstRank, lastRank, depth);
     }
+
+    private double calculateMeanEntitiesPR(String entityType, String subType, long firstRank, long lastRank, long depth) {
+        Result results = db.execute(filterQuery(entityType, subType, firstRank, lastRank, pagerankRaw) + depthQuery(depth, true));
+        return (double) results.next().values().iterator().next();
+    }
+
+    private double calculateMeanRelationshipsPR(String entityType, String subType, long firstRank, long lastRank, long depth) {
+        Result results = db.execute(filterQuery(entityType, subType, firstRank, lastRank, pagerankRaw) + depthQuery(depth, false));
+        return (double) results.next().values().iterator().next();
+    }
+
+    @Procedure(name = "pagerank.meanEntitiesList")
+    public Stream<Profile.CountRecord> getMeanEntitiesPR(@Name(value = "depth") long depth) {
+        return IntStream.range(1, 10).mapToObj(index -> new Profile.CountRecord(calculateMeanEntitiesPR("ACTOR",
+                "INDIVIDUAL", (index - 1) * 10, index * 10, depth))).collect(Collectors.toList()).stream();
+    }
+
+    @Procedure(name = "pagerank.meanRelationshipsList")
+    public Stream<Profile.CountRecord> getMeanRelationshipsPR(@Name(value = "depth") long depth) {
+        return IntStream.range(1, 10).mapToObj(index -> new Profile.CountRecord(calculateMeanRelationshipsPR("ACTOR",
+                "INDIVIDUAL", (index - 1) * 10, index * 10, depth))).collect(Collectors.toList()).stream();
+    }
+
+    private double calculateMeanEntitiesCL(String entityType, String subType, long firstRank, long lastRank, long depth) {
+        Result results = db.execute(filterQuery(entityType, subType, firstRank, lastRank, "closenessScore") + depthQuery(depth, true));
+        return (double) results.next().values().iterator().next();
+    }
+
+    private double calculateMeanRelationshipsCL(String entityType, String subType, long firstRank, long lastRank, long depth) {
+        Result results = db.execute(filterQuery(entityType, subType, firstRank, lastRank, "closenessScore") + depthQuery(depth, false));
+        return (double) results.next().values().iterator().next();
+    }
+
+    @Procedure(name = "closeness.meanEntitiesList")
+    public Stream<Profile.CountRecord> getMeanEntitiesCL(@Name(value = "depth") long depth) {
+        return IntStream.range(1, 10).mapToObj(index -> new Profile.CountRecord(calculateMeanEntitiesCL("ACTOR",
+                "INDIVIDUAL", (index - 1) * 10, index * 10, depth))).collect(Collectors.toList()).stream();
+    }
+
+    @Procedure(name = "closeness.meanRelationshipsList")
+    public Stream<Profile.CountRecord> getMeanRelationshipsCL(@Name(value = "depth") long depth) {
+        return IntStream.range(1, 10).mapToObj(index -> new Profile.CountRecord(calculateMeanRelationshipsCL("ACTOR",
+                "INDIVIDUAL", (index - 1) * 10, index * 10, depth))).collect(Collectors.toList()).stream();
+    }
+
+    @Procedure(name = "profile.compareMetrics")
+    @Description("Returns comparison of top 100 users of pagerank and closeness metrics")
+    public Stream<ListRecord> compareMetricsAtDepth(@Name(value = "comparate", defaultValue = "ENTITY") String comparate,
+                                                             @Name(value = "depth", defaultValue = "1") long depth) {
+        log.info("Obtaining comparison of pagerank and closeness metrics");
+        if (isRelationship(comparate)) {
+
+        }
+        else if (isEntity(comparate)) {
+
+        }
+        else log.error("Error! Must compare metrics with regard to entities or relationships"); return null;
+    }
+
+    private boolean isRelationship(String comparate) {
+        return "RELATIONSHIP".equals(comparate);
+    }
+
+    private boolean isEntity(String comparate) {
+        return "ENTITY".equals(comparate);
+    }
+
+    public static class ListRecord {
+        public String property;
+        public List<Long> values;
+        public ListRecord(String property, List<Long> values) {
+            this.property = property;
+            this.values = values;
+        }
+    }
+
 
     public static class RecordWrapper {
         public Map<String, Object> results;
