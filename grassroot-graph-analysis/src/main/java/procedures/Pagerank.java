@@ -44,11 +44,11 @@ public class Pagerank {
     @Description("Write raw pagerank for all entities")
     public Stream<RecordWrapper> writeScores() {
         log.info("Writing raw pagerank scores to graph");
-        Result results = db.execute("CALL algo.pageRank( " +
-                " 'MATCH (n) WHERE EXISTS( (n)-[:PARTICIPATES]-() ) RETURN id(n) as id', " +
-                " 'MATCH (n1)-[:PARTICIPATES]->(n2) RETURN id(n1) as source, id(n2) as target UNION " +
-                "  MATCH (n1)-[:PARTICIPATES]->(n2) RETURN id(n2) as source, id(n1) as target', " +
-                " {graph:'cypher', iterations:100, dampingFactor:0.85, write: true, writeProperty:'" + pagerankRaw + "'} " +
+        Result results = db.execute("CALL algo.pageRank(" +
+                " 'MATCH (n) WHERE EXISTS( (n)-[:PARTICIPATES]-() ) RETURN id(n) as id'," +
+                " 'MATCH (n1)-[:PARTICIPATES]->(n2) RETURN id(n1) as source, id(n2) as target UNION" +
+                "  MATCH (n1)-[:PARTICIPATES]->(n2) RETURN id(n2) as source, id(n1) as target'," +
+                " {graph:'cypher', iterations:100, dampingFactor:0.85, write: true, writeProperty:'" + pagerankRaw + "'}" +
                 ") YIELD nodes, loadMillis, computeMillis, writeMillis");
         return getResultStream(results);
     }
@@ -59,11 +59,11 @@ public class Pagerank {
         log.info("Writing normalized pagerank scores to graph");
         if (!typesAreValid(entityType, subType)) return;
         db.execute(getTypeFilter(entityType, subType, pagerankRaw) +
-                " WITH n AS entity, n." + pagerankRaw + " AS " + pagerankRaw + " " +
-                " WITH collect({entity:entity, pageRank:" + pagerankRaw + "}) AS entitiesInfo,  " +
-                " avg(" + pagerankRaw + ") AS average,  " +
-                " stDevP(" + pagerankRaw + ") AS stddev " +
-                " UNWIND entitiesInfo as entityInfo " +
+                " WITH n AS entity, n." + pagerankRaw + " AS " + pagerankRaw +
+                " WITH collect({entity:entity, pageRank:" + pagerankRaw + "}) AS entitiesInfo," +
+                " avg(" + pagerankRaw + ") AS average," +
+                " stDevP(" + pagerankRaw + ") AS stddev" +
+                " UNWIND entitiesInfo as entityInfo" +
                 " SET entityInfo.entity." + pagerankNorm + "=(entityInfo.pageRank-average)/stddev");
     }
 
@@ -78,11 +78,11 @@ public class Pagerank {
         String pagerank = normalized ? pagerankNorm : pagerankRaw;
         if (!paramsAreValid(entityType, subType, firstRank, lastRank, null)) return null;
         Result results = db.execute(filterQuery(entityType, subType, firstRank, lastRank, pagerank) +
-                " WITH min(pagerank) AS minimum,  " +
-                " max(pagerank) AS maximum,  " +
-                " avg(pagerank) AS average, " +
-                " percentileDisc(pagerank, 0.5) AS median, " +
-                " stDevP(pagerank) AS stddev " +
+                " WITH min(pagerank) AS minimum," +
+                " max(pagerank) AS maximum," +
+                " avg(pagerank) AS average," +
+                " percentileDisc(pagerank, 0.5) AS median," +
+                " stDevP(pagerank) AS stddev" +
                 " RETURN minimum, maximum, maximum - minimum AS range, average, median, stddev");
         return getResultStream(results);
     }
@@ -155,10 +155,10 @@ public class Pagerank {
     private String depthQuery(long depth, boolean countingEntities) {
         String connection = (countingEntities ? "e" : "p") + Long.toString(depth);
         String depthMatchingQuery = getDepthMatchingQuery(depth);
-        return  " WITH COLLECT({e:entity}) as entities " +
-                " UNWIND entities AS entity " +
+        return  " WITH COLLECT({e:entity}) as entities" +
+                " UNWIND entities AS entity" +
                 " WITH entity.e as graphEntity " + depthMatchingQuery +
-                " WITH graphEntity, COUNT(DISTINCT " + connection + ") AS connections " +
+                " WITH graphEntity, COUNT(DISTINCT " + connection + ") AS connections" +
                 " RETURN avg(connections) AS connectionCount";
     }
 

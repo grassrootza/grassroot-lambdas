@@ -96,6 +96,11 @@ const paramToArray = (req, paramName) => {
 
 // pagerank
 
+app.get('/pagerank/setup', (req, res) => {
+    console.log("Setting up pagerank procedures");
+    return executeRequest("CALL pagerank.setup()", {}, res);
+})
+
 app.get('/pagerank/write', (req, res) => {
     console.log("Writing raw pagerank to graph");
     return executeRequest("CALL pagerank.write()", {}, res);
@@ -110,29 +115,31 @@ app.get('/pagerank/normalize', (req, res) => {
 
 app.get('/pagerank/stats', (req, res) => {
     console.log("Getting pagerank stats");
-    wrapPagerankReadRequest(req, res, "stats", false, true);
+    wrapPagerankReadRequest(req, res, "stats");
 })
 
 app.get('/pagerank/scores', (req, res) => {
     console.log("Getting pagerank scores");
-    wrapPagerankReadRequest(req, res, "scores", false, true);
+    wrapPagerankReadRequest(req, res, "scores");
 })
 
 app.get('/pagerank/meanEntities', (req, res) => {
     console.log("Getting mean entities reached");
-    wrapPagerankReadRequest(req, res, "meanEntities", true, false);
+    wrapPagerankReadRequest(req, res, "meanEntities");
 })
 
 app.get('/pagerank/meanRelationships', (req, res) => {
     console.log("Getting mean relationships reached");
-    wrapPagerankReadRequest(req, res, "meanRelationships", true, false);
+    wrapPagerankReadRequest(req, res, "meanRelationships");
 })
 
-const wrapPagerankReadRequest = (req, res, procedure, depthRequired, normalizedRequired) => {
+const wrapPagerankReadRequest = (req, res, procedure) => {
     console.log("Building request with procedure: ", procedure);
 
-    let query = "CALL pagerank." + procedure + "($entity_type, $sub_type, toInteger($upper_bound), " +
-    "toInteger($lower_bound)" + (normalizedRequired ? ", toBoolean($normalized)" : "") + (depthRequired ? ", toInteger($depth))" : ")");
+    let normParam = procedureNeedsNorm(procedure) ? ", toBoolean($normalized)" : "";
+    let depthParam = procedureNeedsDepth(procedure) ? ", toInteger($depth))" : "";
+    let query = "CALL pagerank." + procedure + "($entity_type, $sub_type, toInteger($first_rank), " +
+                "toInteger($last_rank)" + normParam + depthParam + ")";
 
     let params = buildPagerankParams(req);
     if (depthRequired) params.depth = req.query.depth;
@@ -145,9 +152,17 @@ const buildPagerankParams = (req) => {
     return {
         entity_type: req.query.entity_type,
         sub_type: req.query.sub_type,
-        upper_bound: req.query.upper_bound,
-        lower_bound: req.query.lower_bound,
+        first_rank: req.query.first_rank,
+        last_rank: req.query.last_rank,
     };
+}
+
+const procedureNeedsNorm = (procedure) => {
+    return procedure == "stats" || procedure == "scores";
+}
+
+const procedureNeedsDepth = (procedure) => {
+    return procedure == "meanEntities" || procedure == "meanRelationships";
 }
 
 app.listen(3000, () => console.log(`Listening on port 3000`));
