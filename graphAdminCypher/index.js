@@ -36,19 +36,19 @@ const executeRequest = (query, params, res) => {
 
 app.get('/profile/counts', (req, res) => {
     console.log('Getting entity and relationship counts');
-    executeRequest("CALL profile.counts()", {}, res);
+    executeRequest("RETURN profile.counts()", {}, res);
 })
 
 app.get('/profile/group/membership', (req, res) => {
     console.log('Getting group membership counts');
-    let query = "CALL profile.groupMemberships(toInteger($first_rank), toInteger($last_rank))";
+    let query = "RETURN profile.groupMemberships(toInteger($first_rank), toInteger($last_rank))";
     let params = { first_rank: req.query.first_rank, last_rank: req.query.last_rank };
     executeRequest(query, params, res);
 })
 
 app.get('/profile/user/participation', (req, res) => {
     console.log('Getting user participation counts');
-    let query = "CALL profile.userParticipations(toInteger($first_rank), toInteger($last_rank))";
+    let query = "RETURN profile.userParticipations(toInteger($first_rank), toInteger($last_rank))";
     let params = { first_rank: req.query.first_rank, last_rank: req.query.last_rank };
     executeRequest(query, params, res);
 })
@@ -136,17 +136,17 @@ app.get('/pagerank/normalize', (req, res) => {
 
 app.get('/pagerank/stats', (req, res) => {
     console.log("Getting pagerank stats");
-    wrapPagerankReadRequest(req, res, "stats", true);
+    wrapPagerankReadRequest(req, res, "stats", false);
 })
 
 app.get('/pagerank/scores', (req, res) => {
     console.log("Getting pagerank scores");
-    wrapPagerankReadRequest(req, res, "scores", true);
+    wrapPagerankReadRequest(req, res, "scores", false);
 })
 
 app.get('/pagerank/tiers', (req, res) => {
     console.log("Getting pagerank scores");
-    return executeRequest("CALL pagerank.tiers()", {}, res);
+    return executeRequest("RETURN pagerank.tiers()", {}, res);
 })
 
 app.get('/pagerank/meanEntities', (req, res) => {
