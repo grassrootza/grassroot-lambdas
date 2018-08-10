@@ -19,9 +19,10 @@ chargebeeIntegration/**
 **/claudia.json
 **/package-lock.json
 
-# Out and build from Java
+# Out and build from Java, now also Maven
 **/out
 **/build
+**/target
 
 # Compiled class file
 *.class
