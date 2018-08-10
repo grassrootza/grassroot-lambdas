@@ -8,6 +8,7 @@ import org.neo4j.graphdb.Result;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.AbstractMap.SimpleEntry;
 
 import static extensions.ExtensionUtils.*;
 
@@ -61,7 +62,7 @@ public class Pagerank {
 
     @UserFunction(name = "pagerank.stats")
     @Description("Return pagerank statistics")
-    public Map<String, Double> getStats(@Name(value = "entityType", defaultValue = "") String entityType,
+    public Map<String, Object> getStats(@Name(value = "entityType", defaultValue = "") String entityType,
                                         @Name(value = "subType", defaultValue = "") String subType,
                                         @Name(value = "firstRank", defaultValue = "0") long firstRank,
                                         @Name(value = "lastRank", defaultValue = "0") long lastRank,
@@ -69,7 +70,6 @@ public class Pagerank {
         log.info("Calculating pagerank statistics");
         String pagerank = normalized ? pagerankNorm : pagerankRaw;
         if (!paramsAreValid(entityType, subType, firstRank, lastRank, null)) return null;
-        Map<String, Double> statsMap = new HashMap<>();
         Result stats = db.execute(filterQuery(entityType, subType, firstRank, lastRank, pagerank) +
                 " WITH min(pagerank) AS minimum," +
                 " max(pagerank) AS maximum," +
@@ -77,14 +77,12 @@ public class Pagerank {
                 " percentileDisc(pagerank, 0.5) AS median," +
                 " stDevP(pagerank) AS stddev" +
                 " RETURN minimum, maximum, maximum - minimum AS range, average, median, stddev");
-        Map<String, Object> statsResults = stats.next();
-        stats.columns().forEach(stat -> statsMap.put(stat, (double) statsResults.get(stat)));
-        return statsMap;
+        return stats.hasNext() ? stats.next() : null;
     }
 
     @UserFunction(name = "pagerank.scores")
     @Description("Return entities in rank range")
-    public List<Double> getScores(@Name(value = "entityType", defaultValue = "") String entityType,
+    public List<Object> getScores(@Name(value = "entityType", defaultValue = "") String entityType,
                                   @Name(value = "subType", defaultValue = "") String subType,
                                   @Name(value = "firstRank", defaultValue = "0") long firstRank,
                                   @Name(value = "lastRank", defaultValue = "0") long lastRank,
@@ -92,28 +90,24 @@ public class Pagerank {
         log.info("Obtaining pagerank scores");
         String pagerank = normalized ? pagerankNorm : pagerankRaw;
         if (!paramsAreValid(entityType, subType, firstRank, lastRank, null)) return null;
-        List<Double> scoreList = new ArrayList<>();
         Result scores = db.execute(filterQuery(entityType, subType, firstRank, lastRank, pagerank) + " RETURN pagerank");
-        scores.forEachRemaining(score -> scoreList.add((double) score.get("pagerank")));
-        return scoreList;
+        return scores.hasNext() ? resultToList(scores, "pagerank") : null;
     }
 
     @UserFunction(name = "pagerank.tiers")
     @Description("Return counts of users in pagerank tiers as determined by pagerank scores")
-    public Map<String, Long> getTiers() {
+    public Map<Object, Object> getTiers() {
         log.info("Getting user counts in three pagerank tiers");
-        Map<String, Long> tiers = new HashMap<>();
         Result tierCounts = db.execute("" +
                 " MATCH (n:Actor) WHERE n.actorType='INDIVIDUAL' AND n.pagerankNorm > 10.0 RETURN 'TIER1' AS tier, COUNT(n) AS count" +
                 " UNION MATCH (n:Actor) WHERE n.actorType='INDIVIDUAL' AND n.pagerankNorm > 3.0 AND n.pagerankNorm < 10.0 RETURN 'TIER2' AS tier, COUNT(n) AS count" +
                 " UNION MATCH (n:Actor) WHERE n.actorType='INDIVIDUAL' AND n.pagerankNorm < 3.0 RETURN 'TIER3' AS tier, COUNT(n) AS count");
-        tierCounts.forEachRemaining(tierCount -> tiers.put((String) tierCount.get("tier"), (long) tierCount.get("count")));
-        return tiers;
+        return tierCounts.hasNext() ? resultToMap(tierCounts, "tier", "count") : null;
     }
 
     @UserFunction(name = "pagerank.meanEntities")
     @Description("Calculate mean entities reached at depth 1, 2, or 3")
-    public Double getMeanEntitiesAtDepth(@Name(value = "entityType") String entityType, @Name(value = "subType") String subType,
+    public Object getMeanEntitiesAtDepth(@Name(value = "entityType") String entityType, @Name(value = "subType") String subType,
                                          @Name(value = "firstRank") long firstRank, @Name(value = "lastRank") long lastRank,
                                          @Name(value = "depth") long depth) {
         log.info("Getting mean entities reached at depth {}", depth);
@@ -123,7 +117,7 @@ public class Pagerank {
 
     @UserFunction(name = "pagerank.meanRelationships")
     @Description("Calculate mean relationships at depth 1, 2, or 3")
-    public Double getMeanRelationshipsAtDepth(@Name(value = "entityType") String entityType, @Name(value = "subType") String subType,
+    public Object getMeanRelationshipsAtDepth(@Name(value = "entityType") String entityType, @Name(value = "subType") String subType,
                                               @Name(value = "firstRank") long firstRank, @Name(value = "lastRank") long lastRank,
                                               @Name(value = "depth") long depth) {
         log.info("Getting mean relationships reached at depth {}", depth);
@@ -133,35 +127,35 @@ public class Pagerank {
 
     @UserFunction(name = "pagerank.compareMetrics")
     @Description("Returns comparison of top 100 users of pagerank and closeness metrics")
-    public Map<String, List<Double>> compareMetricsAtDepth(@Name(value = "toCompare", defaultValue = "ENTITY") String toCompare,
-                                                           @Name(value = "depth", defaultValue = "1") long depth) {
-        log.info("Obtaining comparison of pagerank and closeness metrics");
+    public Map<String, Object> compareMetricsAtDepth(@Name(value = "toCompare", defaultValue = "ENTITY") String toCompare,
+                                                     @Name(value = "depth", defaultValue = "1") long depth) {
+        log.info("Obtaining comparison of top 100 users by pagerank and closeness");
         if (!isEntity(toCompare) && !isRelationship(toCompare)) return null;
         List<String> metrics = Arrays.asList(pagerankRaw, "closenessScore");
-        Map<String, List<Double>> top100ConnectionCounts = new HashMap<>();
-        if (isEntity(toCompare)) metrics.forEach(metric -> top100ConnectionCounts.put(metric, getMeanEntities(metric, depth)));
-        else metrics.forEach(metric -> top100ConnectionCounts.put(metric, getMeanRelationships(metric, depth)));
-        return top100ConnectionCounts;
+        if (isEntity(toCompare)) return metrics.stream().map(metric -> new SimpleEntry<>
+                (metric, getMeanEntities(metric, depth))).collect(Collectors.toMap(SimpleEntry::getKey, SimpleEntry::getValue));
+        else return metrics.stream().map(metric -> new SimpleEntry<>
+                (metric, getMeanRelationships(metric, depth))).collect(Collectors.toMap(SimpleEntry::getKey, SimpleEntry::getValue));
     }
 
-    private List<Double> getMeanEntities(String metric, long depth) {
-        return IntStream.range(1, 10).mapToDouble(index -> calculateMeanEntities(metric,"ACTOR", "INDIVIDUAL",
-                (index - 1) * 10, index * 10, depth)).boxed().collect(Collectors.toList());
+    private List<Object> getMeanEntities(String metric, long depth) {
+        return IntStream.range(1, 10).mapToObj(index -> calculateMeanEntities(metric,"ACTOR", "INDIVIDUAL",
+                (index - 1) * 10, index * 10, depth)).collect(Collectors.toList());
     }
 
-    private List<Double> getMeanRelationships(String metric, long depth) {
-        return IntStream.range(1, 10).mapToDouble(index -> calculateMeanRelationships(metric,"ACTOR", "INDIVIDUAL",
-                (index - 1) * 10, index * 10, depth)).boxed().collect(Collectors.toList());
+    private List<Object> getMeanRelationships(String metric, long depth) {
+        return IntStream.range(1, 10).mapToObj(index -> calculateMeanRelationships(metric,"ACTOR", "INDIVIDUAL",
+                (index - 1) * 10, index * 10, depth)).collect(Collectors.toList());
     }
 
-    private double calculateMeanEntities(String metric, String entityType, String subType, long firstRank, long lastRank, long depth) {
+    private Object calculateMeanEntities(String metric, String entityType, String subType, long firstRank, long lastRank, long depth) {
         Result results = db.execute(filterQuery(entityType, subType, firstRank, lastRank, metric) + depthQuery(depth, true));
-        return (double) results.next().values().iterator().next();
+        return resultToSingleValue(results);
     }
 
-    private double calculateMeanRelationships(String metric, String entityType, String subType, long firstRank, long lastRank, long depth) {
+    private Object calculateMeanRelationships(String metric, String entityType, String subType, long firstRank, long lastRank, long depth) {
         Result results = db.execute(filterQuery(entityType, subType, firstRank, lastRank, metric) + depthQuery(depth, false));
-        return (double) results.next().values().iterator().next();
+        return resultToSingleValue(results);
     }
 
     private String filterQuery(String entityType, String subType, long firstRank, long lastRank, String pagerank) {
@@ -171,6 +165,25 @@ public class Pagerank {
                 " ORDER BY pagerank DESC" +
                 " SKIP " + Long.toString(firstRank) +
                 " LIMIT " + Long.toString(getLimit(firstRank, lastRank, typeFilter));
+    }
+
+    private String depthQuery(long depth, boolean countingEntities) {
+        String connection = (countingEntities ? "e" : "p") + Long.toString(depth);
+        String depthMatchingQuery = getDepthMatchingQuery(depth);
+        return  " WITH COLLECT({e:entity}) as entities" +
+                " UNWIND entities AS entity" +
+                " WITH entity.e as graphEntity " + depthMatchingQuery +
+                " WITH graphEntity, COUNT(DISTINCT " + connection + ") AS connections" +
+                " RETURN avg(connections) AS connectionCount";
+    }
+
+    private String writeClosenessQuery() {
+        return  " CALL algo.closeness.harmonic(" +
+                " 'MATCH (n) WHERE exists( (n)-[:PARTICIPATES]-() ) RETURN id(n) as id'," +
+                " 'MATCH (n1)-[:PARTICIPATES]->(n2) RETURN id(n1) as source, id(n2) as target UNION" +
+                "  MATCH (n1)-[:PARTICIPATES]->(n2) RETURN id(n2) as source, id(n1) as target'," +
+                " {graph:'cypher', write: true, writeProperty:'closenessScore'}" +
+                ")";
     }
 
     private String getTypeFilter(String entityType, String subType, String pagerank) {
@@ -189,16 +202,6 @@ public class Pagerank {
         return lastRank - firstRank;
     }
 
-    private String depthQuery(long depth, boolean countingEntities) {
-        String connection = (countingEntities ? "e" : "p") + Long.toString(depth);
-        String depthMatchingQuery = getDepthMatchingQuery(depth);
-        return  " WITH COLLECT({e:entity}) as entities" +
-                " UNWIND entities AS entity" +
-                " WITH entity.e as graphEntity " + depthMatchingQuery +
-                " WITH graphEntity, COUNT(DISTINCT " + connection + ") AS connections" +
-                " RETURN avg(connections) AS connectionCount";
-    }
-
     private String getDepthMatchingQuery(long depth) {
         switch ((int) depth) {
             case 1: return "MATCH (graphEntity)-[p1:PARTICIPATES]-(e1)";
@@ -211,15 +214,6 @@ public class Pagerank {
     private boolean paramsAreValid(String entityType, String subType, Long firstRank, Long lastRank, Long depth) {
         if (typesAreValid(entityType, subType) && boundsAreValid(firstRank, lastRank) && depthIsValid(depth)) return true;
         log.error("Error! Invalid parameters"); return false;
-    }
-
-    private String writeClosenessQuery() {
-        return  " CALL algo.closeness.harmonic(" +
-                " 'MATCH (n) WHERE exists( (n)-[:PARTICIPATES]-() ) RETURN id(n) as id'," +
-                " 'MATCH (n1)-[:PARTICIPATES]->(n2) RETURN id(n1) as source, id(n2) as target UNION" +
-                "  MATCH (n1)-[:PARTICIPATES]->(n2) RETURN id(n2) as source, id(n1) as target'," +
-                " {graph:'cypher', write: true, writeProperty:'closenessScore'}" +
-                ")";
     }
 
 }
