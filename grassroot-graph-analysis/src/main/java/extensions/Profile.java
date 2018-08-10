@@ -28,7 +28,7 @@ public class Profile {
     public List<Object> getGroupsByMembership(@Name(value = "firstRank", defaultValue = "0") long firstRank,
                                               @Name(value = "lastRank", defaultValue = "100") long lastRank) {
         log.info("Obtaining membership counts of groups in range {} - {}", firstRank, lastRank);
-        if (!boundsAreValid(firstRank, lastRank)) return null;
+        if (!rangeIsValid(firstRank, lastRank)) return null;
         Result membershipCounts = db.execute("" +
                 " MATCH (i:Actor)-[:PARTICIPATES]->(g:Actor)" +
                 " WHERE i.actorType='INDIVIDUAL' AND g.actorType='GROUP'" +
@@ -44,7 +44,7 @@ public class Profile {
     public List<Object> getUsersByParticipation(@Name(value = "firstRank", defaultValue = "0") long firstRank,
                                                 @Name(value = "lastRank", defaultValue = "100") long lastRank) {
         log.info("Obtaining participation counts of users in range {} - {}", firstRank, lastRank);
-        if (!boundsAreValid(firstRank, lastRank)) return null;
+        if (!rangeIsValid(firstRank, lastRank)) return null;
         Result participationCounts = db.execute("" +
                 " MATCH (i:Actor)-[:PARTICIPATES]->(entity)" +
                 " WHERE i.actorType='INDIVIDUAL'" +
@@ -75,14 +75,6 @@ public class Profile {
                 " UNION MATCH ()-[g:GENERATOR]->(:Actor) RETURN 'ACTORS-GENERATED' AS type, COUNT(g) AS count" +
                 " UNION MATCH ()-[g:GENERATOR]->(:Event) RETURN 'EVENTS-GENERATED' AS type, COUNT(g) AS count");
         return resultToMap(relationshipCounts, "type", "count");
-    }
-
-    private boolean boundsAreValid(Long firstRank, Long lastRank) {
-        if (lastRank <= firstRank) {
-            log.error("Error! Last rank must be lower than first rank");
-            return false;
-        }
-        return true;
     }
 
 }

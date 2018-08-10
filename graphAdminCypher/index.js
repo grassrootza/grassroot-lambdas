@@ -160,23 +160,21 @@ app.get('/pagerank/meanRelationships', (req, res) => {
 })
 
 app.get('/pagerank/compareMetrics', (req, res) => {
-    console.log('Comparing top 100 users by pagerank and closeness');
-    let query = "RETURN pagerank.compareMetrics($to_compare, toInteger($depth))";
-    let params = { to_compare: req.query.to_compare, depth: req.query.depth };
-    executeRequest(query, params, res);
+    console.log('Comparing pagerank and closeness metrics');
+    wrapPagerankReadRequest(req, res, "compareMetrics", false);
 })
 
 const wrapPagerankReadRequest = (req, res, extension, procedure) => {
     console.log("Building request with procedure: ", procedure);
 
-    let normParam = procedureNeedsNorm(extension) ? ", toBoolean($normalized)" : "";
+    let boolParam = procedureNeedsBool(extension) ? ", toBoolean($bool)" : "";
     let depthParam = procedureNeedsDepth(extension) ? ", toInteger($depth)" : "";
     let query = (procedure ? "CALL" : "RETURN") + " pagerank." + extension + "($entity_type, $sub_type, " +
-                "toInteger($first_rank), toInteger($last_rank)" + normParam + depthParam + ")";
+                "toInteger($first_rank), toInteger($last_rank)" + boolParam + depthParam + ")";
 
     let params = buildPagerankParams(req);
+    if (procedureNeedsBool(extension)) params.bool = req.query.bool;
     if (procedureNeedsDepth(extension)) params.depth = req.query.depth;
-    if (procedureNeedsNorm(extension)) params.normalized = req.query.normalized;
 
     executeRequest(query, params, res);
 }
@@ -190,12 +188,12 @@ const buildPagerankParams = (req) => {
     };
 }
 
-const procedureNeedsNorm = (procedure) => {
-    return procedure == "stats" || procedure == "scores";
+const procedureNeedsBool = (procedure) => {
+    return procedure == "stats" || procedure == "scores" || procedure == "compareMetrics";
 }
 
 const procedureNeedsDepth = (procedure) => {
-    return procedure == "meanEntities" || procedure == "meanRelationships";
+    return procedure == "meanEntities" || procedure == "meanRelationships" || procedure == "compareMetrics";
 }
 
 app.listen(3000, () => console.log(`Listening on port 3000`));

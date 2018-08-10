@@ -44,8 +44,8 @@ public class ExtensionUtils {
                 ("MEETING".equals(subType) || "VOTE".equals(subType) || "TODO".equals(subType) || subType.isEmpty());
     }
 
-    public static boolean boundsAreValid(Long firstRank, Long lastRank) {
-        return (firstRank == null && lastRank == null) || lastRank == 0 || lastRank > firstRank;
+    public static boolean rangeIsValid(Long firstRank, Long lastRank) {
+        return lastRank > firstRank;
     }
 
     public static boolean depthIsValid(Long depth) {

@@ -61,7 +61,7 @@ Usage: pagerank.meanRelationships(entityType, subType, firstRank, lastRank, dept
 #### 9. CompareMetrics
 Function - Returns mean entities or mean relationships at depth specified in intervals of 10 for the top x users by pagerank and closeness metrics.
 
-Usage: pagerank.compareMetrics(toCompare, depth)
+Usage: pagerank.compareMetrics(entityType, subType, firstRank, lastRank, entityOrRelationship, depth)
 
 ### Profiling
 

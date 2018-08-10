@@ -8,7 +8,6 @@ import org.neo4j.graphdb.Result;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import java.util.AbstractMap.SimpleEntry;
 
 import static extensions.ExtensionUtils.*;
 
@@ -16,6 +15,7 @@ public class Pagerank {
 
     private static final String pagerankRaw = "pagerankRaw";
     private static final String pagerankNorm = "pagerankNorm";
+    private static final String closenessRaw = "closenessRaw";
 
     @Context public GraphDatabaseService db;
 
@@ -37,7 +37,7 @@ public class Pagerank {
     @Procedure(name = "pagerank.write", mode = Mode.WRITE)
     @Description("Write raw pagerank for all entities")
     public void writePagerank() {
-        log.info("Writing raw pagerank scores to graph");
+        log.info("Writing raw pagerank");
         db.execute("CALL algo.pageRank(" +
                 " 'MATCH (n) WHERE EXISTS( (n)-[:PARTICIPATES]-() ) RETURN id(n) as id'," +
                 " 'MATCH (n1)-[:PARTICIPATES]->(n2) RETURN id(n1) as source, id(n2) as target UNION" +
@@ -49,7 +49,7 @@ public class Pagerank {
     @Procedure(name = "pagerank.normalize", mode = Mode.WRITE)
     @Description("Write normalized pagerank for specified entities")
     public void normalizeScores(@Name(value = "entityType") String entityType, @Name(value = "subType") String subType) {
-        log.info("Writing normalized pagerank scores to graph");
+        log.info("Writing normalized pagerank, type:" + entityType + ", sub-type:" + subType);
         if (!typesAreValid(entityType, subType)) return;
         db.execute(getTypeFilter(entityType, subType, pagerankRaw) +
                 " WITH n AS entity, n." + pagerankRaw + " AS " + pagerankRaw +
@@ -67,9 +67,9 @@ public class Pagerank {
                                         @Name(value = "firstRank", defaultValue = "0") long firstRank,
                                         @Name(value = "lastRank", defaultValue = "0") long lastRank,
                                         @Name(value = "normalized", defaultValue = "false") boolean normalized) {
-        log.info("Calculating pagerank statistics");
+        log.info("Getting pagerank statistics, type:" + entityType + ", sub-type:" + subType);
         String pagerank = normalized ? pagerankNorm : pagerankRaw;
-        if (!paramsAreValid(entityType, subType, firstRank, lastRank, null)) return null;
+        if (!typesAreValid(entityType, subType) || !rangeIsValid(firstRank, lastRank)) return null;
         Result stats = db.execute(filterQuery(entityType, subType, firstRank, lastRank, pagerank) +
                 " WITH min(pagerank) AS minimum," +
                 " max(pagerank) AS maximum," +
@@ -87,17 +87,17 @@ public class Pagerank {
                                   @Name(value = "firstRank", defaultValue = "0") long firstRank,
                                   @Name(value = "lastRank", defaultValue = "0") long lastRank,
                                   @Name(value = "normalized", defaultValue = "false") boolean normalized) {
-        log.info("Obtaining pagerank scores");
+        log.info("Getting pagerank scores, type:" + entityType + ", sub-type:" + subType);
         String pagerank = normalized ? pagerankNorm : pagerankRaw;
-        if (!paramsAreValid(entityType, subType, firstRank, lastRank, null)) return null;
+        if (!typesAreValid(entityType, subType) || !rangeIsValid(firstRank, lastRank)) return null;
         Result scores = db.execute(filterQuery(entityType, subType, firstRank, lastRank, pagerank) + " RETURN pagerank");
         return scores.hasNext() ? resultToList(scores, "pagerank") : null;
     }
 
     @UserFunction(name = "pagerank.tiers")
-    @Description("Return counts of users in pagerank tiers as determined by pagerank scores")
+    @Description("Return counts of users in three pagerank tiers")
     public Map<Object, Object> getTiers() {
-        log.info("Getting user counts in three pagerank tiers");
+        log.info("Getting tier counts");
         Result tierCounts = db.execute("" +
                 " MATCH (n:Actor) WHERE n.actorType='INDIVIDUAL' AND n.pagerankNorm > 10.0 RETURN 'TIER1' AS tier, COUNT(n) AS count" +
                 " UNION MATCH (n:Actor) WHERE n.actorType='INDIVIDUAL' AND n.pagerankNorm > 3.0 AND n.pagerankNorm < 10.0 RETURN 'TIER2' AS tier, COUNT(n) AS count" +
@@ -110,8 +110,8 @@ public class Pagerank {
     public Object getMeanEntitiesAtDepth(@Name(value = "entityType") String entityType, @Name(value = "subType") String subType,
                                          @Name(value = "firstRank") long firstRank, @Name(value = "lastRank") long lastRank,
                                          @Name(value = "depth") long depth) {
-        log.info("Getting mean entities reached at depth {}", depth);
-        if (!paramsAreValid(entityType, subType, firstRank, lastRank, depth)) return null;
+        log.info("Getting mean entities, depth: " + Long.toString(depth));
+        if (!typesAreValid(entityType, subType) || !rangeIsValid(firstRank, lastRank) || !depthIsValid(depth)) return null;
         return calculateMeanEntities(pagerankRaw, entityType, subType, firstRank, lastRank, depth);
     }
 
@@ -120,31 +120,38 @@ public class Pagerank {
     public Object getMeanRelationshipsAtDepth(@Name(value = "entityType") String entityType, @Name(value = "subType") String subType,
                                               @Name(value = "firstRank") long firstRank, @Name(value = "lastRank") long lastRank,
                                               @Name(value = "depth") long depth) {
-        log.info("Getting mean relationships reached at depth {}", depth);
-        if (!paramsAreValid(entityType, subType, firstRank, lastRank, depth)) return null;
+        log.info("Getting mean relationships, depth: " + Long.toString(depth));
+        if (!typesAreValid(entityType, subType) || !rangeIsValid(firstRank, lastRank) || !depthIsValid(depth)) return null;
         return calculateMeanRelationships(pagerankRaw, entityType, subType, firstRank, lastRank, depth);
     }
 
     @UserFunction(name = "pagerank.compareMetrics")
     @Description("Returns comparison of top 100 users of pagerank and closeness metrics")
-    public Map<String, Object> compareMetricsAtDepth(@Name(value = "toCompare", defaultValue = "ENTITY") String toCompare,
-                                                     @Name(value = "depth", defaultValue = "1") long depth) {
-        log.info("Obtaining comparison of top 100 users by pagerank and closeness");
-        if (!isEntity(toCompare) && !isRelationship(toCompare)) return null;
-        List<String> metrics = Arrays.asList(pagerankRaw, "closenessScore");
-        if (isEntity(toCompare)) return metrics.stream().map(metric -> new SimpleEntry<>
-                (metric, getMeanEntities(metric, depth))).collect(Collectors.toMap(SimpleEntry::getKey, SimpleEntry::getValue));
-        else return metrics.stream().map(metric -> new SimpleEntry<>
-                (metric, getMeanRelationships(metric, depth))).collect(Collectors.toMap(SimpleEntry::getKey, SimpleEntry::getValue));
+    public Map<String, List<Object>> compareMetricsAtDepth(@Name(value = "entityType") String entityType, @Name(value = "subType") String subType,
+                                                           @Name(value = "firstRank") long firstRank, @Name(value = "lastRank") long lastRank,
+                                                           @Name(value = "entity", defaultValue = "true") boolean entity,
+                                                           @Name(value = "depth", defaultValue = "1") long depth) {
+        log.info("Comparing metrics, depth: " + Long.toString(depth));
+        if (!rangeIsValid(firstRank, lastRank) || !depthIsValid(depth)) return null;
+        Map<String, List<Object>> connectionCounts = new HashMap<>();
+        connectionCounts.put("pagerank", entity ? getMeanEntities(pagerankRaw, entityType, subType, firstRank, lastRank, depth) :
+                getMeanRelationships(pagerankRaw, entityType, subType, firstRank, lastRank, depth));
+        connectionCounts.put("closeness", entity ? getMeanEntities(closenessRaw, entityType, subType, firstRank, lastRank, depth) :
+                getMeanRelationships(closenessRaw, entityType, subType, firstRank, lastRank, depth));
+        return connectionCounts;
     }
 
-    private List<Object> getMeanEntities(String metric, long depth) {
-        return IntStream.range(1, 10).mapToObj(index -> calculateMeanEntities(metric,"ACTOR", "INDIVIDUAL",
+    private List<Object> getMeanEntities(String metric, String entityType, String subType, long firstRank, long lastRank, long depth) {
+        int startIndex = firstRank < 10 ? 1 : (int) firstRank / 10;
+        int endIndex = lastRank < 10 ? 1 : (int) lastRank / 10;
+        return IntStream.range(startIndex, endIndex).mapToObj(index -> calculateMeanEntities(metric, entityType, subType,
                 (index - 1) * 10, index * 10, depth)).collect(Collectors.toList());
     }
 
-    private List<Object> getMeanRelationships(String metric, long depth) {
-        return IntStream.range(1, 10).mapToObj(index -> calculateMeanRelationships(metric,"ACTOR", "INDIVIDUAL",
+    private List<Object> getMeanRelationships(String metric, String entityType, String subType, long firstRank, long lastRank, long depth) {
+        int startIndex = firstRank < 10 ? 1 : (int) firstRank / 10;
+        int endIndex = lastRank < 10 ? 1 : (int) lastRank / 10;
+        return IntStream.range(startIndex, endIndex).mapToObj(index -> calculateMeanRelationships(metric, entityType, subType,
                 (index - 1) * 10, index * 10, depth)).collect(Collectors.toList());
     }
 
@@ -182,7 +189,7 @@ public class Pagerank {
                 " 'MATCH (n) WHERE exists( (n)-[:PARTICIPATES]-() ) RETURN id(n) as id'," +
                 " 'MATCH (n1)-[:PARTICIPATES]->(n2) RETURN id(n1) as source, id(n2) as target UNION" +
                 "  MATCH (n1)-[:PARTICIPATES]->(n2) RETURN id(n2) as source, id(n1) as target'," +
-                " {graph:'cypher', write: true, writeProperty:'closenessScore'}" +
+                " {graph:'cypher', write: true, writeProperty:'" + closenessRaw + "'}" +
                 ")";
     }
 
@@ -211,9 +218,8 @@ public class Pagerank {
         }
     }
 
-    private boolean paramsAreValid(String entityType, String subType, Long firstRank, Long lastRank, Long depth) {
-        if (typesAreValid(entityType, subType) && boundsAreValid(firstRank, lastRank) && depthIsValid(depth)) return true;
-        log.error("Error! Invalid parameters"); return false;
+    private boolean rangeIsValid(Long firstRank, Long lastRank) {
+        return lastRank == 0 || ExtensionUtils.rangeIsValid(firstRank, lastRank);
     }
 
 }
