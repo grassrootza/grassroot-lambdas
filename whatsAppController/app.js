@@ -1,27 +1,28 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 
-const RESPONSE_CONTENT_TYPE = 'text/xml';
+const config = require('config');
+
 const MessagingResponse = require('twilio').twiml.MessagingResponse;
 
 const request = require('request-promise');
-const NLU_URL = 'http://learning-staging.eu-west-1.elasticbeanstalk.com/parse';
+
+const AUTH_TOKEN = 'insert_here_when_have_it';
 
 const AWS = require('aws-sdk');
-
-const conversation = require('./conversation-en.json'); // in time maybe switch to reading this from S3 ...?
-
-const CUTOFF_CONVERSATION_LENGTH = 1; // in hours; in production, will adjust to 3, leaving 1 here for easier testing
-const START_WORD = /start/i; // in case conversation 'finished', but want to re-initiate
-
 AWS.config.update({
     region: 'eu-west-1',
 });
+
+const conversation = require('./conversation-en.json'); // in time maybe switch to reading this from S3 ...?
+const START_WORD = new RegExp(config.get('conversation.startWordRegex')); // in case conversation 'finished', but want to re-initiate
 
 const app = express();
 app.use(bodyParser.urlencoded({extended: false}));
 
 const docClient = new AWS.DynamoDB.DocumentClient();
+
+const tasks = require('./tasks.js');
 
 app.post('/inbound', async (req, res, next) => {
     try {
@@ -46,17 +47,17 @@ app.post('/inbound', async (req, res, next) => {
             
             console.timeEnd('full_path');
 
-            res.writeHead(200, {'Content-Type': RESPONSE_CONTENT_TYPE});
+            res.writeHead(200, {'Content-Type': config.get('response.contentType')});
             res.end(response.body);
         } else {
-            res.writeHead(200, {'Content-Type': RESPONSE_CONTENT_TYPE});
+            res.writeHead(200, {'Content-Type': config.get('response.contentType')});
             res.end(emptyMsgBody());
         }
     } catch (e) {
         console.log('Error: ', e); // todo: stick in a DLQ, or report some other way
         console.log('Gracefully exiting ...');
         const response = await assembleErrorMsg('server');
-        res.writeHead(200, {'Content-Type': RESPONSE_CONTENT_TYPE});
+        res.writeHead(200, {'Content-Type': config.get('response.contentType')});
         console.log('should return: ', response);
         res.end(response.body);
     }
@@ -101,12 +102,12 @@ interpretMessage = (message_text, conversation_id) => {
 // (a) Did we just sent the user a message, including from the server? If so, what was it / what is the current context?
 // ** Branch 1 : Check if prior message was a task notification. If so, test for affirm/deny, or a vote option. If can't
 // ** understand, then prompt for further undersdaning of that option
-// ** Branch 2 : Check if prior message had an entity_completion context attached to it. If so, check for negation intent, if not present,
-// ** check for high confidence on any other intent, if not present, fill slot and continue
+// ** Branch 2 : Check if prior message had a choose_action context attached to it. If so, check for negation intent, or back up intent.
+// ** if not present, then look for next action, and return relevant response
 // ** Branch 3 : Check if prior messages had a confirm_intent context attached to it. If so, check for affirmation/negation, and take
 // ** appropriate next order action. 
-// ** Branch 4 : Check if prior message had a choose_action context attached to it. If so, check for negation intent, or back up intent.
-// ** if not present, then look for next action, and return relevant response
+// ** Branch 4 : Check if prior message had an entity_completion context attached to it. If so, check for negation intent, if not present,
+// ** check for high confidence on any other intent, if not present, fill slot and continue
 // ** Branch 5 : We have completed an entity completion or we have reached the end of an action tree. Call one of the mapped services
 // ** and then present a confirmation, and/or the relevant information, to the user
 // ** Branch 6 : We just finished a flow, and the user is saying thanks, or similar. Don't respond, but mark last outbound as responded
@@ -122,21 +123,52 @@ const getMessageReply = async (content, prior) => {
     console.time('nlu_call');
     const rawResponse = await interpretMessage(content.message, prior ? prior.conversationId : '');
     const nluResponse = transformNluResponse(rawResponse);
-    console.log('transformed: ', nluResponse);
     console.timeEnd('nlu_call');
-    
-    // if (prior) {
-    //     console.log('Have prior message: ', prior);
-    //     return continueConversation(content, prior);
-    if (nluResponse && nluResponse.confidence && nluResponse.confidence > 0.5) {
-        return handleIntent(nluResponse);
-    } else {
+
+    if (!prior) {
+        console.log('No prior message to user, just return based on NLU understanding');
         return handleNewConversation(nluResponse);
     }
+
+    const context = prior.context;
+    const priorType = prior.type;
+    
+    console.log(`Handling message flow, prior context: ${context}, prior type: ${priorType}`);
+
+    if (priorType.startsWith('outbound') && context.startsWith('task')) {
+        // branch 1: handle reply to outbound task, first look at task, and go from there
+        const taskType = context.substring('outbound::task::'.length);
+        console.log('task type of prior outbound: ', taskType);
+        if (nluResponse.intent == 'affirm') {
+            tasks.respondToTask();
+        } else if (nluResponse.intent == 'negate') {
+            tasks.respondToTask();
+        } else {
+            // probably want this customized in some way
+            return assembleErrorMsg('general');
+        }
+    } else if (priorType.startsWith('choose_action')) {
+        // branch 2 : we were picking actions from a menu, so just advance
+        return advanceViaOptions(content, prior);
+    } else if (priorType.startsWith('confirm_intent')) {
+        // branch 3 : we had asked user to confirm that we understood them, so check affirm/negate and continue
+    } else if (priorType.startsWith('entity_completion')) {
+        // branch 4 : add to entity completion, get next
+    
+    } else if (priorType.startsWith('complete_journey')) {
+        // branch 5 : distribute to some other service and finish
+
+    } else if (priorType.startsWith('confirmation') || priorType.startsWith('error')) {
+        // branch 6 : check if the intent is start again, or
+    }
+    
 }
 
 const handleNewConversation = async (nluResponse) => {
-    // note: message ordering seems pretty unpredictable here
+    if (nluResponse && nluResponse.confidence && nluResponse.confidence > 0.5) {
+        return handleIntent(nluResponse);
+    }
+
     const block = getRelevantConversationBlock('opening');
     const body = getResponseChunk(block, 'start', 0);
 
@@ -165,7 +197,7 @@ const handleIntent = async (nluResponse) => {
     };
 }
 
-const continueConversation = async (content, prior) => {
+const advanceViaOptions = async (content, prior) => {
     // console.log('continuing conversation, prior chat: ', prior);
 
     if (content.message.match(START_WORD))
@@ -232,7 +264,7 @@ const assembleErrorMsg = async (msgId) => {
 
     return {
         body: turnMsgsIntoBody(messages.replyMsgs),
-        context: 'error::id-' + msgId,
+        context: 'error::' + msgId,
         replies: messages.replyMsgs
     }
 }
@@ -322,7 +354,7 @@ const emptyMsgBody = () => {
 
 const getMostRecent = (content) => {
     const userMsisdn = content.from;
-    const cutoff = hoursInPast(CUTOFF_CONVERSATION_LENGTH);
+    const cutoff = hoursInPast(config.get('conversation.cutoffHours'));
     console.log('timestamp in past: ', cutoff);
     const params = {
         'TableName': 'chatConversationLogs',

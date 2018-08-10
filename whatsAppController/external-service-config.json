@@ -1,0 +1,10 @@
+{
+    "task": {
+        "response": "/v2/api/task/respond",
+        "create": {
+            "meeting": "/v2/api/task/create/MEETING",
+            "vote": "/v2/api/task/create/VOTE",
+            "todo": "/v2/api/task/create/TODO"
+        }
+    }
+}
