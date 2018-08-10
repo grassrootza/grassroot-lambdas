@@ -5,27 +5,26 @@ import org.neo4j.logging.Log;
 import org.neo4j.procedure.*;
 import org.neo4j.graphdb.Result;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import java.util.stream.Stream;
+
+import static extensions.ExtensionUtils.*;
 
 public class Pagerank {
+
+    private static final String pagerankRaw = "pagerankRaw";
+    private static final String pagerankNorm = "pagerankNorm";
 
     @Context public GraphDatabaseService db;
 
     @Context public Log log;
 
-    public static final String pagerankRaw = "pagerankRaw";
-    public static final String pagerankNorm = "pagerankNorm";
-
     @Procedure(name = "pagerank.setup", mode = Mode.WRITE)
     @Description("Write information to graph necessary for use of extensions")
     public void setupProcedures() {
-        log.info("Writing raw and normalized pagerank scores to graph");
+        log.info("Writing pagerank and closeness scores to graph");
+        db.execute(writeClosenessQuery()); // needed for metric comparison
         db.execute("CALL pagerank.write()");
         db.execute("CALL pagerank.normalize('ACTOR', 'INDIVIDUAL')");
         db.execute("CALL pagerank.normalize('ACTOR', 'GROUP')");
@@ -36,15 +35,14 @@ public class Pagerank {
 
     @Procedure(name = "pagerank.write", mode = Mode.WRITE)
     @Description("Write raw pagerank for all entities")
-    public Stream<RecordWrapper> writeScores() {
+    public void writePagerank() {
         log.info("Writing raw pagerank scores to graph");
-        Result results = db.execute("CALL algo.pageRank(" +
+        db.execute("CALL algo.pageRank(" +
                 " 'MATCH (n) WHERE EXISTS( (n)-[:PARTICIPATES]-() ) RETURN id(n) as id'," +
                 " 'MATCH (n1)-[:PARTICIPATES]->(n2) RETURN id(n1) as source, id(n2) as target UNION" +
                 "  MATCH (n1)-[:PARTICIPATES]->(n2) RETURN id(n2) as source, id(n1) as target'," +
                 " {graph:'cypher', iterations:100, dampingFactor:0.85, write: true, writeProperty:'" + pagerankRaw + "'}" +
-                ") YIELD nodes, loadMillis, computeMillis, writeMillis");
-        return getResultStream(results);
+                ")");
     }
 
     @Procedure(name = "pagerank.normalize", mode = Mode.WRITE)
@@ -61,49 +59,56 @@ public class Pagerank {
                 " SET entityInfo.entity." + pagerankNorm + "=(entityInfo.pageRank-average)/stddev");
     }
 
-    @Procedure(name = "pagerank.stats")
+    @UserFunction(name = "pagerank.stats")
     @Description("Return pagerank statistics")
-    public Stream<RecordWrapper> getStats(@Name(value = "entityType", defaultValue = "") String entityType,
-                                          @Name(value = "subType", defaultValue = "") String subType,
-                                          @Name(value = "firstRank", defaultValue = "0") long firstRank,
-                                          @Name(value = "lastRank", defaultValue = "0") long lastRank,
-                                          @Name(value = "normalized", defaultValue = "false") boolean normalized) {
+    public Map<String, Double> getStats(@Name(value = "entityType", defaultValue = "") String entityType,
+                                        @Name(value = "subType", defaultValue = "") String subType,
+                                        @Name(value = "firstRank", defaultValue = "0") long firstRank,
+                                        @Name(value = "lastRank", defaultValue = "0") long lastRank,
+                                        @Name(value = "normalized", defaultValue = "false") boolean normalized) {
         log.info("Calculating pagerank statistics");
         String pagerank = normalized ? pagerankNorm : pagerankRaw;
         if (!paramsAreValid(entityType, subType, firstRank, lastRank, null)) return null;
-        Result results = db.execute(filterQuery(entityType, subType, firstRank, lastRank, pagerank) +
+        Map<String, Double> statsMap = new HashMap<>();
+        Result stats = db.execute(filterQuery(entityType, subType, firstRank, lastRank, pagerank) +
                 " WITH min(pagerank) AS minimum," +
                 " max(pagerank) AS maximum," +
                 " avg(pagerank) AS average," +
                 " percentileDisc(pagerank, 0.5) AS median," +
                 " stDevP(pagerank) AS stddev" +
                 " RETURN minimum, maximum, maximum - minimum AS range, average, median, stddev");
-        return getResultStream(results);
+        Map<String, Object> statsResults = stats.next();
+        stats.columns().forEach(stat -> statsMap.put(stat, (double) statsResults.get(stat)));
+        return statsMap;
     }
 
-    @Procedure(name = "pagerank.scores")
-    @Description("Return entities in range")
-    public Stream<RecordWrapper> getScores(@Name(value = "entityType", defaultValue = "") String entityType,
-                                           @Name(value = "subType", defaultValue = "") String subType,
-                                           @Name(value = "firstRank", defaultValue = "0") long firstRank,
-                                           @Name(value = "lastRank", defaultValue = "0") long lastRank,
-                                           @Name(value = "normalized", defaultValue = "false") boolean normalized) {
+    @UserFunction(name = "pagerank.scores")
+    @Description("Return entities in rank range")
+    public List<Double> getScores(@Name(value = "entityType", defaultValue = "") String entityType,
+                                  @Name(value = "subType", defaultValue = "") String subType,
+                                  @Name(value = "firstRank", defaultValue = "0") long firstRank,
+                                  @Name(value = "lastRank", defaultValue = "0") long lastRank,
+                                  @Name(value = "normalized", defaultValue = "false") boolean normalized) {
         log.info("Obtaining pagerank scores");
         String pagerank = normalized ? pagerankNorm : pagerankRaw;
         if (!paramsAreValid(entityType, subType, firstRank, lastRank, null)) return null;
-        Result results = db.execute(filterQuery(entityType, subType, firstRank, lastRank, pagerank) + " RETURN pagerank");
-        return getResultStream(results);
+        List<Double> scoreList = new ArrayList<>();
+        Result scores = db.execute(filterQuery(entityType, subType, firstRank, lastRank, pagerank) + " RETURN pagerank");
+        scores.forEachRemaining(score -> scoreList.add((double) score.get("pagerank")));
+        return scoreList;
     }
 
-    @Procedure(name = "pagerank.tiers")
+    @UserFunction(name = "pagerank.tiers")
     @Description("Return counts of users in pagerank tiers as determined by pagerank scores")
-    public Stream<PropertyRecord> getTiers() {
+    public Map<String, Long> getTiers() {
         log.info("Getting user counts in three pagerank tiers");
-        Result entityCounts = db.execute("" +
+        Map<String, Long> tiers = new HashMap<>();
+        Result tierCounts = db.execute("" +
                 " MATCH (n:Actor) WHERE n.actorType='INDIVIDUAL' AND n.pagerankNorm > 10.0 RETURN 'TIER1' AS tier, COUNT(n) AS count" +
                 " UNION MATCH (n:Actor) WHERE n.actorType='INDIVIDUAL' AND n.pagerankNorm > 3.0 AND n.pagerankNorm < 10.0 RETURN 'TIER2' AS tier, COUNT(n) AS count" +
                 " UNION MATCH (n:Actor) WHERE n.actorType='INDIVIDUAL' AND n.pagerankNorm < 3.0 RETURN 'TIER3' AS tier, COUNT(n) AS count");
-        return getPropertyStream(entityCounts, "tier", "count");
+        tierCounts.forEachRemaining(tierCount -> tiers.put((String) tierCount.get("tier"), (long) tierCount.get("count")));
+        return tiers;
     }
 
     @UserFunction(name = "pagerank.meanEntities")
@@ -139,37 +144,12 @@ public class Pagerank {
         return top100ConnectionCounts;
     }
 
-    public static class RecordWrapper {
-        public Map<String, Object> results;
-        public RecordWrapper(Map<String, Object> results) {
-            this.results = results;
-        }
-    }
-
-    public static class PropertyRecord {
-        public String property;
-        public long value;
-        public PropertyRecord(String property, long value) {
-            this.property = property;
-            this.value = value;
-        }
-    }
-
-    private Stream<RecordWrapper> getResultStream(Result results) {
-        return results.hasNext() ? results.stream().map(RecordWrapper::new) : null;
-    }
-
-    private Stream<PropertyRecord> getPropertyStream(Result results, String propKey, String valueKey) {
-        return results.hasNext() ? results.stream().map(result ->
-                new PropertyRecord((String) result.get(propKey), (long) result.get(valueKey))) : null;
-    }
-
-    public List<Double> getMeanEntities(String metric, long depth) {
+    private List<Double> getMeanEntities(String metric, long depth) {
         return IntStream.range(1, 10).mapToDouble(index -> calculateMeanEntities(metric,"ACTOR", "INDIVIDUAL",
                 (index - 1) * 10, index * 10, depth)).boxed().collect(Collectors.toList());
     }
 
-    public List<Double> getMeanRelationships(String metric, long depth) {
+    private List<Double> getMeanRelationships(String metric, long depth) {
         return IntStream.range(1, 10).mapToDouble(index -> calculateMeanRelationships(metric,"ACTOR", "INDIVIDUAL",
                 (index - 1) * 10, index * 10, depth)).boxed().collect(Collectors.toList());
     }
@@ -233,44 +213,13 @@ public class Pagerank {
         log.error("Error! Invalid parameters"); return false;
     }
 
-    private boolean typesAreValid(String entityType, String subType) {
-        return (entityType != null && subType != null) && !(entityType.isEmpty() && !subType.isEmpty()) &&
-                entityTypeIsValid(entityType) && subTypeIsValid(entityType, subType);
-    }
-
-    private boolean entityTypeIsValid(String entityType) {
-        return entityType.isEmpty() || isActor(entityType) || isEvent(entityType);
-    }
-
-    private boolean subTypeIsValid(String entityType, String subType) {
-        subType = subType.toUpperCase();
-        return entityType.isEmpty() || isActor(entityType) ?
-                ("INDIVIDUAL".equals(subType) || "GROUP".equals(subType) || "MOVEMENT".equals(subType) || subType.isEmpty()) :
-                ("MEETING".equals(subType) || "VOTE".equals(subType) || "TODO".equals(subType) || subType.isEmpty());
-    }
-
-    private boolean boundsAreValid(Long firstRank, Long lastRank) {
-        return (firstRank == null && lastRank == null) || lastRank == 0 || lastRank > firstRank;
-    }
-
-    private boolean depthIsValid(Long depth) {
-        return  depth == null || depth == 1 || depth == 2 || depth == 3;
-    }
-
-    private boolean isActor(String entityType) {
-        return "ACTOR".equals(entityType.toUpperCase());
-    }
-
-    private boolean isEvent(String entityType) {
-        return "EVENT".equals(entityType.toUpperCase());
-    }
-
-    private boolean isRelationship(String toCompare) {
-        return "RELATIONSHIP".equals(toCompare);
-    }
-
-    private boolean isEntity(String toCompare) {
-        return "ENTITY".equals(toCompare);
+    private String writeClosenessQuery() {
+        return  " CALL algo.closeness.harmonic(" +
+                " 'MATCH (n) WHERE exists( (n)-[:PARTICIPATES]-() ) RETURN id(n) as id'," +
+                " 'MATCH (n1)-[:PARTICIPATES]->(n2) RETURN id(n1) as source, id(n2) as target UNION" +
+                "  MATCH (n1)-[:PARTICIPATES]->(n2) RETURN id(n2) as source, id(n1) as target'," +
+                " {graph:'cypher', write: true, writeProperty:'closenessScore'}" +
+                ")";
     }
 
 }

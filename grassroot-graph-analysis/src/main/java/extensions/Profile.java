@@ -5,7 +5,10 @@ import org.neo4j.logging.Log;
 import org.neo4j.procedure.*;
 import org.neo4j.graphdb.Result;
 
-import java.util.stream.Stream;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class Profile {
 
@@ -13,22 +16,27 @@ public class Profile {
 
     @Context public Log log;
 
-    @Procedure(name = "profile.counts")
+    @UserFunction(name = "profile.counts")
     @Description("Returns counts of graph entities")
-    public Stream<PropertyRecord> getEntityAndRelationshipCounts() {
+    public Map<String, Long> getEntityAndRelationshipCounts() {
         log.info("Obtaining counts of all entities and relationships");
-        Stream<PropertyRecord> entityCounts = getEntityCounts();
-        Stream<PropertyRecord> relationshipCounts = getRelationshipCounts();
-        if (entityCounts != null && relationshipCounts != null) return Stream.concat(entityCounts, relationshipCounts);
-        log.error("Error! Entity or relationship counts could not be gathered from graph"); return null;
+        Map<String, Long> entityCounts = getEntityCounts();
+        Map<String, Long> relationshipCounts = getRelationshipCounts();
+        if (entityCounts != null && relationshipCounts != null) {
+            entityCounts.putAll(relationshipCounts);
+            return entityCounts;
+        }
+        log.error("Error! Entity or relationship counts could not be gathered from graph");
+        return null;
     }
 
-    @Procedure(name = "profile.groupMemberships")
+    @UserFunction(name = "profile.groupMemberships")
     @Description("Returns group membership counts in rank range")
-    public Stream<CountRecord> getGroupsByMembership(@Name(value = "firstRank", defaultValue = "0") long firstRank,
-                                                     @Name(value = "lastRank", defaultValue = "100") long lastRank) {
+    public List<Long> getGroupsByMembership(@Name(value = "firstRank", defaultValue = "0") long firstRank,
+                                            @Name(value = "lastRank", defaultValue = "100") long lastRank) {
         log.info("Obtaining membership counts of groups in range {} - {}", firstRank, lastRank);
         if (!boundsAreValid(firstRank, lastRank)) return null;
+        List<Long> countList = new ArrayList<>();
         Result membershipCounts = db.execute("" +
                 " MATCH (i:Actor)-[:PARTICIPATES]->(g:Actor)" +
                 " WHERE i.actorType='INDIVIDUAL' AND g.actorType='GROUP'" +
@@ -36,15 +44,17 @@ public class Profile {
                 " RETURN count_membership ORDER BY count_membership DESC" +
                 " SKIP " + Long.toString(firstRank) +
                 " LIMIT " + Long.toString(lastRank - firstRank));
-        return getCountStream(membershipCounts, "count_membership");
+        membershipCounts.forEachRemaining(count -> countList.add((long) count.get("count_membership")));
+        return countList;
     }
 
-    @Procedure(name = "profile.userParticipations")
+    @UserFunction(name = "profile.userParticipations")
     @Description("Returns user participation counts in rank range")
-    public Stream<CountRecord> getUsersByParticipation(@Name(value = "firstRank", defaultValue = "0") long firstRank,
+    public List<Long> getUsersByParticipation(@Name(value = "firstRank", defaultValue = "0") long firstRank,
                                                        @Name(value = "lastRank", defaultValue = "100") long lastRank) {
         log.info("Obtaining participation counts of users in range {} - {}", firstRank, lastRank);
         if (!boundsAreValid(firstRank, lastRank)) return null;
+        List<Long> countList = new ArrayList<>();
         Result participationCounts = db.execute("" +
                 " MATCH (i:Actor)-[:PARTICIPATES]->(entity)" +
                 " WHERE i.actorType='INDIVIDUAL'" +
@@ -52,45 +62,24 @@ public class Profile {
                 " RETURN  count_participation ORDER BY count_participation DESC " +
                 " SKIP " + Long.toString(firstRank) +
                 " LIMIT " + Long.toString(lastRank - firstRank));
-        return getCountStream(participationCounts, "count_participation");
+        participationCounts.forEachRemaining(count -> countList.add((long) count.get("count_participation")));
+        return countList;
     }
 
-    public static class PropertyRecord {
-        public String property;
-        public long value;
-        public PropertyRecord(String property, long value) {
-            this.property = property;
-            this.value = value;
-        }
-    }
-
-    public static class CountRecord {
-        public double count;
-        public CountRecord(double count) {
-            this.count = count;
-        }
-    }
-
-    private Stream<PropertyRecord> getPropertyStream(Result results, String propKey, String valueKey) {
-        return results.hasNext() ? results.stream().map(result ->
-                new PropertyRecord((String) result.get(propKey), (long) result.get(valueKey))) : null;
-    }
-
-    private Stream<CountRecord> getCountStream(Result results, String countKey) {
-        return results.hasNext() ? results.stream().map(result -> new CountRecord((long) result.get(countKey))) : null;
-    }
-
-    private Stream<PropertyRecord> getEntityCounts() {
+    private Map<String, Long> getEntityCounts() {
+        Map<String, Long> counts = new HashMap<>();
         Result entityCounts = db.execute("" +
                 " MATCH (n) WHERE n.actorType IS NOT NULL OR n.eventType IS NOT NULL RETURN 'TOTAL-ENTITIES' AS type, COUNT(*) AS count" +
                 " UNION MATCH (n:Actor) WHERE n.actorType IS NOT NULL RETURN 'ACTOR' AS type, COUNT(*) AS count" +
                 " UNION MATCH (n:Event) WHERE n.eventType IS NOT NULL RETURN 'EVENT' AS type, COUNT(*) AS count" +
                 " UNION MATCH (n:Actor) WHERE n.actorType IS NOT NULL RETURN n.actorType AS type, COUNT(*) AS count" +
                 " UNION MATCH (n:Event) WHERE n.eventType IS NOT NULL RETURN n.eventType AS type, COUNT(*) AS count");
-        return getPropertyStream(entityCounts, "type", "count");
+        entityCounts.forEachRemaining(count -> counts.put((String) count.get("type"), (long) count.get("count")));
+        return counts;
     }
 
-    private Stream<PropertyRecord> getRelationshipCounts() {
+    private Map<String, Long> getRelationshipCounts() {
+        Map<String, Long> counts = new HashMap<>();
         Result relationshipCounts = db.execute("" +
                 " MATCH ()-[r]-() RETURN 'TOTAL-RELATIONSHIPS' AS type, COUNT(DISTINCT r) AS count" +
                 " UNION MATCH ()-[p:PARTICIPATES]-() RETURN 'PARTICIPATES' AS type, COUNT(DISTINCT p) AS count" +
@@ -99,7 +88,8 @@ public class Profile {
                 " UNION MATCH ()-[p:PARTICIPATES]->(:Event) RETURN 'PARTICIPATIONS-IN-EVENTS' AS type, COUNT(p) AS count" +
                 " UNION MATCH ()-[g:GENERATOR]->(:Actor) RETURN 'ACTORS-GENERATED' AS type, COUNT(g) AS count" +
                 " UNION MATCH ()-[g:GENERATOR]->(:Event) RETURN 'EVENTS-GENERATED' AS type, COUNT(g) AS count");
-        return getPropertyStream(relationshipCounts, "type", "count");
+        relationshipCounts.forEachRemaining(count -> counts.put((String) count.get("type"), (long) count.get("count")));
+        return counts;
     }
 
     private boolean boundsAreValid(Long firstRank, Long lastRank) {
