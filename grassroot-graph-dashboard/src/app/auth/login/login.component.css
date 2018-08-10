@@ -1,0 +1,16 @@
+.example-container {
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .example-container > * {
+    width: 100%;
+  }
+
+  .fields-container {
+    text-align: center !important
+  }
+
+  .button-row {
+    text-align: center;
+  }

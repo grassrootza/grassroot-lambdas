@@ -16,7 +16,7 @@ const app = express();
 
 app.use(function(req, res, next) {
     res.header("Access-Control-Allow-Origin", "*");
-    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
     next();
 });
 
@@ -29,15 +29,20 @@ app.get('/document/create/:doc_type', (req, res) => {
 
     let params = buildParams(req);
 
-    if (params.doc_type == 'EXTRACT')
+    let final_params_section;
+    if (params.doc_type == 'EXTRACT') {
         params.main_text = req.query.main_text;
-    else
-        params.doc_link = req.query.doc_link;
+        final_params_section = 'main_text: $main_text';
+    } else {
+        params.doc_bucket = req.query.doc_bucket;
+        params.doc_key = req.query.doc_key;
+        final_params_section = 's3bucket: $doc_bucket, s3key: $doc_key'
+    }
 
     console.log('build params: ', params);
 
     session.run(
-        commonPropertyQuery('main_text'), params
+        commonPropertyQuery(final_params_section), params
     ).then(result => {
         console.log('result: ', result);
         res.json(result);
@@ -47,10 +52,10 @@ app.get('/document/create/:doc_type', (req, res) => {
     })
 });
 
-const commonPropertyQuery = (final_param) => 'CREATE (d: Document {' +
+const commonPropertyQuery = (final_params_section) => 'CREATE (d: Document {' +
     'machineName: $machine_name, humanName: $human_name, docType: $doc_type, ' +
     'issues: $issues, procedures: $procedures, problems: $problems, ' +
-    'stageRelevance: $stage_relevance, ' + final_param + ': $' + final_param + 
+    'stageRelevance: $stage_relevance, ' + final_params_section + 
     '}) return d';
 
 const buildParams = (req) => {
@@ -63,7 +68,10 @@ const buildParams = (req) => {
         procedures: paramToArray(req, 'procedures'), // e.g., rights, actions, contacts
         problems: paramToArray(req, 'problems'), // e.g., land proclamation
 
-        stage_relevance: req.query.stage_relevance // BEGINNER, INTERMEDIATE, ADVANCED
+        stage_relevance: req.query.stage_relevance, // BEGINNER, INTERMEDIATE, ADVANCED
+
+        s3bucket: req.query.doc_bucket,
+        s3key: req.query.doc_key
     };
 }
 
@@ -83,10 +91,10 @@ app.get('/document/query', (req, res) => {
     console.log("Querying documents with keyword: ", req.query.query_word);
     return session.run(
         "MATCH (d:Document) " +
-        "WHERE d.humanName=$query_word OR d.machineName CONTAINS $query_word OR d.stageRelevance CONTAINS $query_word OR " +
+        "WHERE d.humanName CONTAINS $query_word OR d.machineName CONTAINS $query_word OR d.stageRelevance CONTAINS $query_word OR " +
         "$query_word IN d.issues OR $query_word IN d.procedures OR $query_word IN d.problems " +
         "RETURN d",
-        { query_word: req.query.query_word }
+        { query_word: req.query.query_text }
     ).then(result => {
         res.json(result);
     }).catch(error => {

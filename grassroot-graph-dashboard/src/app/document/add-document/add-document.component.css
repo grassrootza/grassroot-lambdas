@@ -7,3 +7,10 @@
   .example-container > * {
     width: 80%;
   }
+
+  .progress-spinner {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translateX(-50%) translateY(-50%);
+  }

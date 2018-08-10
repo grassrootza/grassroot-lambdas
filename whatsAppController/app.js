@@ -43,7 +43,7 @@ app.post('/inbound', async (req, res, next) => {
             console.time('log_result');
             await logIncoming(content, response);
             console.timeEnd('log_result');
-
+            
             console.timeEnd('full_path');
 
             res.writeHead(200, {'Content-Type': RESPONSE_CONTENT_TYPE});
@@ -67,7 +67,6 @@ app.post('/inbound', async (req, res, next) => {
 app.listen(3000, () => console.log(`Listening on port 3000`));
 
 // we will be swapping these out in future, as possibly / probably not using Twilio, so stashing them
-
 const getMessageContent = (req) => {
     console.log('message body: ', req.body);
     const incoming_text = req.body['Body'];
@@ -78,42 +77,65 @@ const getMessageContent = (req) => {
     };
 }
 
-interpretMessage = (message_text) => {
+interpretMessage = (message_text, conversation_id) => {
+    const queryParams = {
+        text: message_text
+    };
+
+    if (conversation_id)
+        queryParams.conversationUid = conversation_id;
+    
     const options = {
         url: NLU_URL,
         method: 'GET',
-        qs: {
-            text: message_text
-        }
+        qs: queryParams
     };
 
     return request(options);
 }
 
-// next, figure out the context, i.e., what happened last
-// options: (1) user was sent a notification from platform; (2) user is in middle of conversation; (3) message out of the blue
-// if (1), then need to know possible options on the reply, e.g., just affirmation / denial, or vote options;
-// if (2), then need to know a conversation ID from NLU, and last stage in progression through menu options
-// if (3), then need to know if brand new user, or returning user, and hence whether to include a greeting
+// next, figure out the context, i.e., what happened last, and user's intent, and piece together what to do
+// note: since this is stateless, we cannot assume in, e.g., entity completion, that the same method gets hit twice
+// with that, we need to check for two main cases:
+
+// (a) Did we just sent the user a message, including from the server? If so, what was it / what is the current context?
+// ** Branch 1 : Check if prior message was a task notification. If so, test for affirm/deny, or a vote option. If can't
+// ** understand, then prompt for further undersdaning of that option
+// ** Branch 2 : Check if prior message had an entity_completion context attached to it. If so, check for negation intent, if not present,
+// ** check for high confidence on any other intent, if not present, fill slot and continue
+// ** Branch 3 : Check if prior messages had a confirm_intent context attached to it. If so, check for affirmation/negation, and take
+// ** appropriate next order action. 
+// ** Branch 4 : Check if prior message had a choose_action context attached to it. If so, check for negation intent, or back up intent.
+// ** if not present, then look for next action, and return relevant response
+// ** Branch 5 : We have completed an entity completion or we have reached the end of an action tree. Call one of the mapped services
+// ** and then present a confirmation, and/or the relevant information, to the user
+// ** Branch 6 : We just finished a flow, and the user is saying thanks, or similar. Don't respond, but mark last outbound as responded
+// ** so if user insists, continue. [think about how to manage this]
+
+// (b) Did we not send the user anything? If so, check for the intent, and proceed:
+// ** Branch 1 : We have a high confidence intent with associated fill entities. Just proceed to complete those.
+// ** Branch 2 : We have an intermediate confidence intent. Confirm first if this is what user wants. If affirm, then continue. [ ends in a - 3 above? ]
+// ** Branch 3 : No idea, or intent is just hello. Initiate with opening messages.
+// okay, then done.
 
 const getMessageReply = async (content, prior) => {
-    // console.time('nlu_call');
-    // const thisMsgInterpred = await interpretMessage(content.message);
-    // console.log('message interpreted: ', thisMsgInterpred);
-    // console.timeEnd('nlu_call');
-    // console.log('interpreted msg: ', thisMsgInterpred);
+    console.time('nlu_call');
+    const rawResponse = await interpretMessage(content.message, prior ? prior.conversationId : '');
+    const nluResponse = transformNluResponse(rawResponse);
+    console.log('transformed: ', nluResponse);
+    console.timeEnd('nlu_call');
     
-    if (prior) {
-        console.log('Have prior message: ', prior);
-        return continueConversation(content, prior);
+    // if (prior) {
+    //     console.log('Have prior message: ', prior);
+    //     return continueConversation(content, prior);
+    if (nluResponse && nluResponse.confidence && nluResponse.confidence > 0.5) {
+        return handleIntent(nluResponse);
     } else {
-        return handleNewConversation(content);
+        return handleNewConversation(nluResponse);
     }
-    
-    
 }
 
-const handleNewConversation = async (content) => {
+const handleNewConversation = async (nluResponse) => {
     // note: message ordering seems pretty unpredictable here
     const block = getRelevantConversationBlock('opening');
     const body = getResponseChunk(block, 'start', 0);
@@ -130,6 +152,17 @@ const handleNewConversation = async (content) => {
         reply.options = messages.optionsKeys;
     
     return reply;
+}
+
+const handleIntent = async (nluResponse) => {
+    const body = findBlockForIntent(nluResponse.intent)['_source'];
+    console.log('here is the body: ', body);
+    const replyMsgs  = [body['opening'] + ' ' + body['entities'][0]];
+    console.log('messages: ', replyMsgs);
+    return {
+        body: turnMsgsIntoBody(replyMsgs),
+        context: nluResponse.intent
+    };
 }
 
 const continueConversation = async (content, prior) => {
@@ -207,6 +240,28 @@ const assembleErrorMsg = async (msgId) => {
 const getRelevantConversationBlock = (section) => {
     // will need to look this up from prior, message, etc, for now, just sending generic
     return conversation[section];
+}
+
+const findBlockForIntent = (intent) => {
+    console.log('hunting for intent: ', intent);
+    var returnBlock;
+    const conversationSections = Object.keys(conversation).filter(key => key !== 'meta');
+    // double iteration (well, tree search), but these are small, and always will be, so in memory will be microseconds
+    // also, might be able to do this more elegantly with a find or map, but would still involve that double iteration underneath
+    conversationSections.some(section => {
+        let blocks = conversation[section];
+        blocks.some(block => {
+            console.log('checking block: ', block['_id']);
+            if (block['_intent'] && block['_intent'] == intent) {
+                returnBlock = block;
+                return true;
+            }
+            return false;
+        });
+        return !!returnBlock;
+    });
+    console.log('return block: ', returnBlock);
+    return returnBlock;
 }
 
 const getEntity = (block, id) => {
@@ -313,4 +368,27 @@ const hoursInPast = (number) => {
     var d = new Date();
     d.setHours(d.getHours()-number);
     return d.getTime();
+}
+
+const transformNluResponse = (raw) => {
+    let response = JSON.parse(raw);
+    console.log('parsed body: ', response['parsed']);
+
+    let transformed = {
+        nlu_id: response['uid'],
+        intent: response['parsed']['intent']['name'],
+        confidence: response['parsed']['intent']['confidence']
+    };
+
+    if (response['entities'])
+        transformed['entities'] = response['entities'].map(transformNluEntity);
+
+    return transformed;
+}
+
+const transformNluEntity = (entity) => {
+    return {
+        type: entity['entity'],
+        value: entity['value']
+    }
 }

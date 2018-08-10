@@ -27,6 +27,9 @@ export class QueryGraphComponent implements OnInit {
 
   executeQuery() {
     console.log('executing this query: ', this.queryControl.value);
+    this.docService.queryDocuments(this.queryControl.value).subscribe(result => {
+      this.currentDocs = result;
+    });
   }
 
 }
