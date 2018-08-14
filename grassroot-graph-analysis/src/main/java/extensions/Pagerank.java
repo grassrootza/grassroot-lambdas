@@ -66,7 +66,7 @@ public class Pagerank {
         if (!typesAreValid(entityType, subType) || !rangeIsValid(firstRank, lastRank)) return null;
         String pagerank = normalized ? pagerankNorm : pagerankRaw;
         String typeFilter = typeQuery(entityType, subType, pagerank);
-        Result stats = db.execute(rangeQuery(typeFilter, pagerank, firstRank, getLimit(firstRank, lastRank, typeFilter)) +
+        Result stats = db.execute(typeFilter + rangeQuery(entityType, subType, pagerank, firstRank, lastRank, db) +
                 " WITH min(pagerank) AS minimum," +
                 " max(pagerank) AS maximum," +
                 " avg(pagerank) AS average," +
@@ -87,8 +87,7 @@ public class Pagerank {
         if (!typesAreValid(entityType, subType) || !rangeIsValid(firstRank, lastRank)) return null;
         String pagerank = normalized ? pagerankNorm : pagerankRaw;
         String typeFilter = typeQuery(entityType, subType, pagerank);
-        Result scores = db.execute(rangeQuery(typeFilter, pagerank, firstRank,
-                getLimit(firstRank, lastRank, typeFilter)) + " RETURN pagerank");
+        Result scores = db.execute(typeFilter + rangeQuery(entityType, subType, pagerank, firstRank, lastRank, db) + " RETURN pagerank");
         return scores.hasNext() ? resultToList(scores, "pagerank") : null;
     }
 
@@ -101,11 +100,6 @@ public class Pagerank {
                 " UNION MATCH (n:Actor) WHERE n.actorType='INDIVIDUAL' AND n.pagerankNorm > 3.0 AND n.pagerankNorm < 10.0 RETURN 'TIER2' AS tier, COUNT(n) AS count" +
                 " UNION MATCH (n:Actor) WHERE n.actorType='INDIVIDUAL' AND n.pagerankNorm < 3.0 RETURN 'TIER3' AS tier, COUNT(n) AS count");
         return tierCounts.hasNext() ? resultToMap(tierCounts, "tier", "count") : null;
-    }
-
-    private long getLimit(long firstRank, long lastRank, String typeFilter) {
-        if (lastRank == 0) lastRank = (long) resultToSingleValue(db.execute(typeFilter + " RETURN COUNT(n)"));
-        return lastRank - firstRank;
     }
 
     private String writeClosenessQuery() {

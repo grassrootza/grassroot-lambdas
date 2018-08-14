@@ -59,7 +59,7 @@ public class Connections {
                                             long depth, boolean countEntities, boolean pagerank) {
         String metric = pagerank ? pagerankRaw : closenessRaw;
         String typeFilter = typeQuery(entityType, subType, metric);
-        Result results = db.execute(rangeQuery(typeFilter, metric, firstRank, lastRank - firstRank) + depthQuery(depth, countEntities));
+        Result results = db.execute(typeFilter + rangeQuery(entityType, subType, metric, firstRank, lastRank, db) + depthQuery(depth, countEntities));
         return resultToSingleValue(results);
     }
 

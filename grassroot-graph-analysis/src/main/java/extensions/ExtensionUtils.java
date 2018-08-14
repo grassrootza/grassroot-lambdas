@@ -1,5 +1,6 @@
 package extensions;
 
+import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Result;
 
 import java.util.List;
@@ -32,20 +33,25 @@ public class ExtensionUtils {
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
 
-    public static String typeQuery(String entityType, String subType, String pagerank) {
+    public static String typeQuery(String entityType, String subType, String metric) {
         String entityFilter = entityType.isEmpty() ? "" :
                 isActor(entityType) ? ":Actor" : ":Event";
         String subTypeFilter = subType.isEmpty() ? "" :
                 isActor(entityType) ? "n.actorType='" + subType + "' AND " : "n.eventType='" + subType + "' AND ";
-        return  "MATCH (n" + entityFilter + ") WHERE " + subTypeFilter + "n." + pagerank + " IS NOT NULL";
+        return  "MATCH (n" + entityFilter + ") WHERE " + subTypeFilter + "n." + metric + " IS NOT NULL";
     }
 
-    public static String rangeQuery(String typeFilter, String pagerank, long firstRank, long limit) {
-        return typeFilter +
-                " WITH n AS entity, n." + pagerank + " AS pagerank" +
+    public static String rangeQuery(String entityType, String subType, String metric, long firstRank, long lastRank, GraphDatabaseService db) {
+        return  " WITH n AS entity, n." + metric + " AS pagerank" +
                 " ORDER BY pagerank DESC" +
                 " SKIP " + Long.toString(firstRank) +
-                " LIMIT " + Long.toString(limit);
+                " LIMIT " + Long.toString(getEntityCount(entityType, subType, metric, firstRank, lastRank, db));
+    }
+
+    public static long getEntityCount(String entityType, String subType, String metric, long firstRank, long lastRank, GraphDatabaseService db) {
+        String typeFilter = typeQuery(entityType, subType, metric);
+        if (lastRank == 0) lastRank = (long) resultToSingleValue(db.execute(typeFilter + " RETURN COUNT(n)"));
+        return lastRank - firstRank;
     }
 
     public static boolean typesAreValid(String entityType, String subType) {
