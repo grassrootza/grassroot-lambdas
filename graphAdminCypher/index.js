@@ -136,48 +136,20 @@ app.get('/pagerank/normalize', (req, res) => {
 
 app.get('/pagerank/stats', (req, res) => {
     console.log("Getting pagerank stats");
-    wrapPagerankReadRequest(req, res, "stats", false);
+    let query = pagerankQuery('stats');
+    return executeRequest(query, buildPagerankParams(req), res);
 })
 
 app.get('/pagerank/scores', (req, res) => {
     console.log("Getting pagerank scores");
-    wrapPagerankReadRequest(req, res, "scores", false);
+    let query = pagerankQuery('scores');
+    return executeRequest(query, buildPagerankParams(req), res);
 })
 
 app.get('/pagerank/tiers', (req, res) => {
-    console.log("Getting pagerank scores");
+    console.log("Getting pagerank tiers");
     return executeRequest("RETURN pagerank.tiers()", {}, res);
 })
-
-app.get('/pagerank/meanEntities', (req, res) => {
-    console.log("Getting mean entities reached");
-    wrapPagerankReadRequest(req, res, "meanEntities", false);
-})
-
-app.get('/pagerank/meanRelationships', (req, res) => {
-    console.log("Getting mean relationships reached");
-    wrapPagerankReadRequest(req, res, "meanRelationships", false);
-})
-
-app.get('/pagerank/compareMetrics', (req, res) => {
-    console.log('Comparing pagerank and closeness metrics');
-    wrapPagerankReadRequest(req, res, "compareMetrics", false);
-})
-
-const wrapPagerankReadRequest = (req, res, extension, procedure) => {
-    console.log("Building request with procedure: ", procedure);
-
-    let boolParam = procedureNeedsBool(extension) ? ", toBoolean($bool)" : "";
-    let depthParam = procedureNeedsDepth(extension) ? ", toInteger($depth)" : "";
-    let query = (procedure ? "CALL" : "RETURN") + " pagerank." + extension + "($entity_type, $sub_type, " +
-                "toInteger($first_rank), toInteger($last_rank)" + boolParam + depthParam + ")";
-
-    let params = buildPagerankParams(req);
-    if (procedureNeedsBool(extension)) params.bool = req.query.bool;
-    if (procedureNeedsDepth(extension)) params.depth = req.query.depth;
-
-    executeRequest(query, params, res);
-}
 
 const buildPagerankParams = (req) => {
     return {
@@ -185,15 +157,51 @@ const buildPagerankParams = (req) => {
         sub_type: req.query.sub_type,
         first_rank: req.query.first_rank,
         last_rank: req.query.last_rank,
+        normalized: req.query.normalized
     };
 }
 
-const procedureNeedsBool = (procedure) => {
-    return procedure == "stats" || procedure == "scores" || procedure == "compareMetrics";
+const pagerankQuery = (extension) => 'RETURN pagerank.' + extension +
+    '($entity_type, $sub_type, toInteger($first_rank), toInteger($last_rank), toBoolean($normalized))';
+
+// connections
+
+app.get('/connections/mean', (req, res) => {
+    console.log("Getting mean connections");
+    let query = connectionQuery('mean', true);
+    return executeRequest(query, buildConnectionsParams(req, true), res);
+})
+
+app.get('/connections/meanList', (req, res) => {
+    console.log("Getting mean connections list");
+    let query = connectionQuery('meanList', true);
+    return executeRequest(query, buildConnectionsParams(req, true), res);
+})
+
+app.get('/connections/compareMetrics', (req, res) => {
+    console.log('Comparing pagerank and closeness connections');
+    let query = connectionQuery('compareMetrics', false);
+    return executeRequest(query, buildConnectionsParams(req, false), res);
+})
+
+const buildConnectionsParams = (req, pagerankNeeded) => {
+    let params = {
+        entity_type: req.query.entity_type,
+        sub_type: req.query.sub_type,
+        first_rank: req.query.first_rank,
+        last_rank: req.query.last_rank,
+        depth: req.query.depth,
+        count_entities: req.query.count_entities,
+    };
+    if (pagerankNeeded) params.pagerank = req.query.pagerank;
+    return params;
 }
 
-const procedureNeedsDepth = (procedure) => {
-    return procedure == "meanEntities" || procedure == "meanRelationships" || procedure == "compareMetrics";
+const connectionQuery = (extension, pagerankNeeded) => {
+    let query = 'RETURN connections.' + extension + '($entity_type, $sub_type, toInteger($first_rank), toInteger($last_rank), ' +
+    'toInteger($depth), toBoolean($count_entities)';
+    query += pagerankNeeded ? ', toBoolean($pagerank))' : ')';
+    return query;
 }
 
 app.listen(3000, () => console.log(`Listening on port 3000`));
