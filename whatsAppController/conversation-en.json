@@ -74,32 +74,429 @@
     ],
     "know": [
         {
-            "_id": "1",
+            "_id": "issue",
             "_source": {
                 "intent": "help",
                 "response": [{
-                    "text": "What can we help you with?",
-                    "options": "opening" 
-                }]
-        }
-        }, 
-        {
-            "_id": "2",
-            "_source": {
-                "intent": "none",
-                "response": [{
-                    "text": "Dumelang. Welcome. What can we help you with? GR Zonke can help with questions about:"
+                    "text": "What issue do you want to get knowledge about?",
+                    "options": "<<OPTIONS::KNOW_MAIN_MENU>>"
                 }]
             }
         },
         {
-            "_id": "OPTION_SETS",
+            "_id": "KNOW_MAIN_MENU",
             "_source": {
-                "zonke": {
-                    "RIGHTS": "Knowing your rights",
-                    "CONTACT": "Who you can talk to",
-                    "ACTION": "How to take action"
+                "response": {
+                    "housing": "Housing",
+                    "water": "Water",
+                    "sanitation": "Sanitation",
+                    "electricity": "Electricity"
                 }
             }
-    }]
+        }
+    ],
+    "connect": [
+        {
+            "_id": "issue",
+            "_source": {
+                "intent": "help",
+                "response": [{
+                    "text": "What issue do you want to talk to someone about?",
+                    "options": "<<OPTIONS::CONNECT_MAIN_MENU>>"
+                }]
+            }
+        },
+        {
+            "_id": "CONNECT_MAIN_MENU",
+            "_source": {
+                "response": {
+                    "housing": "Housing",
+                    "water": "Water",
+                    "sanitation": "Sanitation",
+                    "electricity": "Electricity"
+                }
+            }
+        }
+    ],
+    "housing": [
+        {
+            "_id": "problem",
+            "_source": {
+                "intent": "help",
+                "response": [{
+                    "text": "What problem do you have regarding housing?",
+                    "options": "<<OPTIONS::HOUSING_MAIN_MENU>>"
+                }]
+            }
+        },
+        {
+            "_id": "HOUSING_MAIN_MENU",
+            "_source": {
+                "response": {
+                    "proclamation": "Is the area that I am living in going to be proclaimed?",
+                    "deed":         "How do I get a title deed for my stand?",
+                    "house":        "How do I find out more about getting a house?",
+                    "plans":        "What are the city's plans for my area?",
+                    "rdp":          "How do I find out where I am on the list for a RDP house?",
+                    "eviction":     "I'm being evicted, what do I do?",
+                    "restart":      "Start over"
+                }
+            }
+        }
+    ],
+    "water": [
+        {
+            "_id": "problem",
+            "_source": {
+                "intent": "help",
+                "response": [{
+                    "text": "What problem do you have regarding water?",
+                    "options": "<<OPTIONS::WATER_MAIN_MENU>>"
+                }]
+            }
+        },
+        {
+            "_id": "WATER_MAIN_MENU",
+            "_source": {
+                "response": {
+                }
+            }
+        }
+    ],
+    "sanitation": [
+        {
+            "_id": "problem",
+            "_source": {
+                "intent": "help",
+                "response": [{
+                    "text": "What problem do you have regarding sanitation?",
+                    "options": "<<OPTIONS::SANITATION_MAIN_MENU>>"
+                }]
+            }
+        },
+        {
+            "_id": "SANITATION_MAIN_MENU",
+            "_source": {
+                "response": {
+                }
+            }
+        }
+    ],
+    "electricity": [
+        {
+            "_id": "problem",
+            "_source": {
+                "intent": "help",
+                "response": [{
+                    "text": "What problem do you have regarding electricity?",
+                    "options": "<<OPTIONS::ELECTRICITY_MAIN_MENU>>"
+                }]
+            }
+        },
+        {
+            "_id": "ELECTRICITY_MAIN_MENU",
+            "_source": {
+                "response": {
+                }
+            }
+        }
+    ],
+    "proclamation": [
+        {
+            "_id": "action",
+            "_source": {
+                "intent": "help",
+                "response": [{
+                    "text": "To avoid telling you something you've already tried, can you tell us what actions you've taken? Reply by choosing the numbers below",
+                    "options": "<<OPTIONS::PROCLAMATION_MAIN_MENU>>"
+                }]
+            }
+        },
+        {
+            "_id": "PROCLAMATION_MAIN_MENU",
+            "_source": {
+                "response": {
+                    "call":         "1. Made phone calls to municipality",
+                    "wrote":        "2. Wrote letters to municipality",
+                    "met":          "3. Met with municipality",
+                    "councillor":   "4. Talked to the councillor",
+                    "organization": "5. Spoke to organization not related to government",
+                    "none":         "6. None"
+                }
+            }
+        }
+    ],
+    "deed": [
+        {
+            "_id": "action",
+            "_source": {
+                "intent": "help",
+                "response": [{
+                    "text": "To avoid telling you something you've already tried, can you tell us what actions you've taken? Reply by choosing the numbers below",
+                    "options": "<<OPTIONS::DEED_MAIN_MENU>>"
+                }]
+            }
+        },
+        {
+            "_id": "DEED_MAIN_MENU",
+            "_source": {
+                "response": {
+                    "call":         "1. Made phone calls to municipality",
+                    "wrote":        "2. Wrote letters to municipality",
+                    "met":          "3. Met with municipality",
+                    "councillor":   "4. Talked to the councillor",
+                    "organization": "5. Spoke to organization not related to government",
+                    "none":         "6. None"
+                }
+            }
+        }
+    ],
+    "house": [
+        {
+            "_id": "action",
+            "_source": {
+                "intent": "help",
+                "response": [{
+                    "text": "To avoid telling you something you've already tried, can you tell us what actions you've taken? Reply by choosing the numbers below",
+                    "options": "<<OPTIONS::HOUSE_MAIN_MENU>>"
+                }]
+            }
+        },
+        {
+            "_id": "HOUSE_MAIN_MENU",
+            "_source": {
+                "response": {
+                    "call":         "1. Made phone calls to municipality",
+                    "wrote":        "2. Wrote letters to municipality",
+                    "met":          "3. Met with municipality",
+                    "councillor":   "4. Talked to the councillor",
+                    "organization": "5. Spoke to organization not related to government",
+                    "none":         "6. None"
+                }
+            }
+        }
+    ],
+    "plans": [
+        {
+            "_id": "action",
+            "_source": {
+                "intent": "help",
+                "response": [{
+                    "text": "To avoid telling you something you've already tried, can you tell us what actions you've taken? Reply by choosing the numbers below",
+                    "options": "<<OPTIONS::PLANS_MAIN_MENU>>"
+                }]
+            }
+        },
+        {
+            "_id": "PLANS_MAIN_MENU",
+            "_source": {
+                "response": {
+                    "call":         "1. Made phone calls to municipality",
+                    "wrote":        "2. Wrote letters to municipality",
+                    "met":          "3. Met with municipality",
+                    "councillor":   "4. Talked to the councillor",
+                    "organization": "5. Spoke to organization not related to government",
+                    "none":         "6. None"
+                }
+            }
+        }
+    ],
+    "rdp": [
+        {
+            "_id": "action",
+            "_source": {
+                "intent": "help",
+                "response": [{
+                    "text": "To avoid telling you something you've already tried, can you tell us what actions you've taken? Reply by choosing the numbers below",
+                    "options": "<<OPTIONS::RDP_MAIN_MENU>>"
+                }]
+            }
+        },
+        {
+            "_id": "RDP_MAIN_MENU",
+            "_source": {
+                "response": {
+                    "call":         "1. Made phone calls to municipality",
+                    "wrote":        "2. Wrote letters to municipality",
+                    "met":          "3. Met with municipality",
+                    "councillor":   "4. Talked to the councillor",
+                    "organization": "5. Spoke to organization not related to government",
+                    "none":         "6. None"
+                }
+            }
+        }
+    ],
+    "eviction": [
+        {
+            "_id": "action",
+            "_source": {
+                "intent": "help",
+                "response": [{
+                    "text": "To avoid telling you something you've already tried, can you tell us what actions you've taken? Reply by choosing the numbers below",
+                    "options": "<<OPTIONS::EVICTION_MAIN_MENU>>"
+                }]
+            }
+        },
+        {
+            "_id": "EVICTION_MAIN_MENU",
+            "_source": {
+                "response": {
+                    "call":         "1. Made phone calls to municipality",
+                    "wrote":        "2. Wrote letters to municipality",
+                    "met":          "3. Met with municipality",
+                    "councillor":   "4. Talked to the councillor",
+                    "organization": "5. Spoke to organization not related to government",
+                    "none":         "6. None"
+                }
+            }
+        }
+    ],
+    "call": [
+        {
+            "_id": "callConfirmation",
+            "_source": {
+                "intent": "confirm",
+                "response": [{
+                    "text": "Okay, knowing the actions you've taken, we will find information on your problem.",
+                    "options": "<<OPTIONS::CONFIRM_MAIN_MENU>>"
+                }]
+            }
+        },
+        {
+            "_id": "CONFIRM_MAIN_MENU",
+            "_source": {
+                "response": {
+                    "confirm":  "1. Confirm",
+                    "restart":  "2. Start over"
+                }
+            }
+        }
+    ],
+    "wrote": [
+        {
+            "_id": "writeConfirmation",
+            "_source": {
+                "intent": "confirm",
+                "response": [{
+                    "text": "Okay, knowing the actions you've taken, we will find information on your problem.",
+                    "options": "<<OPTIONS::CONFIRM_MAIN_MENU>>"
+                }]
+            }
+        },
+        {
+            "_id": "CONFIRM_MAIN_MENU",
+            "_source": {
+                "response": {
+                    "confirm":  "1. Confirm",
+                    "restart":  "2. Start over"
+                }
+            }
+        }
+    ],
+    "met": [
+        {
+            "_id": "metConfirmation",
+            "_source": {
+                "intent": "confirm",
+                "response": [{
+                    "text": "Okay, knowing the actions you've taken, we will find information on your problem.",
+                    "options": "<<OPTIONS::CONFIRM_MAIN_MENU>>"
+                }]
+            }
+        },
+        {
+            "_id": "CONFIRM_MAIN_MENU",
+            "_source": {
+                "response": {
+                    "confirm":  "1. Confirm",
+                    "restart":  "2. Start over"
+                }
+            }
+        }
+    ],
+    "councillor": [
+        {
+            "_id": "councillorConfirmation",
+            "_source": {
+                "intent": "confirm",
+                "response": [{
+                    "text": "Okay, knowing the actions you've taken, we will find information on your problem.",
+                    "options": "<<OPTIONS::CONFIRM_MAIN_MENU>>"
+                }]
+            }
+        },
+        {
+            "_id": "CONFIRM_MAIN_MENU",
+            "_source": {
+                "response": {
+                    "confirm":  "1. Confirm",
+                    "restart":  "2. Start over"
+                }
+            }
+        }
+    ],
+    "organization": [
+        {
+            "_id": "orgConfirmation",
+            "_source": {
+                "intent": "confirm",
+                "response": [{
+                    "text": "Okay, knowing the actions you've taken, we will find information on your problem.",
+                    "options": "<<OPTIONS::CONFIRM_MAIN_MENU>>"
+                }]
+            }
+        },
+        {
+            "_id": "CONFIRM_MAIN_MENU",
+            "_source": {
+                "response": {
+                    "confirm":  "1. Confirm",
+                    "restart":  "2. Start over"
+                }
+            }
+        }
+    ],
+    "none": [
+        {
+            "_id": "callConfirmation",
+            "_source": {
+                "intent": "confirm",
+                "response": [{
+                    "text": "Okay, knowing the actions you've taken, we will find information on your problem.",
+                    "options": "<<OPTIONS::CONFIRM_MAIN_MENU>>"
+                }]
+            }
+        },
+        {
+            "_id": "CONFIRM_MAIN_MENU",
+            "_source": {
+                "response": {
+                    "confirm":  "1. Confirm",
+                    "restart":  "2. Start over"
+                }
+            }
+        }
+    ],
+    "confirm": [
+        {
+            "_id": "confirm",
+            "_source": {
+                "intent": "inform",
+                "response": [{
+                    "text": "Thank you for your responses, we are working to find useful information. As a note, GR Zonke gathers information from many sources such as communities, NGOs, the municipality and legislation to provide the most relevant help we can, so it might take a while to get back to you."
+                }]
+            }
+        }
+    ],
+    "restart": [
+        {
+            "_id": "restart",
+            "_source": {
+                "intent": "inform",
+                "response": [{
+                    "text": "No problem"
+                }]
+            }
+        }
+    ]
 }
