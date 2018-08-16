@@ -26,7 +26,16 @@ const executeRequest = (query, params, res) => {
     return session.run(
         query, params
     ).then(result => {
-        res.json(result);
+        console.log('result: ', result);
+        let returnValue = result.records.map(record => record.toObject());
+        console.log('return value: ', returnValue);
+        console.log('experiment: ', returnValue[0]['counts']);
+        console.log('another experiment: ', result.records[0].get('counts'));
+        let extracted = returnValue[0]['counts'];
+        let properlyExtract =  {};
+        Object.keys(extracted).forEach(key => properlyExtract[key] = extracted[key]['low']);
+        console.log('and one more: ', properlyExtract);
+        res.json(properlyExtract);
     }).catch(error => {
         res.json(error);
     })
@@ -36,7 +45,7 @@ const executeRequest = (query, params, res) => {
 
 app.get('/profile/counts', (req, res) => {
     console.log('Getting entity and relationship counts');
-    executeRequest("RETURN profile.counts()", {}, res);
+    executeRequest("RETURN profile.counts() as counts", {}, res);
 })
 
 app.get('/profile/group/membership', (req, res) => {

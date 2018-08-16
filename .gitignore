@@ -22,6 +22,7 @@ chargebeeIntegration/**
 # Out and build from Java
 **/out
 **/build
+**/target
 
 # Compiled class file
 *.class
