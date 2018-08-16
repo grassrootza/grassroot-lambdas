@@ -14,6 +14,13 @@ public class ExtensionUtils {
     public static final String pagerankRaw = "pagerankRaw";
     public static final String pagerankNorm = "pagerankNorm";
     public static final String closenessRaw = "closenessRaw";
+    public static final String closenessNorm = "closenessNorm";
+
+    public static String getMetricPropertyName(String metric, boolean normalized) {
+        if (isPagerank(metric)) return normalized ? pagerankNorm : pagerankRaw;
+        if (isCloseness(metric)) return normalized ? closenessNorm : closenessRaw;
+        return null;
+    }
 
     public static Map<Object, Object> resultToMap(Result result, String keyName, String valueName) {
         return result.stream().map(r -> new SimpleEntry<>
@@ -42,16 +49,19 @@ public class ExtensionUtils {
     }
 
     public static String rangeQuery(String entityType, String subType, String metric, long firstRank, long lastRank, GraphDatabaseService db) {
-        return  " WITH n AS entity, n." + metric + " AS pagerank" +
-                " ORDER BY pagerank DESC" +
+        if (lastRank == 0) lastRank = getEntityCount(entityType, subType, metric, firstRank, lastRank, db);
+        return  " WITH n AS entity, n." + metric + " AS metric" +
+                " ORDER BY metric DESC" +
                 " SKIP " + Long.toString(firstRank) +
-                " LIMIT " + Long.toString(getEntityCount(entityType, subType, metric, firstRank, lastRank, db));
+                " LIMIT " + Long.toString(lastRank - firstRank);
     }
 
     public static long getEntityCount(String entityType, String subType, String metric, long firstRank, long lastRank, GraphDatabaseService db) {
-        String typeFilter = typeQuery(entityType, subType, metric);
-        if (lastRank == 0) lastRank = (long) resultToSingleValue(db.execute(typeFilter + " RETURN COUNT(n)"));
-        return lastRank - firstRank;
+        return (long) resultToSingleValue(db.execute(typeQuery(entityType, subType, metric) + " RETURN COUNT(n)"));
+    }
+
+    public static boolean metricIsValid(String metric) {
+        return isPagerank(metric) || isCloseness(metric);
     }
 
     public static boolean typesAreValid(String entityType, String subType) {
@@ -64,7 +74,7 @@ public class ExtensionUtils {
     }
 
     public static boolean depthIsValid(Long depth) {
-        return  depth == null || depth == 1 || depth == 2 || depth == 3;
+        return depth == 1 || depth == 2 || depth == 3;
     }
 
     public static boolean entityTypeIsValid(String entityType) {
@@ -76,6 +86,14 @@ public class ExtensionUtils {
         return entityType.isEmpty() || isActor(entityType) ?
                 ("INDIVIDUAL".equals(subType) || "GROUP".equals(subType) || "MOVEMENT".equals(subType) || subType.isEmpty()) :
                 ("MEETING".equals(subType) || "VOTE".equals(subType) || "TODO".equals(subType) || subType.isEmpty());
+    }
+
+    public static boolean isPagerank(String metric) {
+        return "PAGERANK".equals(metric.toUpperCase());
+    }
+
+    public static boolean isCloseness(String metric) {
+        return "CLOSENESS".equals(metric.toUpperCase());
     }
 
     public static boolean isActor(String entityType) {

@@ -127,7 +127,7 @@ const paramToArray = (req, paramName) => {
 // pagerank
 
 app.get('/pagerank/setup', (req, res) => {
-    console.log("Setting up pagerank procedures");
+    console.log("Setting up pagerank extensions");
     return executeRequest("CALL pagerank.setup()", {}, res);
 })
 
@@ -136,32 +136,50 @@ app.get('/pagerank/write', (req, res) => {
     return executeRequest("CALL pagerank.write()", {}, res);
 })
 
-app.get('/pagerank/normalize', (req, res) => {
-    console.log("Writing normalized pagerank to graph");
-    let query = "CALL pagerank.normalize($entity_type, $sub_type)";
-    let params = { entity_type: req.query.entity_type, sub_type: req.query.sub_type };
-    return executeRequest(query, params, res);
-})
-
-app.get('/pagerank/stats', (req, res) => {
-    console.log("Getting pagerank stats");
-    let query = pagerankQuery('stats');
-    return executeRequest(query, buildPagerankParams(req), res);
-})
-
-app.get('/pagerank/scores', (req, res) => {
-    console.log("Getting pagerank scores");
-    let query = pagerankQuery('scores');
-    return executeRequest(query, buildPagerankParams(req), res);
-})
-
 app.get('/pagerank/tiers', (req, res) => {
     console.log("Getting pagerank tiers");
     return executeRequest("RETURN pagerank.tiers()", {}, res);
 })
 
-const buildPagerankParams = (req) => {
+// closeness
+
+app.get('/closeness/setup', (req, res) => {
+    console.log("Setting up closeness extensions");
+    return executeRequest("CALL closeness.setup()", {}, res);
+})
+
+app.get('/closeness/write', (req, res) => {
+    console.log("Writing raw closeness to graph");
+    return executeRequest("CALL closeness.write()", {}, res);
+})
+
+app.get('/closeness/tiers', (req, res) => {
+    console.log("Getting closeness tiers");
+    return executeRequest("RETURN closeness.tiers()", {}, res);
+})
+
+// metric
+
+app.get('/metric/normalize', (req, res) => {
+    console.log("Writing normalized metric to graph");
+    let query = "CALL metric.normalize($metric_type, $entity_type, $sub_type)";
+    let params = { metric_type: req.query.metric_type, entity_type: req.query.entity_type, sub_type: req.query.sub_type };
+    return executeRequest(query, params, res);
+})
+
+app.get('/metric/stats', (req, res) => {
+    console.log("Getting metric stats");
+    return executeRequest(metricQuery('stats'), buildMetricParams(req), res);
+})
+
+app.get('/metric/scores', (req, res) => {
+    console.log("Getting metric scores");
+    return executeRequest(metricQuery('scores'), buildMetricParams(req), res);
+})
+
+const buildMetricParams = (req) => {
     return {
+        metric_type: req.query.metric_type,
         entity_type: req.query.entity_type,
         sub_type: req.query.sub_type,
         first_rank: req.query.first_rank,
@@ -170,31 +188,29 @@ const buildPagerankParams = (req) => {
     };
 }
 
-const pagerankQuery = (extension) => 'RETURN pagerank.' + extension +
-    '($entity_type, $sub_type, toInteger($first_rank), toInteger($last_rank), toBoolean($normalized))';
+const metricQuery = (extension) => 'RETURN metric.' + extension +
+    '($metric_type, $entity_type, $sub_type, toInteger($first_rank), toInteger($last_rank), toBoolean($normalized))';
 
 // connections
 
 app.get('/connections/mean', (req, res) => {
     console.log("Getting mean connections");
-    let query = connectionQuery('mean', true);
-    return executeRequest(query, buildConnectionsParams(req, true), res);
+    return executeRequest(connectionQuery('mean', false), buildConnectionsParams(req, false), res);
 })
 
 app.get('/connections/meanList', (req, res) => {
     console.log("Getting mean connections list");
-    let query = connectionQuery('meanList', true);
-    return executeRequest(query, buildConnectionsParams(req, true), res);
+    return executeRequest(connectionQuery('meanList', false), buildConnectionsParams(req, false), res);
 })
 
 app.get('/connections/compareMetrics', (req, res) => {
-    console.log('Comparing pagerank and closeness connections');
-    let query = connectionQuery('compareMetrics', false);
-    return executeRequest(query, buildConnectionsParams(req, false), res);
+    console.log('Comparing metric connections');
+    return executeRequest(connectionQuery('compareMetrics', true), buildConnectionsParams(req, true), res);
 })
 
-const buildConnectionsParams = (req, pagerankNeeded) => {
+const buildConnectionsParams = (req, metric2Needed) => {
     let params = {
+        metric1_type: req.query.metric1_type,
         entity_type: req.query.entity_type,
         sub_type: req.query.sub_type,
         first_rank: req.query.first_rank,
@@ -202,15 +218,14 @@ const buildConnectionsParams = (req, pagerankNeeded) => {
         depth: req.query.depth,
         count_entities: req.query.count_entities,
     };
-    if (pagerankNeeded) params.pagerank = req.query.pagerank;
+    if (metric2Needed) params.metric2_type = req.query.metric2_type;
     return params;
 }
 
-const connectionQuery = (extension, pagerankNeeded) => {
-    let query = 'RETURN connections.' + extension + '($entity_type, $sub_type, toInteger($first_rank), toInteger($last_rank), ' +
-    'toInteger($depth), toBoolean($count_entities)';
-    query += pagerankNeeded ? ', toBoolean($pagerank))' : ')';
-    return query;
+const connectionQuery = (extension, metric2Needed) => {
+    let metric2 = metric2Needed ? '$metric2_type, ' : '';
+    return 'RETURN connections.' + extension + '($metric1_type, ' + metric2 + '$entity_type, $sub_type, ' +
+    'toInteger($first_rank), toInteger($last_rank), toInteger($depth), toBoolean($count_entities))';
 }
 
 app.listen(3000, () => console.log(`Listening on port 3000`));
