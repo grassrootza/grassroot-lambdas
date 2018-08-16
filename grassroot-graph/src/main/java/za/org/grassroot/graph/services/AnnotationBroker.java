@@ -1,8 +1,5 @@
 package za.org.grassroot.graph.services;
 
-import za.org.grassroot.graph.domain.enums.GrassrootRelationship;
-
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
