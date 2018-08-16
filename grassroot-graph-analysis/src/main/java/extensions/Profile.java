@@ -27,7 +27,7 @@ public class Profile {
     @Description("Returns group membership counts in rank range")
     public List<Object> getGroupsByMembership(@Name(value = "firstRank", defaultValue = "0") long firstRank,
                                               @Name(value = "lastRank", defaultValue = "100") long lastRank) {
-        log.info("Obtaining membership counts of groups in range {} - {}", firstRank, lastRank);
+        log.info("Obtaining membership counts of groups in range " + firstRank + " - " + lastRank);
         if (!rangeIsValid(firstRank, lastRank)) return null;
         Result membershipCounts = db.execute("" +
                 " MATCH (i:Actor)-[:PARTICIPATES]->(g:Actor)" +
@@ -43,7 +43,7 @@ public class Profile {
     @Description("Returns user participation counts in rank range")
     public List<Object> getUsersByParticipation(@Name(value = "firstRank", defaultValue = "0") long firstRank,
                                                 @Name(value = "lastRank", defaultValue = "100") long lastRank) {
-        log.info("Obtaining participation counts of users in range {} - {}", firstRank, lastRank);
+        log.info("Obtaining participation counts of users in range " + firstRank + " - " + lastRank);
         if (!rangeIsValid(firstRank, lastRank)) return null;
         Result participationCounts = db.execute("" +
                 " MATCH (i:Actor)-[:PARTICIPATES]->(entity)" +
