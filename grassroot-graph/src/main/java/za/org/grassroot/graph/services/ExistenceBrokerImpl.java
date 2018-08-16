@@ -41,7 +41,10 @@ public class ExistenceBrokerImpl implements ExistenceBroker {
         }
         if (exists && platformEntity.isActor()) {
             Actor actor = actorRepository.findByPlatformUid(platformEntity.getPlatformId());
-            if (actor.getActorType() == null) actor.setActorType(platformEntity.getActorType());
+            if (actor.getActorType() == null) {
+                actor.setActorType(platformEntity.getActorType());
+                actorRepository.save(actor);
+            }
         }
         return exists;
     }
