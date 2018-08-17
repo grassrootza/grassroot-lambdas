@@ -13,6 +13,10 @@ import { DashboardComponent } from './dashboard/dashboard.component';
 import { ReactiveFormsModule } from '@angular/forms';
 import { AddDocumentComponent } from './document/add-document/add-document.component';
 import { HttpClientModule } from '@angular/common/http';
+import { OverallStatsComponent } from './dashboard/overall-stats/overall-stats.component';
+import { TopUsersComponent } from './dashboard/top-users/top-users.component';
+import { TopGroupsComponent } from './dashboard/top-groups/top-groups.component';
+import { PagerankProfileComponent } from './dashboard/pagerank-profile/pagerank-profile.component';
 
 const routes: Routes = [
   { path: '', redirectTo: '/query', pathMatch: 'full' },
@@ -26,7 +30,11 @@ const routes: Routes = [
     AppComponent,
     QueryGraphComponent,
     DashboardComponent,
-    AddDocumentComponent
+    AddDocumentComponent,
+    OverallStatsComponent,
+    TopUsersComponent,
+    TopGroupsComponent,
+    PagerankProfileComponent
   ],
   imports: [
     BrowserModule,

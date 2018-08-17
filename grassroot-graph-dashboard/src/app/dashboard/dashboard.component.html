@@ -1,7 +1,7 @@
 <div class="grid-container">
   <h1 class="mat-h1">Dashboard</h1>
   <mat-grid-list cols="2" rowHeight="350px">
-    <mat-grid-tile *ngFor="let card of cards | async" [colspan]="card.cols" [rowspan]="card.rows">
+    <mat-grid-tile *ngFor="let card of cards | async; let i = index" [colspan]="card.cols" [rowspan]="card.rows">
       <mat-card class="dashboard-card">
         <mat-card-header>
           <mat-card-title>
@@ -16,7 +16,10 @@
           </mat-card-title>
         </mat-card-header>
         <mat-card-content class="dashboard-card-content">
-          <div>Card Content Here</div>
+          <app-overall-stats *ngIf="i == 0"></app-overall-stats>
+          <app-top-groups *ngIf="i == 1"></app-top-groups>
+          <app-top-users *ngIf="i == 2"></app-top-users>
+          <app-pagerank-profile *ngIf="i == 3"></app-pagerank-profile>
         </mat-card-content>
       </mat-card>
     </mat-grid-tile>

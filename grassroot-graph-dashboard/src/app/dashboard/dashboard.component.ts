@@ -15,18 +15,18 @@ export class DashboardComponent implements OnInit {
     map(({ matches }) => {
       if (matches) {
         return [
-          { title: 'Card 1', cols: 1, rows: 1 },
-          { title: 'Card 2', cols: 1, rows: 1 },
-          { title: 'Card 3', cols: 1, rows: 1 },
-          { title: 'Card 4', cols: 1, rows: 1 }
+          { title: 'Overall stats', cols: 1, rows: 1 },
+          { title: 'Top groups', cols: 1, rows: 1 },
+          { title: 'Top users', cols: 1, rows: 1 },
+          { title: 'Pagerank', cols: 1, rows: 1 }
         ];
       }
 
       return [
-        { title: 'Card 1', cols: 2, rows: 1 },
-        { title: 'Card 2', cols: 1, rows: 1 },
-        { title: 'Card 3', cols: 1, rows: 2 },
-        { title: 'Card 4', cols: 1, rows: 1 }
+        { title: 'Overall stats', cols: 2, rows: 1 },
+        { title: 'Top groups', cols: 1, rows: 1 },
+        { title: 'Top users', cols: 1, rows: 2 },
+        { title: 'Pagerank', cols: 1, rows: 1 }
       ];
     })
   );
@@ -35,12 +35,7 @@ export class DashboardComponent implements OnInit {
 
   ngOnInit(): void {
     console.log('Initiated dashboard component!');
-    this.analyticsService.getTotalMetrics().subscribe(result => {
-      console.log('metrics: ', result);
-    }, error => {
-      console.log('failed retrieving total metrics: ', error);
-    });
-
+    
     // this.analyticsService.getTopGroupsByMembership().subscribe(result => {
     //   console.log('retrieved top groups: ', result);
     // }, error => {
