@@ -11,6 +11,10 @@ Collection of Neo4j user-defined functions and procedures for characterizing and
 
 ## Extensions
 
+NOTE - If returning numbers, all cypher queries should return floats rather than integers, as javascript formatting in node lambda formats integer return types in unusual manner (i.e. {low: value, high: value}).
+
+NOTE - Procedures are called using the "CALL procedure.name" syntax. Functions are called using the "RETURN function.name" syntax. Both functions and procedures can be integrated into larger cypher queries.
+
 ### Common Parameters
 
 @metricType - The name of the metric to be evaluated. Either "PAGERANK" or "CLOSENESS".
@@ -22,8 +26,6 @@ Collection of Neo4j user-defined functions and procedures for characterizing and
 @firstRank - The rank of the first entity to include in the query according to the order specified by the algorithm. This ordering could be membership counts, participation counts, pagerank score, closeness score, etc.
 
 @lastRank - The rank of the last entity to include in the query according to the order specified by the algorithm. This ordering could be membership counts, participation counts, pagerank score, closeness score, etc.
-
-Note: procedures are called using the "CALL procedure.name" syntax. Functions are called using the "RETURN function.name" syntax. Both functions and procedures can be integrated into larger cypher queries.
 
 ### Profiling
 
