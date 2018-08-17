@@ -45,13 +45,7 @@ public class Metrics {
         if (!paramsAreValid(metricType, entityType, subType, firstRank, lastRank)) return null;
         String metric = getMetricPropertyName(metricType, normalized);
         String typeFilter = typeQuery(entityType, subType, metric);
-        Result stats = db.execute(typeFilter + rangeQuery(entityType, subType, metric, firstRank, lastRank, db) +
-                " WITH min(metric) AS minimum," +
-                " max(metric) AS maximum," +
-                " avg(metric) AS average," +
-                " percentileDisc(metric, 0.5) AS median," +
-                " stDevP(metric) AS stddev" +
-                " RETURN minimum, maximum, maximum - minimum AS range, average, median, stddev");
+        Result stats = db.execute(typeFilter + rangeQuery(entityType, subType, metric, firstRank, lastRank, db) + statsQuery("metric"));
         return stats.hasNext() ? stats.next() : null;
     }
 

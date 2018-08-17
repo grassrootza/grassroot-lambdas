@@ -29,14 +29,7 @@ public class Profile {
                                               @Name(value = "lastRank", defaultValue = "100") long lastRank) {
         log.info("Obtaining membership counts of groups in range " + firstRank + " - " + lastRank);
         if (!rangeIsValid(firstRank, lastRank)) return null;
-        Result membershipCounts = db.execute("" +
-                " MATCH (i:Actor)-[:PARTICIPATES]->(g:Actor)" +
-                " WHERE i.actorType='INDIVIDUAL' AND g.actorType='GROUP'" +
-                " WITH g.platformUid as id, (COUNT(i)*1.0) as count_membership" +
-                " ORDER BY count_membership DESC" +
-                " SKIP " + Long.toString(firstRank) +
-                " LIMIT " + Long.toString(lastRank - firstRank) +
-                " RETURN count_membership");
+        Result membershipCounts = db.execute(membershipQuery(firstRank, lastRank) + " RETURN count_membership");
         return resultToList(membershipCounts, "count_membership");
     }
 
@@ -46,15 +39,30 @@ public class Profile {
                                                 @Name(value = "lastRank", defaultValue = "100") long lastRank) {
         log.info("Obtaining participation counts of users in range " + firstRank + " - " + lastRank);
         if (!rangeIsValid(firstRank, lastRank)) return null;
-        Result participationCounts = db.execute("" +
-                " MATCH (i:Actor)-[:PARTICIPATES]->(entity)" +
-                " WHERE i.actorType='INDIVIDUAL'" +
-                " WITH i.platformUid as id, (COUNT(entity)*1.0) as count_participation" +
-                " ORDER BY count_participation DESC" +
-                " SKIP " + Long.toString(firstRank) +
-                " LIMIT " + Long.toString(lastRank - firstRank) +
-                " RETURN count_participation");
+        Result participationCounts = db.execute(participationQuery(firstRank, lastRank) + " RETURN count_participation");
         return resultToList(participationCounts, "count_participation");
+    }
+
+    @UserFunction(name = "profile.membershipStats")
+    @Description("Returns group membership stats in rank range")
+    public Map<String, Object> getMembershipStats(@Name(value = "firstRank", defaultValue = "0") long firstRank,
+                                              @Name(value = "lastRank", defaultValue = "0") long lastRank) {
+        log.info("Obtaining membership stats of groups in range " + firstRank + " - " + lastRank);
+        if (lastRank == 0) lastRank = getEntityCount("ACTOR", "GROUP", db);
+        if (!rangeIsValid(firstRank, lastRank)) return null;
+        Result stats = db.execute(membershipQuery(firstRank, lastRank) + statsQuery("count_membership"));
+        return stats.hasNext() ? stats.next() : null;
+    }
+
+    @UserFunction(name = "profile.participationStats")
+    @Description("Returns user participation stats in rank range")
+    public Map<String, Object> getParticipationStats(@Name(value = "firstRank", defaultValue = "0") long firstRank,
+                                                @Name(value = "lastRank", defaultValue = "0") long lastRank) {
+        log.info("Obtaining participation stats of users in range " + firstRank + " - " + lastRank);
+        if (lastRank == 0) lastRank = getEntityCount("ACTOR", "INDIVIDUAL", db);
+        if (!rangeIsValid(firstRank, lastRank)) return null;
+        Result stats = db.execute(participationQuery(firstRank, lastRank) + statsQuery("count_participation"));
+        return stats.hasNext() ? stats.next() : null;
     }
 
     private Map<Object, Object> getEntityCounts() {
@@ -77,6 +85,24 @@ public class Profile {
                 " UNION MATCH ()-[g:GENERATOR]->(:Actor) RETURN 'ACTORS-GENERATED' AS type, (COUNT(g)*1.0) AS count" +
                 " UNION MATCH ()-[g:GENERATOR]->(:Event) RETURN 'EVENTS-GENERATED' AS type, (COUNT(g)*1.0) AS count");
         return resultToMap(relationshipCounts, "type", "count");
+    }
+
+    private String membershipQuery(long firstRank, long lastRank) {
+        return  " MATCH (i:Actor)-[:PARTICIPATES]->(g:Actor)" +
+                " WHERE i.actorType='INDIVIDUAL' AND g.actorType='GROUP'" +
+                " WITH g.platformUid as id, (COUNT(i)*1.0) as count_membership" +
+                " ORDER BY count_membership DESC" +
+                " SKIP " + Long.toString(firstRank) +
+                " LIMIT " + Long.toString(lastRank - firstRank);
+    }
+
+    private String participationQuery(long firstRank, long lastRank) {
+        return  " MATCH (i:Actor)-[:PARTICIPATES]->(entity)" +
+                " WHERE i.actorType='INDIVIDUAL'" +
+                " WITH i.platformUid as id, (COUNT(entity)*1.0) as count_participation" +
+                " ORDER BY count_participation DESC" +
+                " SKIP " + Long.toString(firstRank) +
+                " LIMIT " + Long.toString(lastRank - firstRank);
     }
 
 }

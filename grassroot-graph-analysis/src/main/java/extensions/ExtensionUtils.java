@@ -40,6 +40,14 @@ public class ExtensionUtils {
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
 
+    public static String simpleTypeQuery(String entityType, String subType) {
+        String entityFilter = entityType.isEmpty() ? "" :
+                isActor(entityType) ? ":Actor" : ":Event";
+        String subTypeFilter = subType.isEmpty() ? "" :
+                isActor(entityType) ? "n.actorType='" + subType + "'" : "n.eventType='" + subType + "'";
+        return  "MATCH (n" + entityFilter + ") WHERE " + subTypeFilter;
+    }
+
     public static String typeQuery(String entityType, String subType, String metric) {
         String entityFilter = entityType.isEmpty() ? "" :
                 isActor(entityType) ? ":Actor" : ":Event";
@@ -49,15 +57,28 @@ public class ExtensionUtils {
     }
 
     public static String rangeQuery(String entityType, String subType, String metric, long firstRank, long lastRank, GraphDatabaseService db) {
-        if (lastRank == 0) lastRank = getEntityCount(entityType, subType, metric, firstRank, lastRank, db);
+        if (lastRank == 0) lastRank = getEntityCount(entityType, subType, metric, db);
         return  " WITH n AS entity, n." + metric + " AS metric" +
                 " ORDER BY metric DESC" +
                 " SKIP " + Long.toString(firstRank) +
                 " LIMIT " + Long.toString(lastRank - firstRank);
     }
+    
+    public static String statsQuery(String keyWord) {
+        return  " WITH min(" + keyWord + ") AS minimum," +
+                " max(" + keyWord + ") AS maximum," +
+                " avg(" + keyWord + ") AS average," +
+                " percentileDisc(" + keyWord + ", 0.5) AS median," +
+                " stDevP(" + keyWord + ") AS stddev" +
+                " RETURN minimum, maximum, maximum - minimum AS range, average, median, stddev";
+    }
 
-    public static long getEntityCount(String entityType, String subType, String metric, long firstRank, long lastRank, GraphDatabaseService db) {
+    public static long getEntityCount(String entityType, String subType, String metric, GraphDatabaseService db) {
         return (long) resultToSingleValue(db.execute(typeQuery(entityType, subType, metric) + " RETURN COUNT(n)"));
+    }
+
+    public static long getEntityCount(String entityType, String subType, GraphDatabaseService db) {
+        return (long) resultToSingleValue(db.execute(simpleTypeQuery(entityType, subType) + " RETURN COUNT(n)"));
     }
 
     public static boolean metricIsValid(String metric) {
