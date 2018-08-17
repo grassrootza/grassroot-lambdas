@@ -26,43 +26,25 @@ const executeRequest = (query, params, res) => {
     return session.run(
         query, params
     ).then(result => {
-        console.log('result: ', result);
-        let returnValue = result.records.map(record => record.toObject());
-        console.log('return value: ', returnValue);
-        console.log('experiment: ', returnValue[0]['counts']);
-        console.log('another experiment: ', result.records[0].get('counts'));
-        let extracted = returnValue[0]['counts'];
-        let properlyExtract =  {};
-        Object.keys(extracted).forEach(key => properlyExtract[key] = extracted[key]['low']);
-        console.log('and one more: ', properlyExtract);
-        res.json(properlyExtract);
+        res.json(result.records.map(record => record.toObject())[0]["result"]);
     }).catch(error => {
         res.json(error);
     })
 }
 
-// profiling
-
-app.get('/profile/counts', (req, res) => {
-    console.log('Getting entity and relationship counts');
-    executeRequest("RETURN profile.counts() as counts", {}, res);
-})
-
-app.get('/profile/group/membership', (req, res) => {
-    console.log('Getting group membership counts');
-    let query = "RETURN profile.groupMemberships(toInteger($first_rank), toInteger($last_rank))";
-    let params = { first_rank: req.query.first_rank, last_rank: req.query.last_rank };
-    executeRequest(query, params, res);
-})
-
-app.get('/profile/user/participation', (req, res) => {
-    console.log('Getting user participation counts');
-    let query = "RETURN profile.userParticipations(toInteger($first_rank), toInteger($last_rank))";
-    let params = { first_rank: req.query.first_rank, last_rank: req.query.last_rank };
-    executeRequest(query, params, res);
-})
-
 // documents
+
+const executeDocRequest = (query, params, res) => {
+    console.log("query: ", query);
+    console.log("params: ", params);
+    return session.run(
+        query, params
+    ).then(result => {
+        res.json(result);
+    }).catch(error => {
+        res.json(error);
+    })
+}
 
 app.get('/document/create/:doc_type', (req, res) => {
     console.log('Creating document, type: ', req.params.doc_type);
@@ -76,12 +58,12 @@ app.get('/document/create/:doc_type', (req, res) => {
 
 app.get('/document/list', (req, res) => {
     console.log("Getting list of all documents");
-    executeRequest("MATCH (d:Document) RETURN d", {}, res);
+    executeRequest("MATCH (d:Document) RETURN d AS result", {}, res);
 });
 
 app.get('/document/name/available', (req, res) => {
     console.log("Checking availability of document name: ", req.query.machine_name);
-    let query = "MATCH (d:Document) WHERE toUpper(d.machineName)=toUpper($machine_name) RETURN COUNT(d)=0";
+    let query = "MATCH (d:Document) WHERE toUpper(d.machineName)=toUpper($machine_name) RETURN COUNT(d)=0 AS result";
     let params = { machine_name: req.query.machine_name };
     executeRequest(query, params, res);
 });
@@ -95,7 +77,7 @@ app.get('/document/query', (req, res) => {
                       " ANY(word IN d.issues WHERE word =~ $query_regex) OR" +
                       " ANY(word IN d.problems WHERE word =~ $query_regex) OR" +
                       " ANY(word IN d.procedures WHERE word =~ $query_regex)" +
-                " RETURN d";
+                " RETURN d AS result";
     let params = { query_word: req.query.query_word.toUpperCase(), query_regex: '(?i).*' + req.query.query_word + '.*' }
     executeRequest(query, params, res);
 });
@@ -124,6 +106,27 @@ const paramToArray = (req, paramName) => {
     return req.query[paramName] ? JSON.parse(req.query[paramName]) : [];
 }
 
+// profiling
+
+app.get('/profile/counts', (req, res) => {
+    console.log('Getting entity and relationship counts');
+    executeRequest("RETURN profile.counts() AS result", {}, res);
+})
+
+app.get('/profile/group/membership', (req, res) => {
+    console.log('Getting group membership counts');
+    let query = "RETURN profile.groupMemberships(toInteger($first_rank), toInteger($last_rank)) AS result";
+    let params = { first_rank: req.query.first_rank, last_rank: req.query.last_rank };
+    executeRequest(query, params, res);
+})
+
+app.get('/profile/user/participation', (req, res) => {
+    console.log('Getting user participation counts');
+    let query = "RETURN profile.userParticipations(toInteger($first_rank), toInteger($last_rank)) AS result";
+    let params = { first_rank: req.query.first_rank, last_rank: req.query.last_rank };
+    executeRequest(query, params, res);
+})
+
 // pagerank
 
 app.get('/pagerank/setup', (req, res) => {
@@ -138,7 +141,7 @@ app.get('/pagerank/write', (req, res) => {
 
 app.get('/pagerank/tiers', (req, res) => {
     console.log("Getting pagerank tiers");
-    return executeRequest("RETURN pagerank.tiers()", {}, res);
+    return executeRequest("RETURN pagerank.tiers() AS result", {}, res);
 })
 
 // closeness
@@ -155,7 +158,7 @@ app.get('/closeness/write', (req, res) => {
 
 app.get('/closeness/tiers', (req, res) => {
     console.log("Getting closeness tiers");
-    return executeRequest("RETURN closeness.tiers()", {}, res);
+    return executeRequest("RETURN closeness.tiers() AS result", {}, res);
 })
 
 // metric
@@ -189,7 +192,7 @@ const buildMetricParams = (req) => {
 }
 
 const metricQuery = (extension) => 'RETURN metric.' + extension +
-    '($metric_type, $entity_type, $sub_type, toInteger($first_rank), toInteger($last_rank), toBoolean($normalized))';
+    '($metric_type, $entity_type, $sub_type, toInteger($first_rank), toInteger($last_rank), toBoolean($normalized)) AS result';
 
 // connections
 
@@ -225,7 +228,7 @@ const buildConnectionsParams = (req, metric2Needed) => {
 const connectionQuery = (extension, metric2Needed) => {
     let metric2 = metric2Needed ? '$metric2_type, ' : '';
     return 'RETURN connections.' + extension + '($metric1_type, ' + metric2 + '$entity_type, $sub_type, ' +
-    'toInteger($first_rank), toInteger($last_rank), toInteger($depth), toBoolean($count_entities))';
+    'toInteger($first_rank), toInteger($last_rank), toInteger($depth), toBoolean($count_entities)) AS result';
 }
 
 app.listen(3000, () => console.log(`Listening on port 3000`));

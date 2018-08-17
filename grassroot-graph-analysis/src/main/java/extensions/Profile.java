@@ -32,10 +32,11 @@ public class Profile {
         Result membershipCounts = db.execute("" +
                 " MATCH (i:Actor)-[:PARTICIPATES]->(g:Actor)" +
                 " WHERE i.actorType='INDIVIDUAL' AND g.actorType='GROUP'" +
-                " WITH g, COUNT(i) as count_membership" +
-                " RETURN count_membership ORDER BY count_membership DESC" +
+                " WITH g.platformUid as id, (COUNT(i)*1.0) as count_membership" +
+                " ORDER BY count_membership DESC" +
                 " SKIP " + Long.toString(firstRank) +
-                " LIMIT " + Long.toString(lastRank - firstRank));
+                " LIMIT " + Long.toString(lastRank - firstRank) +
+                " RETURN count_membership");
         return resultToList(membershipCounts, "count_membership");
     }
 
@@ -48,32 +49,33 @@ public class Profile {
         Result participationCounts = db.execute("" +
                 " MATCH (i:Actor)-[:PARTICIPATES]->(entity)" +
                 " WHERE i.actorType='INDIVIDUAL'" +
-                " WITH i, COUNT(entity) as count_participation" +
-                " RETURN  count_participation ORDER BY count_participation DESC " +
+                " WITH i.platformUid as id, (COUNT(entity)*1.0) as count_participation" +
+                " ORDER BY count_participation DESC" +
                 " SKIP " + Long.toString(firstRank) +
-                " LIMIT " + Long.toString(lastRank - firstRank));
+                " LIMIT " + Long.toString(lastRank - firstRank) +
+                " RETURN count_participation");
         return resultToList(participationCounts, "count_participation");
     }
 
     private Map<Object, Object> getEntityCounts() {
         Result entityCounts = db.execute("" +
-                " MATCH (n) WHERE n.actorType IS NOT NULL OR n.eventType IS NOT NULL RETURN 'TOTAL-ENTITIES' AS type, COUNT(*) AS count" +
-                " UNION MATCH (n:Actor) WHERE n.actorType IS NOT NULL RETURN 'ACTOR' AS type, COUNT(*) AS count" +
-                " UNION MATCH (n:Event) WHERE n.eventType IS NOT NULL RETURN 'EVENT' AS type, COUNT(*) AS count" +
-                " UNION MATCH (n:Actor) WHERE n.actorType IS NOT NULL RETURN n.actorType AS type, COUNT(*) AS count" +
-                " UNION MATCH (n:Event) WHERE n.eventType IS NOT NULL RETURN n.eventType AS type, COUNT(*) AS count");
+                " MATCH (n) WHERE n.actorType IS NOT NULL OR n.eventType IS NOT NULL RETURN 'TOTAL-ENTITIES' AS type, (COUNT(*)*1.0) AS count" +
+                " UNION MATCH (n:Actor) WHERE n.actorType IS NOT NULL RETURN 'ACTOR' AS type, (COUNT(*)*1.0) AS count" +
+                " UNION MATCH (n:Event) WHERE n.eventType IS NOT NULL RETURN 'EVENT' AS type, (COUNT(*)*1.0) AS count" +
+                " UNION MATCH (n:Actor) WHERE n.actorType IS NOT NULL RETURN n.actorType AS type, (COUNT(*)*1.0) AS count" +
+                " UNION MATCH (n:Event) WHERE n.eventType IS NOT NULL RETURN n.eventType AS type, (COUNT(*)*1.0) AS count");
         return resultToMap(entityCounts, "type", "count");
     }
 
     private Map<Object, Object> getRelationshipCounts() {
         Result relationshipCounts = db.execute("" +
-                " MATCH ()-[r]-() RETURN 'TOTAL-RELATIONSHIPS' AS type, COUNT(DISTINCT r) AS count" +
-                " UNION MATCH ()-[p:PARTICIPATES]-() RETURN 'PARTICIPATES' AS type, COUNT(DISTINCT p) AS count" +
-                " UNION MATCH ()-[g:GENERATOR]-() RETURN 'GENERATOR' AS type, COUNT(DISTINCT g) AS count" +
-                " UNION MATCH ()-[p:PARTICIPATES]->(:Actor) RETURN 'PARTICIPATIONS-IN-ACTORS' AS type, COUNT(p) AS count" +
-                " UNION MATCH ()-[p:PARTICIPATES]->(:Event) RETURN 'PARTICIPATIONS-IN-EVENTS' AS type, COUNT(p) AS count" +
-                " UNION MATCH ()-[g:GENERATOR]->(:Actor) RETURN 'ACTORS-GENERATED' AS type, COUNT(g) AS count" +
-                " UNION MATCH ()-[g:GENERATOR]->(:Event) RETURN 'EVENTS-GENERATED' AS type, COUNT(g) AS count");
+                " MATCH ()-[r]-() RETURN 'TOTAL-RELATIONSHIPS' AS type, (COUNT(DISTINCT r)*1.0) AS count" +
+                " UNION MATCH ()-[p:PARTICIPATES]-() RETURN 'PARTICIPATES' AS type, (COUNT(DISTINCT p)*1.0) AS count" +
+                " UNION MATCH ()-[g:GENERATOR]-() RETURN 'GENERATOR' AS type, (COUNT(DISTINCT g)*1.0) AS count" +
+                " UNION MATCH ()-[p:PARTICIPATES]->(:Actor) RETURN 'PARTICIPATIONS-IN-ACTORS' AS type, (COUNT(p)*1.0) AS count" +
+                " UNION MATCH ()-[p:PARTICIPATES]->(:Event) RETURN 'PARTICIPATIONS-IN-EVENTS' AS type, (COUNT(p)*1.0) AS count" +
+                " UNION MATCH ()-[g:GENERATOR]->(:Actor) RETURN 'ACTORS-GENERATED' AS type, (COUNT(g)*1.0) AS count" +
+                " UNION MATCH ()-[g:GENERATOR]->(:Event) RETURN 'EVENTS-GENERATED' AS type, (COUNT(g)*1.0) AS count");
         return resultToMap(relationshipCounts, "type", "count");
     }
 

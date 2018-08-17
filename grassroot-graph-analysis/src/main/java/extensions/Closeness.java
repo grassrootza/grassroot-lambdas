@@ -44,10 +44,10 @@ public class Closeness {
     public Map<Object, Object> getUserTiers() {
         log.info("Getting closeness tier counts");
         Result tierCounts = db.execute("" +
-                " MATCH (n:Actor) WHERE n.actorType='INDIVIDUAL' AND n." + closenessNorm + " >= 1.5 RETURN 'TIER1' AS tier, COUNT(n) AS count" +
-                " UNION MATCH (n:Actor) WHERE n.actorType='INDIVIDUAL' AND n." + closenessNorm + " > 0.5 AND n.pagerankNorm < 1.5 RETURN 'TIER2' AS tier, COUNT(n) AS count" +
-                " UNION MATCH (n:Actor) WHERE n.actorType='INDIVIDUAL' AND n." + closenessNorm + " > -0.4 AND n.pagerankNorm < 0.5 RETURN 'TIER3' AS tier, COUNT(n) AS count" +
-                " UNION MATCH (n:Actor) WHERE n.actorType='INDIVIDUAL' AND n." + closenessNorm + " < -0.4 RETURN 'TIER4' AS tier, COUNT(n) AS count");
+                " MATCH (n:Actor) WHERE n.actorType='INDIVIDUAL' AND n." + closenessNorm + " >= 1.5 RETURN 'TIER1' AS tier, (COUNT(n)*1.0) AS count" +
+                " UNION MATCH (n:Actor) WHERE n.actorType='INDIVIDUAL' AND n." + closenessNorm + " > 0.5 AND n.pagerankNorm < 1.5 RETURN 'TIER2' AS tier, (COUNT(n)*1.0) AS count" +
+                " UNION MATCH (n:Actor) WHERE n.actorType='INDIVIDUAL' AND n." + closenessNorm + " > -0.4 AND n.pagerankNorm < 0.5 RETURN 'TIER3' AS tier, (COUNT(n)*1.0) AS count" +
+                " UNION MATCH (n:Actor) WHERE n.actorType='INDIVIDUAL' AND n." + closenessNorm + " < -0.4 RETURN 'TIER4' AS tier, (COUNT(n)*1.0) AS count");
         return tierCounts.hasNext() ? resultToMap(tierCounts, "tier", "count") : null;
     }
 
