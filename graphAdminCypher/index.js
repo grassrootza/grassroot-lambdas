@@ -20,15 +20,26 @@ app.use(function(req, res, next) {
     next();
 });
 
-const paramToArray = (req, paramName) => {
-    return req.query[paramName] ? JSON.parse(req.query[paramName]) : [];
+const executeRequest = (query, params, res) => {
+    console.log("query: ", query);
+    console.log("params: ", params);
+    return session.run(
+        query, params
+    ).then(result => {
+        res.json(result.records.map(record => record.toObject())[0]["result"]);
+    }).catch(error => {
+        res.json(error);
+    })
 }
 
+// documents
+
 app.get('/document/create/:doc_type', (req, res) => {
-    console.log('Creating document, type: ', req.params.doc_type);;
+    console.log('Creating document, type: ', req.params.doc_type);
 
-    let params = buildParams(req);
-
+    let params = buildDocumentParams(req);
+    params.doc_type.toUpperCase() == 'EXTRACT' ? params.main_text = req.query.main_text : params.doc_link = req.query.doc_link;
+    
     let final_params_section;
     if (params.doc_type == 'EXTRACT') {
         params.main_text = req.query.main_text;
@@ -38,8 +49,6 @@ app.get('/document/create/:doc_type', (req, res) => {
         params.doc_key = req.query.doc_key;
         final_params_section = 's3bucket: $doc_bucket, s3key: $doc_key'
     }
-
-    console.log('build params: ', params);
 
     session.run(
         commonPropertyQuery(final_params_section), params
@@ -52,13 +61,39 @@ app.get('/document/create/:doc_type', (req, res) => {
     })
 });
 
+app.get('/document/list', (req, res) => {
+    console.log("Getting list of all documents");
+    executeRequest("MATCH (d:Document) RETURN d AS result", {}, res);
+});
+
+app.get('/document/name/available', (req, res) => {
+    console.log("Checking availability of document name: ", req.query.machine_name);
+    let query = "MATCH (d:Document) WHERE toUpper(d.machineName)=toUpper($machine_name) RETURN COUNT(d)=0 AS result";
+    let params = { machine_name: req.query.machine_name };
+    executeRequest(query, params, res);
+});
+
+app.get('/document/query', (req, res) => {
+    console.log("Searching for documents with keyword: ", req.query.query_word);
+    let query = " MATCH (d:Document)" +
+                " WHERE toUpper(d.humanName) CONTAINS $query_word OR" +
+                      " toUpper(d.machineName) CONTAINS $query_word OR" +
+                      " toUpper(d.stageRelevance) CONTAINS $query_word OR" +
+                      " ANY(word IN d.issues WHERE word =~ $query_regex) OR" +
+                      " ANY(word IN d.problems WHERE word =~ $query_regex) OR" +
+                      " ANY(word IN d.procedures WHERE word =~ $query_regex)" +
+                " RETURN d AS result";
+    let params = { query_word: req.query.query_word.toUpperCase(), query_regex: '(?i).*' + req.query.query_word + '.*' }
+    executeRequest(query, params, res);
+});
+
 const commonPropertyQuery = (final_params_section) => 'CREATE (d: Document {' +
     'machineName: $machine_name, humanName: $human_name, docType: $doc_type, ' +
     'issues: $issues, procedures: $procedures, problems: $problems, ' +
     'stageRelevance: $stage_relevance, ' + final_params_section + 
     '}) return d';
 
-const buildParams = (req) => {
+const buildDocumentParams = (req) => {
     return {
         machine_name: req.query.machine_name, // note: must be UNIQUE
         human_name: req.query.human_name,
@@ -75,143 +110,133 @@ const buildParams = (req) => {
     };
 }
 
-app.get('/document/name/available', (req, res) => {
-    console.log("Checking availability of name: ", req.query.machine_name);
-    return session.run(
-        'MATCH (d: Document) WHERE d.machineName=$machine_name RETURN COUNT(d)=0',
-        { machine_name: req.query.machine_name }
-    ).then(result => {
-        res.json(result);
-    }).catch(error => {
-        res.json(error);
-    })
-});
+const paramToArray = (req, paramName) => {
+    return req.query[paramName] ? JSON.parse(req.query[paramName]) : [];
+}
 
-app.get('/document/query', (req, res) => {
-    console.log("Querying documents with keyword: ", req.query.query_word);
-    return session.run(
-        "MATCH (d:Document) " +
-        "WHERE d.humanName CONTAINS $query_word OR d.machineName CONTAINS $query_word OR d.stageRelevance CONTAINS $query_word OR " +
-        "$query_word IN d.issues OR $query_word IN d.procedures OR $query_word IN d.problems " +
-        "RETURN d",
-        { query_word: req.query.query_text }
-    ).then(result => {
-        res.json(result);
-    }).catch(error => {
-        res.json(error);
-    })
-});
+// profiling
 
-// pagerank queries
+app.get('/profile/counts', (req, res) => {
+    console.log('Getting entity and relationship counts');
+    executeRequest("RETURN profile.counts() AS result", {}, res);
+})
 
-app.get('/document/list', (req, res) => {
-    console.log("Getting list of all docs");
-    return session.run(
-        "MATCH (d:Document) RETURN d"
-    ).then(result => {
-        res.json(result);
-    }).catch(error => {
-        res.json(error);
-    })
-});
+app.get('/profile/group/membership', (req, res) => {
+    console.log('Getting group membership counts');
+    let query = "RETURN profile.groupMemberships(toInteger($first_rank), toInteger($last_rank)) AS result";
+    let params = { first_rank: req.query.first_rank, last_rank: req.query.last_rank };
+    executeRequest(query, params, res);
+})
+
+app.get('/profile/user/participation', (req, res) => {
+    console.log('Getting user participation counts');
+    let query = "RETURN profile.userParticipations(toInteger($first_rank), toInteger($last_rank)) AS result";
+    let params = { first_rank: req.query.first_rank, last_rank: req.query.last_rank };
+    executeRequest(query, params, res);
+})
+
+// pagerank
+
+app.get('/pagerank/setup', (req, res) => {
+    console.log("Setting up pagerank extensions");
+    return executeRequest("CALL pagerank.setup()", {}, res);
+})
 
 app.get('/pagerank/write', (req, res) => {
     console.log("Writing raw pagerank to graph");
-    return session.run(
-        "CALL pagerank.write()"
-    ).then(result => {
-        res.json(result);
-    }).catch(error => {
-        res.json(error);
-    })
+    return executeRequest("CALL pagerank.write()", {}, res);
 })
 
-app.get('/pagerank/normalize', (req, res) => {
-    const entity_type = req.query.entity_type;
-    const sub_type = req.query.sub_type;
-
-    console.log("Writing normalized pagerank to graph");
-    return session.run(
-        "CALL pagerank.normalize()"
-    ).then(result => {
-        res.json(result);
-    }).catch(error => {
-        res.json(error);
-    })
+app.get('/pagerank/tiers', (req, res) => {
+    console.log("Getting pagerank tiers");
+    return executeRequest("RETURN pagerank.tiers() AS result", {}, res);
 })
 
-app.get('/pagerank/stats', (req, res) => {
-    const entity_type = req.query.entity_type;
-    const sub_type = req.query.sub_type;
-    const normalized = req.query.normalized;
-    const upper_bound = req.query.upper_bound;
-    const lower_bound = req.query.lower_bound;
+// closeness
 
-    console.log("Getting pagerank stats");
-    return session.run(
-        "CALL pagerank.stats($entity_type, $sub_type, toBoolean($normalized), toInteger($upper_bound), toInteger($lower_bound))",
-        { entity_type: entity_type, sub_type: sub_type, normalized: normalized, upper_bound: upper_bound, lower_bound: lower_bound }
-    ).then(result => {
-        res.json(result);
-    }).catch(error => {
-        res.json(error);
-    })
+app.get('/closeness/setup', (req, res) => {
+    console.log("Setting up closeness extensions");
+    return executeRequest("CALL closeness.setup()", {}, res);
 })
 
-app.get('/pagerank/scores', (req, res) => {
-    const entity_type = req.query.entity_type;
-    const sub_type = req.query.sub_type;
-    const normalized = req.query.normalized;
-    const upper_bound = req.query.upper_bound;
-    const lower_bound = req.query.lower_bound;
-
-    console.log("Getting pagerank scores");
-    return session.run(
-        "CALL pagerank.scores($entity_type, $sub_type, toInteger($upper_bound), toInteger($lower_bound), toBoolean($normalized))",
-        { entity_type: entity_type, sub_type: sub_type, upper_bound: upper_bound, lower_bound: lower_bound, normalized: normalized }
-    ).then(result => {
-        res.json(result);
-    }).catch(error => {
-        res.json(error);
-    })
+app.get('/closeness/write', (req, res) => {
+    console.log("Writing raw closeness to graph");
+    return executeRequest("CALL closeness.write()", {}, res);
 })
 
-app.get('/pagerank/meanEntities', (req, res) => {
-    const depth = req.query.depth;
-    const entity_type = req.query.entity_type;
-    const sub_type = req.query.sub_type;
-    const normalized = req.query.normalized;
-    const upper_bound = req.query.upper_bound;
-    const lower_bound = req.query.lower_bound;
-
-    console.log("Getting mean entities reached");
-    return session.run(
-        "CALL pagerank.meanEntitiesAtDepth(toInteger($depth), $entity_type, $sub_type, toInteger($upper_bound), toInteger($lower_bound), toBoolean($normalized))",
-        { depth: depth, entity_type: entity_type, sub_type: sub_type, upper_bound: upper_bound, lower_bound: lower_bound, normalized: normalized }
-    ).then(result => {
-        res.json(result);
-    }).catch(error => {
-        res.json(error);
-    })
+app.get('/closeness/tiers', (req, res) => {
+    console.log("Getting closeness tiers");
+    return executeRequest("RETURN closeness.tiers() AS result", {}, res);
 })
 
-app.get('/pagerank/meanRelationships', (req, res) => {
-    const depth = req.query.depth;
-    const entity_type = req.query.entity_type;
-    const sub_type = req.query.sub_type;
-    const normalized = req.query.normalized;
-    const upper_bound = req.query.upper_bound;
-    const lower_bound = req.query.lower_bound;
+// metric
 
-    console.log("Getting mean relationships reached");
-    return session.run(
-        "CALL pagerank.meanRelationshipsAtDepth(toInteger($depth), $entity_type, $sub_type, toInteger($upper_bound), toInteger($lower_bound), toBoolean($normalized))",
-        { depth: depth, entity_type: entity_type, sub_type: sub_type, upper_bound: upper_bound, lower_bound: lower_bound, normalized: normalized }
-    ).then(result => {
-        res.json(result);
-    }).catch(error => {
-        res.json(error);
-    })
+app.get('/metric/normalize', (req, res) => {
+    console.log("Writing normalized metric to graph");
+    let query = "CALL metric.normalize($metric_type, $entity_type, $sub_type)";
+    let params = { metric_type: req.query.metric_type, entity_type: req.query.entity_type, sub_type: req.query.sub_type };
+    return executeRequest(query, params, res);
 })
+
+app.get('/metric/stats', (req, res) => {
+    console.log("Getting metric stats");
+    return executeRequest(metricQuery('stats'), buildMetricParams(req), res);
+})
+
+app.get('/metric/scores', (req, res) => {
+    console.log("Getting metric scores");
+    return executeRequest(metricQuery('scores'), buildMetricParams(req), res);
+})
+
+const buildMetricParams = (req) => {
+    return {
+        metric_type: req.query.metric_type,
+        entity_type: req.query.entity_type,
+        sub_type: req.query.sub_type,
+        first_rank: req.query.first_rank,
+        last_rank: req.query.last_rank,
+        normalized: req.query.normalized
+    };
+}
+
+const metricQuery = (extension) => 'RETURN metric.' + extension +
+    '($metric_type, $entity_type, $sub_type, toInteger($first_rank), toInteger($last_rank), toBoolean($normalized)) AS result';
+
+// connections
+
+app.get('/connections/mean', (req, res) => {
+    console.log("Getting mean connections");
+    return executeRequest(connectionQuery('mean', false), buildConnectionsParams(req, false), res);
+})
+
+app.get('/connections/meanList', (req, res) => {
+    console.log("Getting mean connections list");
+    return executeRequest(connectionQuery('meanList', false), buildConnectionsParams(req, false), res);
+})
+
+app.get('/connections/compareMetrics', (req, res) => {
+    console.log('Comparing metric connections');
+    return executeRequest(connectionQuery('compareMetrics', true), buildConnectionsParams(req, true), res);
+})
+
+const buildConnectionsParams = (req, metric2Needed) => {
+    let params = {
+        metric1_type: req.query.metric1_type,
+        entity_type: req.query.entity_type,
+        sub_type: req.query.sub_type,
+        first_rank: req.query.first_rank,
+        last_rank: req.query.last_rank,
+        depth: req.query.depth,
+        count_entities: req.query.count_entities,
+    };
+    if (metric2Needed) params.metric2_type = req.query.metric2_type;
+    return params;
+}
+
+const connectionQuery = (extension, metric2Needed) => {
+    let metric2 = metric2Needed ? '$metric2_type, ' : '';
+    return 'RETURN connections.' + extension + '($metric1_type, ' + metric2 + '$entity_type, $sub_type, ' +
+    'toInteger($first_rank), toInteger($last_rank), toInteger($depth), toBoolean($count_entities)) AS result';
+}
 
 app.listen(3000, () => console.log(`Listening on port 3000`));
