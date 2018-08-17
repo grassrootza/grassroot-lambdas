@@ -1,0 +1,19 @@
+{
+  "response": {
+    "contentType": "text/xml"
+  },
+  "conversation": {
+    "cutoffHours": "1",
+    "startWordRegex": "/start/i"
+  },
+  "nlu": {
+    "url": "http://learning-staging.eu-west-1.elasticbeanstalk.com/parse"
+  },
+  "tasks": {
+    "url": "http://localhost:8080/v2/api/task",
+    "path": {
+      "respond": "/respond",
+      "create": "/create"
+    }
+  }
+}

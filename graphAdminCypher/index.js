@@ -16,7 +16,7 @@ const app = express();
 
 app.use(function(req, res, next) {
     res.header("Access-Control-Allow-Origin", "*");
-    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
     next();
 });
 
@@ -39,9 +39,26 @@ app.get('/document/create/:doc_type', (req, res) => {
 
     let params = buildDocumentParams(req);
     params.doc_type.toUpperCase() == 'EXTRACT' ? params.main_text = req.query.main_text : params.doc_link = req.query.doc_link;
-    let query = params.doc_type.toUpperCase() == 'EXTRACT' ? createDocumentQuery('main_text') : createDocumentQuery('doc_link');
+    
+    let final_params_section;
+    if (params.doc_type == 'EXTRACT') {
+        params.main_text = req.query.main_text;
+        final_params_section = 'main_text: $main_text';
+    } else {
+        params.doc_bucket = req.query.doc_bucket;
+        params.doc_key = req.query.doc_key;
+        final_params_section = 's3bucket: $doc_bucket, s3key: $doc_key'
+    }
 
-    executeRequest(query, params, res);
+    session.run(
+        commonPropertyQuery(final_params_section), params
+    ).then(result => {
+        console.log('result: ', result);
+        res.json(result);
+    }).catch(error => {
+        console.log('error: ', error);
+        res.json(error);
+    })
 });
 
 app.get('/document/list', (req, res) => {
@@ -70,11 +87,11 @@ app.get('/document/query', (req, res) => {
     executeRequest(query, params, res);
 });
 
-const createDocumentQuery = (final_param) => 'CREATE (d:Document {' +
+const commonPropertyQuery = (final_params_section) => 'CREATE (d: Document {' +
     'machineName: $machine_name, humanName: $human_name, docType: $doc_type, ' +
     'issues: $issues, procedures: $procedures, problems: $problems, ' +
-    'stageRelevance: $stage_relevance, ' + final_param + ': $' + final_param +
-    '}) RETURN d';
+    'stageRelevance: $stage_relevance, ' + final_params_section + 
+    '}) return d';
 
 const buildDocumentParams = (req) => {
     return {
@@ -86,7 +103,10 @@ const buildDocumentParams = (req) => {
         procedures: paramToArray(req, 'procedures'), // e.g., rights, actions, contacts
         problems: paramToArray(req, 'problems'), // e.g., land proclamation
 
-        stage_relevance: req.query.stage_relevance // BEGINNER, INTERMEDIATE, ADVANCED
+        stage_relevance: req.query.stage_relevance, // BEGINNER, INTERMEDIATE, ADVANCED
+
+        s3bucket: req.query.doc_bucket,
+        s3key: req.query.doc_key
     };
 }
 

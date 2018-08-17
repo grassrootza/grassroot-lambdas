@@ -4,7 +4,10 @@
 
 export const environment = {
   production: false,
-  lambdaUrl: 'http://localhost:3000'
+  lambdaUrl: 'http://localhost:3000',
+  authApiUrl: 'https://staging.grassroot.org.za',
+  docBucketUrlBase: 'https://s3-eu-west-1.amazonaws.com',
+  docDefaultBucket: 'grassroot-public-documents'
 };
 
 /*

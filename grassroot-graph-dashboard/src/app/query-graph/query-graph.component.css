@@ -10,6 +10,12 @@
     color: #66BB6A;
 }
 
-table {
-    width: 100%;
+.docs-headers-align .mat-expansion-panel-header-title, 
+.docs-headers-align .mat-expansion-panel-header-description {
+  flex-basis: 0;
+}
+
+.docs-headers-align .mat-expansion-panel-header-description {
+  justify-content: space-between;
+  align-items: center;
 }

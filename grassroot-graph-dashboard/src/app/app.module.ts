@@ -7,22 +7,28 @@ import { AppComponent } from './app.component';
 import { LayoutModule } from '@angular/cdk/layout';
 import { MatToolbarModule, MatButtonModule, MatIconModule, MatListModule,
    MatGridListModule, MatCardModule, MatMenuModule,
-   MatInputModule, MatFormFieldModule, MatAutocompleteModule, MatOptionModule, MatSelectModule, MatTableModule, MatSortModule } from '@angular/material';
+   MatInputModule, MatFormFieldModule, MatAutocompleteModule, MatOptionModule, MatSelectModule, MatTableModule, MatSortModule, 
+   MatRadioModule, MatProgressSpinnerModule, MatSnackBarModule, MatExpansionModule} from '@angular/material';
 import { QueryGraphComponent } from './query-graph/query-graph.component';
 import { DashboardComponent } from './dashboard/dashboard.component';
 import { ReactiveFormsModule } from '@angular/forms';
 import { AddDocumentComponent } from './document/add-document/add-document.component';
-import { HttpClientModule } from '@angular/common/http';
+import { HttpClientModule, HTTP_INTERCEPTORS } from '@angular/common/http';
 import { OverallStatsComponent } from './dashboard/overall-stats/overall-stats.component';
 import { TopUsersComponent } from './dashboard/top-users/top-users.component';
 import { TopGroupsComponent } from './dashboard/top-groups/top-groups.component';
 import { PagerankProfileComponent } from './dashboard/pagerank-profile/pagerank-profile.component';
+import { LoginComponent } from './auth/login/login.component';
+import { JwtInterceptor } from './auth/jwt.interceptor';
+import { ErrorInterceptor } from './auth/error.interceptor';
+import { AuthGuard } from './auth/auth.guard';
 
 const routes: Routes = [
   { path: '', redirectTo: '/query', pathMatch: 'full' },
-  { path: 'query', component: QueryGraphComponent},
-  { path: 'dashboard', component: DashboardComponent},
-  { path: 'document', component: AddDocumentComponent }
+  { path: 'login', component: LoginComponent },
+  { path: 'query', component: QueryGraphComponent, canActivate: [AuthGuard]},
+  { path: 'dashboard', component: DashboardComponent, canActivate: [AuthGuard]},
+  { path: 'document', component: AddDocumentComponent, canActivate: [AuthGuard] }
 ];
 
 @NgModule({
@@ -34,7 +40,8 @@ const routes: Routes = [
     OverallStatsComponent,
     TopUsersComponent,
     TopGroupsComponent,
-    PagerankProfileComponent
+    PagerankProfileComponent,
+    LoginComponent
   ],
   imports: [
     BrowserModule,
@@ -56,9 +63,16 @@ const routes: Routes = [
     MatOptionModule,
     MatSelectModule,
     MatTableModule,
-    MatSortModule
+    MatSortModule,
+    MatRadioModule,
+    MatProgressSpinnerModule,
+    MatSnackBarModule,
+    MatExpansionModule
   ],
-  providers: [],
+  providers: [
+    { provide: HTTP_INTERCEPTORS, useClass: JwtInterceptor, multi: true },
+    { provide: HTTP_INTERCEPTORS, useClass: ErrorInterceptor, multi: true },
+  ],
   bootstrap: [AppComponent]
 })
 export class AppModule { }

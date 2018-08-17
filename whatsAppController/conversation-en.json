@@ -1,7 +1,9 @@
 {
-    "conversationName": "general",
-    "version": "1.0.0",
-    "lastUpdated": "2018-08-03",
+    "meta":{
+        "conversationName": "general",
+        "version": "1.0.0",
+        "lastUpdated": "2018-08-03"
+    },
     "stopWords": ["stop"],
     "error": [
         {
@@ -33,6 +35,7 @@
         {
             "_id": "start",
             "_intent": "opening",
+            "_type": "opening_menu",
             "_source": {
                 "response": [
                     ["Dumelang. Welcome. What do you want to do? Grassroot Zonke can help you:", 
@@ -54,7 +57,8 @@
     "act": [
         {
             "_id": "start",
-            "_intent": "opening",
+            "_intent": "choose_action",
+            "_type": "primary_menu",
             "_source": {
                 "response": [
                     ["Okay. You can go through the action menus just like when you dial *134*1994#",
@@ -64,11 +68,29 @@
             }
         },
         {
-            "_id": "ACTION_MAIN_MENU",
+            "_id": "meet",
+            "_intent": "set_meeting",
+            "_type": "entity_completion",
             "_source": {
-                "meet": "Meet",
-                "vote": "Vote",
-                "act": "Act"
+                "opening": "Alright. We'll call a meeting.",
+                "entities": {
+                    "subject": "What is the meeting about?",
+                    "time": "When will the meeting be? (insert guidance)",
+                    "location": "Where will it happen?",
+                    "group": "What group is meeting?"
+                },
+                "confirmation": "Alright, confirming a meeting of <group>, about <subject>, on <time>, at <location>. Yes?",
+                "confirmed": "Done! Meeting called. Thanks for using Grassroot!"
+            }
+        },
+        {
+            "_id": "ACTION_MAIN_MENU",
+            "_type": "option_set",
+            "_source": {
+                "meet": "Call a meeting",
+                "vote": "Take a vote",
+                "volunteer": "Ask for volunteers",
+                "act": "Record action item"
             }
         }
     ],

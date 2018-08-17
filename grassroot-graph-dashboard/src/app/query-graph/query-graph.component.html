@@ -2,42 +2,34 @@
   <mat-grid-tile>
     <mat-form-field class="query-box-holder" appearance="outline">
         <mat-label>Enter query</mat-label>
-        <input type="text" (keyup.enter)="executeQuery()" matInput [formControl]="queryControl" [matAutocomplete]="auto">
+        <input type="text" (keyup.enter)="executeQuery()" matInput [formControl]="queryControl">
     </mat-form-field>
-    <mat-autocomplete #auto="matAutocomplete">
+    <!-- <mat-autocomplete #auto="matAutocomplete">
         <mat-option *ngFor="let option of options" [value]="option">
           {{ option }}
         </mat-option>
-    </mat-autocomplete>
+    </mat-autocomplete> -->
     <button type="button" (click)="executeQuery()" mat-button class="query-submit-button">Go</button>
   </mat-grid-tile>
 </mat-grid-list>
 
-<table mat-table [dataSource]="currentDocs" class="mat-elevation-z8">
-  <!-- Position Column -->
-  <ng-container matColumnDef="docId">
-    <th mat-header-cell *matHeaderCellDef> ID. </th>
-    <td mat-cell *matCellDef="let doc"> {{doc.machineName}} </td>
-  </ng-container>
-
-  <!-- Name Column -->
-  <ng-container matColumnDef="description">
-    <th mat-header-cell *matHeaderCellDef> Description </th>
-    <td mat-cell *matCellDef="let doc"> {{doc.humanName}} </td>
-  </ng-container>
-
-  <!-- Issues Column -->
-  <ng-container matColumnDef="issues">
-    <th mat-header-cell *matHeaderCellDef> Issues </th>
-    <td mat-cell *matCellDef="let doc"> {{doc.issues}} </td>
-  </ng-container>
-
-  <!-- Symbol Column -->
-  <ng-container matColumnDef="stage">
-    <th mat-header-cell *matHeaderCellDef> Stage </th>
-    <td mat-cell *matCellDef="let doc"> {{doc.problems}} </td>
-  </ng-container>
-
-  <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-  <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
-</table>
+<mat-accordion class="docs-headers-align">
+  <mat-expansion-panel *ngFor="let doc of currentDocs">
+    <mat-expansion-panel-header>
+      <mat-panel-title>{{ doc.humanName }}</mat-panel-title>
+      <mat-panel-description>{{ doc.issuesFormatted() }}:: {{ doc.stageRelevance | titlecase }} ({{ doc.docType | lowercase }})</mat-panel-description>
+    </mat-expansion-panel-header>
+    <p>
+      <b>Relevance: </b>{{ doc.procedures }}
+    </p>
+    <p>
+      <b>Problems: </b>{{ doc.problems }}
+    </p>
+    <p *ngIf="doc.mainText">
+      {{ doc.mainText }}
+    </p>
+    <p *ngIf="doc.s3key">
+      <a [href]="doc.s3url()">Download</a>
+    </p>  
+  </mat-expansion-panel>
+</mat-accordion>
