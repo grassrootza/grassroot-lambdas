@@ -34,18 +34,6 @@ const executeRequest = (query, params, res) => {
 
 // documents
 
-const executeDocRequest = (query, params, res) => {
-    console.log("query: ", query);
-    console.log("params: ", params);
-    return session.run(
-        query, params
-    ).then(result => {
-        res.json(result);
-    }).catch(error => {
-        res.json(error);
-    })
-}
-
 app.get('/document/create/:doc_type', (req, res) => {
     console.log('Creating document, type: ', req.params.doc_type);
 
