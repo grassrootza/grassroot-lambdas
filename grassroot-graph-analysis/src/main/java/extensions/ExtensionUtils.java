@@ -58,7 +58,7 @@ public class ExtensionUtils {
 
     public static String rangeQuery(String entityType, String subType, String metric, long firstRank, long lastRank, GraphDatabaseService db) {
         if (lastRank == 0) lastRank = getEntityCount(entityType, subType, metric, db);
-        return  " WITH n AS entity, n." + metric + " AS metric" +
+        return " WITH n AS entity, n." + metric + " AS metric" +
                 " ORDER BY metric DESC" +
                 " SKIP " + Long.toString(firstRank) +
                 " LIMIT " + Long.toString(lastRank - firstRank);

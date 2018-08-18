@@ -49,15 +49,15 @@ public class Metrics {
         return stats.hasNext() ? stats.next() : null;
     }
 
-    @UserFunction(name = "metric.scores")
-    @Description("Return entities in rank range for metric specified")
-    public List<Object> getScores(@Name(value = "metricType") String metricType,
-                                  @Name(value = "entityType", defaultValue = "") String entityType,
-                                  @Name(value = "subType", defaultValue = "") String subType,
-                                  @Name(value = "firstRank", defaultValue = "0") long firstRank,
-                                  @Name(value = "lastRank", defaultValue = "0") long lastRank,
-                                  @Name(value = "normalized", defaultValue = "false") boolean normalized) {
-        log.info("Getting metric scores");
+    @UserFunction(name = "metric.scoresByRankRange")
+    @Description("Return scores in rank range for metric specified")
+    public List<Object> getScoresByRankRange(@Name(value = "metricType") String metricType,
+                                             @Name(value = "entityType", defaultValue = "") String entityType,
+                                             @Name(value = "subType", defaultValue = "") String subType,
+                                             @Name(value = "firstRank", defaultValue = "0") long firstRank,
+                                             @Name(value = "lastRank", defaultValue = "0") long lastRank,
+                                             @Name(value = "normalized", defaultValue = "false") boolean normalized) {
+        log.info("Getting metric scores by rank range");
         if (!paramsAreValid(metricType, entityType, subType, firstRank, lastRank)) return null;
         String metric = getMetricPropertyName(metricType, normalized);
         String typeFilter = typeQuery(entityType, subType, metric);
@@ -65,12 +65,34 @@ public class Metrics {
         return scores.hasNext() ? resultToList(scores, "metric") : null;
     }
 
+    @UserFunction(name = "metric.scoresByScoreRange")
+    @Description("Return scores in score range for metric specified")
+    public List<Object> getScoresByScoreRange(@Name(value = "metricType") String metricType,
+                                              @Name(value = "entityType") String entityType,
+                                              @Name(value = "subType") String subType,
+                                              @Name(value = "bestScore") double bestScore,
+                                              @Name(value = "worstScore") double worstScore,
+                                              @Name(value = "normalized") boolean normalized) {
+        log.info("Getting metric scores by score range");
+        if (!metricIsValid(metricType) || !typesAreValid(entityType, subType) || !scoresAreValid(bestScore, worstScore)) return null;
+        String metric = getMetricPropertyName(metricType, normalized);
+        Result scores = db.execute(typeQuery(entityType, subType, metric) +
+                " AND n." + metric + " > " + worstScore +
+                " AND n." + metric + " < " + bestScore +
+                " RETURN n." + metric + " AS metric ORDER BY metric DESC");
+        return scores.hasNext() ? resultToList(scores, "metric") : null;
+    }
+
     private boolean paramsAreValid(String metric, String entityType, String subType, long firstRank, long lastRank) {
         return metricIsValid(metric) && typesAreValid(entityType, subType) && rangeIsValid(firstRank, lastRank);
     }
 
-    private boolean rangeIsValid(Long firstRank, Long lastRank) {
+    private boolean rangeIsValid(long firstRank, long lastRank) {
         return lastRank == 0 || ExtensionUtils.rangeIsValid(firstRank, lastRank);
+    }
+
+    private boolean scoresAreValid(double bestScore, double worstScore) {
+        return bestScore > worstScore;
     }
 
 }
