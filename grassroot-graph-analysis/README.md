@@ -46,6 +46,16 @@ Function - Returns counts of user participations in the range provided.
 
 Usage: profile.userParticipations(firstRank, lastRank)
 
+#### 4. MembershipStats
+Function - Returns summary stats of group membership counts in rank range provided.
+
+Usage: profile.membershipStats(firstRank, lastRank)
+
+#### 5. ParticipationStats
+Function - Returns summary stats of user participation counts in rank range provided.
+
+Usage: profile.participationStats(firstRank, lastRank)
+
 ### Metric
 
 Metric extensions provide insights into metrics such as pagerank and any algorithms to be added in the future. Functions and procedures with the "metric" syntax should be able to be used for any algorithm (pagerank, closeness, etc.) - the algorithm is determined by the metric type passed into these extensions as an argument. Functions and procedures that are algorithm-specific should be included only in the files for that algorithm.
@@ -55,7 +65,7 @@ Metric extensions provide insights into metrics such as pagerank and any algorit
 Default Parameters - If firstrank and lastrank are left as 0, the extensions will default to use all entities specified. For example, "metric.stats("PAGERANK", "ACTOR", "INDIVIDUAL", 0, 0, false)" would return pagerank summary statistics for all users, not limited to a specific range. In addition, if entity-type and sub-type are passed as empty strings, all entities are used for the query. For example, "metric.stats("PAGERANK", "", "", 0, 0, false)" would return summary statistics for pagerank for all entities in the graph, not just users. Generally, if last rank is left as 0, it will default to the full count of entities that are specified for the query. Additionally, if sub-type is passed as empty string and entity-type is not, all entities with entity-type will be used in the query, regardless of sub-type.
 
 #### 1. Normalize
-Procedure - Writes normalized pagerank scores for the entities specified.
+Procedure - Writes normalized metric scores for the entities specified.
 
 Usage: metric.normalize(metricType, entityType, subType)
 
@@ -64,10 +74,15 @@ Function - Returns summary stats for entities specified by the type and range pr
 
 Usage: metric.stats(metricType, entityType, subType, firstRank, lastRank, normalized)
 
-#### 3. Scores
-Function - Returns pagerank scores for entities specified by the type and range provided.
+#### 3. ScoresByRankRange
+Function - Returns metric scores in rank range for entities specified by the type and range provided. For example, passing in firstRank=0 and lastRank=100 would return a list of the top 100 metric (pagerank or closeness) scores.
 
-Usage: metric.scores(metricType, entityType, subType, firstRank, lastRank, normalized)
+Usage: metric.scoresByRankRange(metricType, entityType, subType, firstRank, lastRank, normalized)
+
+#### 4. ScoresByScoreRange
+Function - Returns metric scores in score range for entities specified by the type and range provided. For example, passing in bestScore=1.5 and worstScore=1.0 would give you all scores for a metric that are between 1.0 and 1.5.
+
+Usage: metric.scoresByScoreRange(metricType, entityType, subType, bestScore, worstScore, normalized)
 
 ### Pagerank
 
