@@ -1,4 +1,4 @@
-// module for handling calls to main platform for various tasks
+// module for handling calls to main platform for task creation and response (task = meeting, vote, action, livewire alert, etc)
 const config = require('config');
 const request = require('request-promise');
 

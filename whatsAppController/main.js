@@ -62,6 +62,8 @@ app.listen(3000, () => console.log(`Listening on port 3000`));
 // ** Branch 3 : No idea, or intent is just hello. Initiate with opening messages.
 // okay, then done.
 
+// note: we are going to switch all of this out to using RASA CORE
+
 const getMessageReply = async (content, prior) => {
     const rawResponse = await nlu.interpretMessage(content.message, prior ? prior.conversationId : '');
     const nluResponse = nlu.transformNluResponse(rawResponse);

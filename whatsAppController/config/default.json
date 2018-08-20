@@ -9,11 +9,20 @@
   "nlu": {
     "url": "http://learning-staging.eu-west-1.elasticbeanstalk.com/parse"
   },
+  "auth": {
+    "platform": "insert_platform_token_here"
+  },
   "tasks": {
     "url": "http://localhost:8080/v2/api/task",
     "path": {
       "respond": "/respond",
       "create": "/create"
+    }
+  },
+  "groups": {
+    "url": "http://localhost:8080/v2/api/group",
+    "path": {
+      "list": "/fetch/minimal"
     }
   }
 }

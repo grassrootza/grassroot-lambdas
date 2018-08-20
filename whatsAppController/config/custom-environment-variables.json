@@ -1,0 +1,8 @@
+{
+    "analytics": {
+        "apiKey": "DASHBOT_API_KEY"
+    },
+    "auth": {
+        "platform": "GRASSROOT_TOKEN"
+    }
+}

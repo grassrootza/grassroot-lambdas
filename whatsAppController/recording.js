@@ -1,5 +1,7 @@
 const config = require('config');
 
+const dashbot = require('dashbot')(config.get('analytics.apiKey')).generic;
+
 const AWS = require('aws-sdk');
 AWS.config.update({
     region: 'eu-west-1',
