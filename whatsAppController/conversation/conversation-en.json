@@ -96,32 +96,151 @@
     ],
     "know": [
         {
-            "_id": "1",
+            "_id": "issue",
             "_source": {
                 "intent": "help",
                 "response": [{
-                    "text": "What can we help you with?",
-                    "options": "opening" 
-                }]
-        }
-        }, 
-        {
-            "_id": "2",
-            "_source": {
-                "intent": "none",
-                "response": [{
-                    "text": "Dumelang. Welcome. What can we help you with? GR Zonke can help with questions about:"
+                    "text": "What issue do you want to get knowledge about?",
+                    "options": "<<OPTIONS::KNOW_MAIN_MENU>>"
                 }]
             }
         },
         {
-            "_id": "OPTION_SETS",
+            "_id": "housing",
             "_source": {
-                "zonke": {
-                    "RIGHTS": "Knowing your rights",
-                    "CONTACT": "Who you can talk to",
-                    "ACTION": "How to take action"
+                "intent": "housing",
+                "response": [{
+                    "text": "What problem do you have regarding housing?",
+                    "options": "<<OPTIONS::HOUSING_MAIN_MENU>>"
+                }]
+            }
+        },
+        {
+            "_id": "water",
+            "_source": {
+                "intent": "water",
+                "response": [{
+                        "text": "What problem do you have regarding water?",
+                        "options": "<<OPTIONS::WATER_MAIN_MENU>>"
+                }]
+            }
+        },
+        {
+            "_id": "sanitation",
+            "_source": {
+                "intent": "sanitation",
+                "response": [{
+                    "text": "What problem do you have regarding sanitation?",
+                    "options": "<<OPTIONS::SANITATION_MAIN_MENU>>"
+                }]
+            }
+        },
+        {
+            "_id": "electricity",
+            "_source": {
+                "intent": "electricity",
+                "response": [{
+                    "text": "What problem do you have regarding electricity?",
+                    "options": "<<OPTIONS::ELECTRICITY_MAIN_MENU>>"
+                }]
+            }
+        },
+        {
+            "_id": "request_action_taken",
+            "response": [{
+                    "text": "To avoid telling you something you've already tried, can you tell us what actions you've taken? Reply by choosing the numbers below",
+                    "options": "<<OPTIONS::GENERIC_ACTION_TAKEN_MENU>>"
+            }]
+        },
+        {
+            "_id": "confirmation_menu",
+            "response": [{
+                    "text": "Okay, knowing the actions you've taken, we will find information on your problem.",
+                    "options": "<<OPTIONS::GENERIC_CONFIRMATION_MENU>>"
+            }]
+        },
+        {
+            "_id": "confirm",
+            "response": "Thank you for your responses, we are working to find useful information. As a note, GR Zonke gathers information from many sources such as communities, NGOs, the municipality and legislation to provide the most relevant help we can, so it might take a while to get back to you."
+        },
+        {
+            "_id": "restart",
+            "response": "No problem"
+        },
+        {
+            "_id": "KNOW_MAIN_MENU",
+            "_source": {
+                "response": {
+                    "know::housing": "Housing",
+                    "know::water": "Water",
+                    "know::sanitation": "Sanitation",
+                    "know::electricity": "Electricity"
                 }
             }
-    }]
+        },
+        {
+            "_id": "GENERIC_ACTIONS_TAKEN_MENU",
+            "_next_step": "confirmation_menu",
+            "_source": {
+                "_source": {
+                    "response": {
+                        "know::taken::call":         "Made phone calls to municipality",
+                        "know::taken::wrote":        "Wrote letters to municipality",
+                        "know::taken::met":          "Met with municipality",
+                        "know::taken::councillor":   "Talked to the councillor",
+                        "know::taken::organization": "Spoke to organization not related to government",
+                        "know::taken::none":         "None"
+                    }
+                }
+            }
+        },
+        {
+            "_id": "GENERIC_CONFIRMATION_MENU",
+            "_source": {
+                "response": {
+                    "confirm":  "1. Confirm",
+                    "restart":  "2. Start over"
+                }
+            }
+        },
+        {
+            "_id": "HOUSING_MAIN_MENU",
+            "_next_step": "request_action_taken",
+            "_source": {
+                "response": {
+                    "know::housing::proclamation": "Is the area that I am living in going to be proclaimed?",
+                    "know::housing::deed":         "How do I get a title deed for my stand?",
+                    "know::housing::house":        "How do I find out more about getting a house?",
+                    "know::housing::plans":        "What are the city's plans for my area?",
+                    "know::housing::rdp":          "How do I find out where I am on the list for a RDP house?",
+                    "know::housing::eviction":     "I'm being evicted, what do I do?",
+                    "know::housing::restart":      "Start over"
+                }
+            }
+        },
+        {
+            "_id": "WATER_MAIN_MENU",
+            "_next_step": "request_action_taken",
+            "_source": {
+                "response": {
+                }
+            }
+        },
+        {
+            "_id": "SANITATION_MAIN_MENU",
+            "_next_step": "request_action_taken",
+            "_source": {
+                "response": {
+                }
+            }
+        },
+        {
+            "_id": "ELECTRICITY_MAIN_MENU",
+            "_next_step": "request_action_taken",
+            "_source": {
+                "response": {
+                }
+            }
+        }
+    ]
 }
