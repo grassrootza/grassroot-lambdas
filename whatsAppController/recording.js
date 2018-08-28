@@ -1,6 +1,9 @@
 const config = require('config');
 
-const dashbot = require('dashbot')(config.get('analytics.apiKey')).generic;
+const analyticsEnabled = config.has('analytics.apiKey');
+console.log('analytics enabled? :', analyticsEnabled);
+
+const dashbot = analyticsEnabled ? require('dashbot')(config.get('analytics.apiKey')).generic : null;
 
 const AWS = require('aws-sdk');
 AWS.config.update({
@@ -31,7 +34,8 @@ exports.getMostRecent = (content) => {
     return docClient.query(params).promise();
 }
 
-exports.logIncoming = (content, reply) => {
+// move this into its own lambda
+exports.logIncoming = async (content, reply) => {
     const item = {
         'userId': content.from,
         'timestamp': Date.now(),
@@ -51,7 +55,18 @@ exports.logIncoming = (content, reply) => {
         Item: item
     };
 
-    return docClient.put(params).promise();
+    // await docClient.put(params).promise();
+
+    console.log('analyics enabled? :', analyticsEnabled);
+    if (analyticsEnabled) {
+        dashbot.logIncoming({
+            content: content
+        });
+
+        dashbot.logOutgoing({
+            reply: reply
+        });
+    }
 }
 
 const hoursInPast = (number) => {

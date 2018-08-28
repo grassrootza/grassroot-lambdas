@@ -100,7 +100,7 @@
             "_source": {
                 "intent": "help",
                 "response": [{
-                    "text": "What can we help you with?",
+                    "text": "   ",
                     "options": "opening" 
                 }]
         }

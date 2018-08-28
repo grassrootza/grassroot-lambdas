@@ -1,4 +1,3 @@
-// module for handling calls to main platform to get group lists, etc
 const config = require('config');
 const request = require('request-promise');
 
@@ -9,12 +8,14 @@ const authHeader = {
 var exports = module.exports = {};
 
 // todo : if too many groups, only return first few, then 'sorry'
-exports.listGroups = async () => {
+exports.fetchUserId = async (phoneNumber) => {
     const options = {
         method: 'POST',
-        uri: config.get('groups.url') + config.get('groups.path.list'),
-        auth: authHeader
+        uri: config.get('users.url') + config.get('users.path.id'),
+        auth: authHeader,
+        qs: {
+            'msisdn': phoneNumber
+        }
     };
     return request(options);
 }
-

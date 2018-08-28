@@ -1,9 +1,23 @@
 const config = require('config');
+const request = require('request-promise');
 
 const conversation = require('./conversation-en.json'); // in time maybe switch to reading this from S3 ...?
 const START_WORD = new RegExp(config.get('conversation.startWordRegex')); // in case conversation 'finished', but want to re-initiate
 
 var exports = module.exports = {}
+
+exports.sendToCore = async (userMessage, userId, domain) => {
+    const options = {
+        method: 'GET',
+        uri: config.get('core.url.base') + (domain || 'knowledge') + config.get('core.url.suffix'),
+        qs: {
+            'message': userMessage,
+            'user_id': userId
+        }
+    };
+
+    return request(options);
+}
 
 exports.assembleErrorMsg = (msgId) => {
     const block = exports.getRelevantConversationBlock('error');

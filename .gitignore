@@ -13,6 +13,7 @@ chargebeeIntegration/**
 **/run_local.sh
 **/env.json
 **/application-production.properties
+**/local.json
 
 # JS and Claudia generated files
 **/node_modules
