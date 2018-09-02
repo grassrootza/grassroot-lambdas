@@ -35,7 +35,7 @@ exports.getMostRecent = (content) => {
 }
 
 // move this into its own lambda
-exports.logIncoming = async (content, reply) => {
+exports.logIncoming = async (content, reply, userId) => {
     const item = {
         'userId': content.from,
         'timestamp': Date.now(),
@@ -60,11 +60,13 @@ exports.logIncoming = async (content, reply) => {
     console.log('analyics enabled? :', analyticsEnabled);
     if (analyticsEnabled) {
         dashbot.logIncoming({
-            content: content
+            'userId': userId,
+            'text': content['message']
         });
 
         dashbot.logOutgoing({
-            reply: reply
+            'userId': reply.userId,
+            'text': reply.textSingle
         });
     }
 }

@@ -15,12 +15,15 @@ exports.getMessageContent = (req) => {
 }
 
 exports.sendResponse = async (ourReply, expressRes) => {
+    console.log('Complete, sending reply, looks like: ', ourReply);
     if (ourReply) {
         expressRes.writeHead(200, {'Content-Type': config.get('response.contentType')});
         expressRes.end(turnMsgsIntoBody(ourReply.replyMsgs));
+        return 'finished';
     } else {
         expressRes.writeHead(200, {'Content-Type': config.get('response.contentType')});
         expressRes.end(emptyMsgBody());
+        return 'error';
     }
 }
 

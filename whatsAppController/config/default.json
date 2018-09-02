@@ -2,6 +2,12 @@
   "response": {
     "contentType": "text/xml"
   },
+  "users": {
+    "url": "http://localhost:8080/v2/api/whatsapp/user",
+    "path": {
+      "id": "/id"
+    }
+  },
   "conversation": {
     "cutoffHours": "1",
     "startWordRegex": "/start/i"

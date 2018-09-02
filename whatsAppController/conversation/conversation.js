@@ -6,14 +6,24 @@ const START_WORD = new RegExp(config.get('conversation.startWordRegex')); // in 
 
 var exports = module.exports = {}
 
+exports.Reply = (userId, replyMessages) => {
+    return {
+        'userId': userId,
+        'replyMessages': replyMessages,
+        'textSingle': replyMessages && replyMessages.constructor === Array ? replyMessages.join('\n') : 
+            replyMessages ? replyMessages : ''
+    }
+}
+
 exports.sendToCore = async (userMessage, userId, domain) => {
     const options = {
         method: 'GET',
-        uri: config.get('core.url.base') + (domain || 'knowledge') + config.get('core.url.suffix'),
+        uri: config.get('core.url.base') + (domain || 'opening') + config.get('core.url.suffix'),
         qs: {
             'message': userMessage,
             'user_id': userId
-        }
+        },
+        json: true
     };
 
     return request(options);
