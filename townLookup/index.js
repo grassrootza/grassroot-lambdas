@@ -9,6 +9,11 @@ const mapsClient = require('@google/maps').createClient({
 
 const app = express();
 
+app.get('/province', (req, res) => {
+	console.log('echoing back: ', req.query.province);
+	res.status(200).send(req.query.province);
+});
+
 app.get('/lookup', (req, res) => {
     const province = req.query.province;
 

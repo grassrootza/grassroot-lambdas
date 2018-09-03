@@ -1,0 +1,14 @@
+service: whatsapp-new-controller
+
+provider:
+  name: aws
+  runtime: nodejs8.10
+  stage: dev
+  region: eu-west-1
+
+functions:
+  app:
+    handler: main.handler
+    events:
+      - http: ANY /
+      - http: 'ANY {proxy+}'

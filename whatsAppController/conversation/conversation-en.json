@@ -38,19 +38,19 @@
             "_type": "opening_menu",
             "_source": {
                 "response": [
-                    ["Dumelang. Welcome. What do you want to do? Grassroot Zonke can help you:", 
+                    ["Dumelang. Welcome! What do you want to do?", 
                     "<<OPTIONS::OPENING_OPTION>>",
-                    "Feel free to answer with a number or word, as you prefer. Note: messages may be jumbled, and nothing works except this opening repeating, for now."]
+                    "Feel free to answer with a number or word, as you prefer, or just use a shortcut word (e.g., 'izwe lami', or a campaign join word)"]
                 ]
             }
         },
         {
             "_id": "OPENING_OPTION",
             "_source": {
-                "act": "Take action (e.g., call a meeting, issue an alert)",
-                "know": "Get knowledge (e.g., on housing rights, ideas for action)",
-                "find": "Find services (e.g., health clinics, shelters)",
-                "connect": "Talk to people (e.g., other activists, experts)"
+                "service": "Find services (e.g., health clinics, shelters)",
+                "knowledge": "Get knowledge (e.g., on housing rights, ideas for action)",
+                "action": "Take action (e.g., join a group or campaign, call a meeting, issue an alert)",
+                "connection": "Talk to people (e.g., other activists, experts)"
             }
         }
     ],

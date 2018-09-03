@@ -19,6 +19,7 @@ chargebeeIntegration/**
 **/node_modules
 **/claudia.json
 **/package-lock.json
+**/.serverless
 
 # Out and build from Java, now also Maven
 **/out

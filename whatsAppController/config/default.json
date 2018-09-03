@@ -1,6 +1,11 @@
 {
   "response": {
-    "contentType": "text/xml"
+    "contentType": "application/json"
+  },
+  "api": {
+    "outbound": {
+      "url": "https://whatsapp.praekelt.org/v1/messages"
+    }
   },
   "users": {
     "url": "http://localhost:8080/v2/api/whatsapp/user",

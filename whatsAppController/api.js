@@ -1,30 +1,77 @@
 const config = require('config');
-const MessagingResponse = require('twilio').twiml.MessagingResponse;
+const request = require('request-promise');
+
+// const MessagingResponse = require('twilio').twiml.MessagingResponse;
 
 var exports = module.exports = {};
 
 // we will be swapping these out in future, as possibly / probably not using Twilio, so stashing them
 exports.getMessageContent = (req) => {
     console.log('message body: ', req.body);
-    const incoming_text = req.body['Body'];
-    const incoming_phone = req.body['From'] ? req.body['From'].substring('whatsapp:+'.length) : '<<Error>>';
+    const incoming_type = req.body['type'];
+    const incoming_text = req.body['text'] ? req.body['text']['body'] : '';
+    const incoming_phone = req.body['from'];
     return {
+        'type': incoming_type,
         'message': incoming_text,
         'from': incoming_phone
     };
 }
 
+// in current case (= W/A API direct, we don't send a response back, hence it's unused, but leaving in sig in case in future)
 exports.sendResponse = async (ourReply, expressRes) => {
     console.log('Complete, sending reply, looks like: ', ourReply);
-    if (ourReply) {
-        expressRes.writeHead(200, {'Content-Type': config.get('response.contentType')});
-        expressRes.end(turnMsgsIntoBody(ourReply.replyMsgs));
-        return 'finished';
-    } else {
-        expressRes.writeHead(200, {'Content-Type': config.get('response.contentType')});
-        expressRes.end(emptyMsgBody());
-        return 'error';
+    
+    const loginOptions = {
+        method: 'POST',
+        uri: config.get('auth.whatsapp.url'),
+        auth: {
+            'user': config.get('auth.whatsapp.username'),
+            'pass': config.get('auth.whatsapp.password')
+        },
+        json: true
     }
+
+    const authResult = await request(loginOptions);
+    console.log('auth result on whatsapp: ', authResult);
+    const authToken = authResult['users'][0]['token'];
+    console.log('and auth token: ', authToken);
+
+    const responseBase = {
+        'preview_url': false,
+        'recipient_type': 'individual',
+        'to': '27813074085',
+        'type': 'text',
+        'text': {
+            'body': ourReply.textSingle
+        }
+    }
+
+    const outboundSend = {
+        method: 'POST',
+        uri: config.get('api.outbound.url'),
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        auth: {
+            'bearer': authToken
+        },
+        json: true
+    }
+
+    for (const reply of ourReply.replyMessages) {
+        responseBase['text']['body'] = reply;
+        outboundSend['body'] = responseBase;
+        const outboundResult = await request(outboundSend);
+        console.log('outbound result: ', outboundResult);
+    }
+
+    // if (ourReply) {
+        
+    // } else {
+        
+    // }
+    return 'dispatched';
 }
 
 const turnMsgsIntoBody = (replyMsgs) => {
