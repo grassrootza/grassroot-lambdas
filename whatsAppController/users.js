@@ -10,9 +10,10 @@ var exports = module.exports = {};
 // todo : if too many groups, only return first few, then 'sorry'
 
 exports.fetchUserId = async (phoneNumber) => {
-    userId = await fetchIdFromServer(phoneNumber);
-    console.log('retrieved userId: ', userId);
-    return userId;
+    return phoneNumber;
+    // userId = await fetchIdFromServer(phoneNumber);
+    // console.log('retrieved userId: ', userId);
+    // return userId;
 }
 
 fetchIdFromServer = (phoneNumber) => {

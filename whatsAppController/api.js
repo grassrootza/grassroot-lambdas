@@ -9,11 +9,28 @@ var exports = module.exports = {};
 exports.getMessageContent = (req) => {
     console.log('message body: ', req.body);
     const incoming_type = req.body['type'];
-    const incoming_text = req.body['text'] ? req.body['text']['body'] : '';
+    
+    let incoming_message; // where we will, depending, do a transformation (esp for locations)
+    let incoming_raw; // where we will store exactly what's received
+
+    if (incoming_type === 'text') {
+        incoming_message = req.body['text']['body'];
+        incoming_raw = incoming_message;
+    }
+
+    if (incoming_type === 'location') {
+        incoming_message = {
+            latitude: req.body['location']['latitude'],
+            longitude: req.body['location']['longitude']
+        },
+        incoming_raw = JSON.stringify(req.body['location'])
+    };
+
     const incoming_phone = req.body['from'];
     return {
         'type': incoming_type,
-        'message': incoming_text,
+        'message': incoming_message,
+        'raw': incoming_raw,
         'from': incoming_phone
     };
 }

@@ -22,19 +22,20 @@ app.post('/inbound', async (req, res, next) => {
         
         // first, decode the inbound message into a content object we can use
         const content = api.getMessageContent(req);
+        console.log('incoming content: ', content);
 
         // second, extract a user id, either from prior, or from phone number
-        // const userId = await users.fetchUserId(content['from']);
-        const userId = 'testing';
+        const userId = await users.fetchUserId(content['from']);
+        console.log('user id: ', userId);
 
-        // // third, check for the last message sent, to see if there's a domain
-        // const lastMessage = await recording.getMostRecent(content);
+        // third, check for the last message sent, to see if there's a domain
+        const lastMessage = await recording.getMostRecent(content);
+        console.log('and most recent message: ', lastMessage);
 
-        // // fourth, get the response from NLU
+        // fourth, get the response from NLU
         const response = await getMessageReply(content, (typeof lastMessage !== 'undefined' && lastMessage) ? lastMessage['Items'][0] : null, userId);
         console.log('responding: ', response);
-        // const response = conversation.Reply(userId, ['Hello this is a message, your user ID is ' + userId, 'And this is a second one', 'And even a third']);
-
+        
         // log what we are sending back (should move to a separate lambda soon)
         // console.time('log_result');
         // await recording.logIncoming(content, response, userId);
@@ -68,11 +69,11 @@ const getMessageReply = async (content, prior, userId) => {
     
     console.log('User message: ', content['message']);
 
-    // start (?) with a regex check on campaign and group join words, and/or locations and other media
+    // start (?) with a regex check on campaign and group join words, and/or locations and other media, and/or restart
 
     // first, ask the Rasa core domain coordinator for a next message / answer
     // this comes in the form of a dict with 'domain', 'responses', 'intent', 'intent_ranking', and 'entities'
-    const coreResult = await conversation.sendToCore(content['message'], userId);
+    const coreResult = await conversation.sendToCore(content, userId, prior ? prior['domain'] : undefined);
     
     console.log('core result: ', coreResult);
 

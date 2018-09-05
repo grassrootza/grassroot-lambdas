@@ -17,15 +17,29 @@ exports.Reply = (userId, domain, replyMessages) => {
 }
 
 exports.sendToCore = async (userMessage, userId, domain) => {
+    console.log('domain: ', domain);
+    console.log('sending to core: ', userMessage);
+
+    let messageToTransmit;
+    if (userMessage['type'] === 'text') {
+        messageToTransmit = userMessage['message'];
+    } else if (userMessage['type'] === 'location') {
+        messageToTransmit = '/select' + JSON.stringify(userMessage['message']);
+        console.log('converted message: ', messageToTransmit);
+    };
+    console.log('and message to send: ', messageToTransmit);
+
     const options = {
         method: 'GET',
         uri: config.get('core.url.base') + (domain || 'opening') + config.get('core.url.suffix'),
         qs: {
-            'message': userMessage,
+            'message': messageToTransmit,
             'user_id': userId
         },
         json: true
     };
+    
+    console.log('options uri: ', options.uri);
 
     return request(options);
 }

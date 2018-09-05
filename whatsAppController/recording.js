@@ -37,16 +37,12 @@ exports.getMostRecent = (content) => {
 // move this into its own lambda
 exports.logIncoming = async (content, reply, userId) => {
     const item = {
-        'userId': content.from,
+        'userId': userId,
         'timestamp': Date.now(),
         'message': content.message,
-        'reply': reply.message,
-        'context': reply.context
+        'reply': reply.textSingle,
+        'domain': reply.domain
     };
-
-    if (reply.options) {
-        item['options'] = reply.options;
-    }
 
     console.log('assembled item: ', item);
 
@@ -55,20 +51,20 @@ exports.logIncoming = async (content, reply, userId) => {
         Item: item
     };
 
-    // await docClient.put(params).promise();
+    await docClient.put(params).promise();
 
-    console.log('analyics enabled? :', analyticsEnabled);
-    if (analyticsEnabled) {
-        dashbot.logIncoming({
-            'userId': userId,
-            'text': content['message']
-        });
+    // console.log('analyics enabled? :', analyticsEnabled);
+    // if (analyticsEnabled) {
+    //     dashbot.logIncoming({
+    //         'userId': userId,
+    //         'text': content['message']
+    //     });
 
-        dashbot.logOutgoing({
-            'userId': reply.userId,
-            'text': reply.textSingle
-        });
-    }
+    //     dashbot.logOutgoing({
+    //         'userId': reply.userId,
+    //         'text': reply.textSingle
+    //     });
+    // }
 }
 
 const hoursInPast = (number) => {
