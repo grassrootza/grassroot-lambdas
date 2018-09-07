@@ -10,13 +10,13 @@ var exports = module.exports = {};
 // todo : if too many groups, only return first few, then 'sorry'
 
 exports.fetchUserId = async (phoneNumber) => {
-    return phoneNumber;
-    // userId = await fetchIdFromServer(phoneNumber);
-    // console.log('retrieved userId: ', userId);
-    // return userId;
+    userId = await fetchIdFromServer(phoneNumber);
+    console.log('retrieved userId: ', userId);
+    return userId;
 }
 
 fetchIdFromServer = (phoneNumber) => {
+    console.log('fetching user ID for phone number: ', phoneNumber);
     const options = {
         method: 'POST',
         uri: config.get('users.url') + config.get('users.path.id'),
@@ -26,5 +26,6 @@ fetchIdFromServer = (phoneNumber) => {
         }
     };
     console.log('calling: ', options.uri);
+    console.log('query params: ', options.qs);
     return request(options);
 }

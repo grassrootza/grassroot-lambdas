@@ -9,6 +9,7 @@ storeImageAnalysis/**
 accountRefCRUD/**
 izweLami/**
 chargebeeIntegration/**
+izweLamiClinics/**
 **/testing.env.variables
 **/run_local.sh
 **/env.json

@@ -8,25 +8,31 @@ var exports = module.exports = {};
 // we will be swapping these out in future, as possibly / probably not using Twilio, so stashing them
 exports.getMessageContent = (req) => {
     console.log('message body: ', req.body);
-    const incoming_type = req.body['type'];
+    if (!req.body['messages']) {
+        return false;
+    }
+
+    const pulledBody = req.body['messages'][0];
+
+    const incoming_type = pulledBody['type'];
     
     let incoming_message; // where we will, depending, do a transformation (esp for locations)
     let incoming_raw; // where we will store exactly what's received
 
     if (incoming_type === 'text') {
-        incoming_message = req.body['text']['body'];
+        incoming_message = pulledBody['text']['body'];
         incoming_raw = incoming_message;
     }
 
     if (incoming_type === 'location') {
         incoming_message = {
-            latitude: req.body['location']['latitude'],
-            longitude: req.body['location']['longitude']
+            latitude: pulledBody['location']['latitude'],
+            longitude: pulledBody['location']['longitude']
         },
-        incoming_raw = JSON.stringify(req.body['location'])
+        incoming_raw = JSON.stringify(pulledBody['location'])
     };
 
-    const incoming_phone = req.body['from'];
+    const incoming_phone = pulledBody['from'];
     return {
         'type': incoming_type,
         'message': incoming_message,

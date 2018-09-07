@@ -13,8 +13,7 @@ const docClient = new AWS.DynamoDB.DocumentClient();
 
 var exports = module.exports = {};
 
-exports.getMostRecent = (content) => {
-    const userMsisdn = content.from;
+exports.getMostRecent = (userId) => {
     const cutoff = hoursInPast(config.get('conversation.cutoffHours'));
     console.log('timestamp in past: ', cutoff);
     const params = {
@@ -24,7 +23,7 @@ exports.getMostRecent = (content) => {
             '#timestamp': 'timestamp'
         },     
         'ExpressionAttributeValues': {
-            ':val': userMsisdn,
+            ':val': userId,
             ':cutoff': cutoff
         },
         'Limit': 1,

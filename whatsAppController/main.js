@@ -23,13 +23,17 @@ app.post('/inbound', async (req, res, next) => {
         // first, decode the inbound message into a content object we can use
         const content = api.getMessageContent(req);
         console.log('incoming content: ', content);
+        if (!content) {
+            res.status(200).end();
+            return;
+        }
 
         // second, extract a user id, either from prior, or from phone number
         const userId = await users.fetchUserId(content['from']);
         console.log('user id: ', userId);
 
         // third, check for the last message sent, to see if there's a domain
-        const lastMessage = await recording.getMostRecent(content);
+        const lastMessage = await recording.getMostRecent(userId);
         console.log('and most recent message: ', lastMessage);
 
         // fourth, get the response from NLU
@@ -37,14 +41,14 @@ app.post('/inbound', async (req, res, next) => {
         console.log('responding: ', response);
         
         // log what we are sending back (should move to a separate lambda soon)
-        // console.time('log_result');
-        // await recording.logIncoming(content, response, userId);
-        // console.timeEnd('log_result');
+        console.time('log_result');
+        await recording.logIncoming(content, response, userId);
+        console.timeEnd('log_result');
 
         // last, send the responses back
-        // const sentResult = await api.sendResponse(response, res);
-        const sentResult = 'finished';
-        console.log('Sent off result, looks like: ', sentResult);
+        const sentResult = await api.sendResponse(response, res);
+        // const sentResult = 'finished';
+        // console.log('Sent off result, looks like: ', sentResult);
 
         if (sentResult == 'dispatched') {
             res.status(200).end();
@@ -88,7 +92,7 @@ const getMessageReply = async (content, prior, userId) => {
     // fourth, if we have a finished intent and entity, call corresponding service and exit
 
     // else, return a response, recoded to our format
-    let responses = coreResult['responses'].map(response => response['text']);
+    let responses = coreResult['responses'];
     return conversation.Reply(userId, coreResult['domain'], responses);
 }
 
