@@ -35,6 +35,8 @@ exports.getMostRecent = (userId) => {
 
 // move this into its own lambda
 exports.logIncoming = async (content, reply, userId) => {
+    console.log('will record: ', reply);
+    
     const item = {
         'userId': userId,
         'timestamp': Date.now(),
@@ -43,7 +45,11 @@ exports.logIncoming = async (content, reply, userId) => {
         'domain': reply.domain
     };
 
-    console.log('assembled item: ', item);
+    if (reply.hasOwnProperty('menu')) {
+        item['menu'] = reply['menu'];
+    }
+
+    console.log('assembled item to record: ', item);
 
     const params = {
         TableName: 'chatConversationLogs',

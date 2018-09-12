@@ -16,6 +16,15 @@ exports.Reply = (userId, domain, replyMessages) => {
     }
 }
 
+exports.convertCoreResult = (userId, coreResult) => {
+    let stdReply = exports.Reply(userId, coreResult['domain'], coreResult['responses']);
+    if (coreResult.hasOwnProperty('menu')) {
+        stdReply['menu'] = [];
+        coreResult['menu'].forEach(item => stdReply['menu'].push(item['payload']));
+    }
+    return stdReply;
+}
+
 exports.sendToCore = async (userMessage, userId, domain) => {
     console.log('domain: ', domain);
     console.log('sending to core: ', userMessage);
@@ -26,6 +35,14 @@ exports.sendToCore = async (userMessage, userId, domain) => {
     } else if (userMessage['type'] === 'location') {
         messageToTransmit = '/select' + JSON.stringify(userMessage['message']);
         console.log('converted message: ', messageToTransmit);
+    } else if (userMessage['type'] === 'payload') {
+        const payload = userMessage['payload'];
+        const slot = payload.substring(0, payload.indexOf('::'));
+        const value = payload.substring(payload.indexOf('::') + 2);
+        let obj = {};
+        obj[slot] = value;
+        messageToTransmit = '/select' + JSON.stringify(obj);
+        console.log("JSON message: ", messageToTransmit);
     };
     console.log('and message to send: ', messageToTransmit);
 
