@@ -47,7 +47,11 @@ exports.logIncoming = async (content, reply, userId) => {
 
     if (reply.hasOwnProperty('menu')) {
         item['menu'] = reply['menu'];
-    }
+    };
+
+    if (reply.hasOwnProperty('entity')) {
+        item['entity'] = reply['entity'];
+    };
 
     console.log('assembled item to record: ', item);
 
@@ -58,18 +62,31 @@ exports.logIncoming = async (content, reply, userId) => {
 
     await docClient.put(params).promise();
 
-    // console.log('analyics enabled? :', analyticsEnabled);
-    // if (analyticsEnabled) {
-    //     dashbot.logIncoming({
-    //         'userId': userId,
-    //         'text': content['message']
-    //     });
+    console.log('analyics enabled? :', analyticsEnabled);
+    if (analyticsEnabled) {
+        incomingLog = {
+            'userId': userId,
+            'text': content['message']
+        };
+        if (reply.hasOwnProperty('intent')) {
+            incomingLog['intent'] = reply['intent']; // is actually intent of user incoming, but extracted from core result
+        }
+        
+        console.log('dispatching to dashbot: ', incomingLog);
+        dashbot.logIncoming(incomingLog);
 
-    //     dashbot.logOutgoing({
-    //         'userId': reply.userId,
-    //         'text': reply.textSingle
-    //     });
-    // }
+        outgoingLog = {
+            'userId': reply.userId,
+            'text': reply.textSingle
+        };
+
+        if (reply.hasOwnProperty('action')) {
+            outgoingLog['platformJson'] = {'action': reply['action']};
+        }
+        
+        console.log('dispatching to dashbot: ', outgoingLog);
+        dashbot.logOutgoing(outgoingLog);
+    }
 }
 
 const hoursInPast = (number) => {

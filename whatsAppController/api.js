@@ -5,7 +5,6 @@ const request = require('request-promise');
 
 var exports = module.exports = {};
 
-// we will be swapping these out in future, as possibly / probably not using Twilio, so stashing them
 exports.getMessageContent = (req) => {
     console.log('message body: ', req.body);
     if (!req.body['messages']) {
@@ -42,8 +41,9 @@ exports.getMessageContent = (req) => {
 }
 
 // in current case (= W/A API direct, we don't send a response back, hence it's unused, but leaving in sig in case in future)
-exports.sendResponse = async (ourReply, expressRes) => {
+exports.sendResponse = async (toPhone, ourReply, expressRes) => {
     console.log('Complete, sending reply, looks like: ', ourReply);
+    console.log('Sending to: ', toPhone);
     
     const loginOptions = {
         method: 'POST',
@@ -63,7 +63,7 @@ exports.sendResponse = async (ourReply, expressRes) => {
     const responseBase = {
         'preview_url': false,
         'recipient_type': 'individual',
-        'to': '27813074085',
+        'to': toPhone,
         'type': 'text',
         'text': {
             'body': ourReply.textSingle

@@ -22,24 +22,26 @@
   },
   "core": {
     "url": {
-      "base": "http://localhost:5000/",
+      "base": "http://rasa.grassroot.cloud:5000/",
       "suffix": "/parse"
     }
   },
   "auth": {
     "platform": "insert_platform_token_here"
   },
-  "tasks": {
-    "url": "http://localhost:8080/v2/api/task",
-    "path": {
-      "respond": "/respond",
-      "create": "/create"
-    }
-  },
-  "groups": {
-    "url": "http://localhost:8080/v2/api/group",
-    "path": {
-      "list": "/fetch/minimal"
-    }
+  "platform": {
+    "url": "http://localhost:8080/v2/api/whatsapp",
+    "paths": {
+      "phrase": {
+        "search": "/phrase/search"
+      },
+      "tasks": {
+        "respond": "/task/respond",
+        "create": "/task/create"
+      },
+      "groups": {
+        "list": "/group/fetch/minimal"
+      }
+    }  
   }
 }

@@ -3,8 +3,18 @@ service: whatsapp-new-controller
 provider:
   name: aws
   runtime: nodejs8.10
-  stage: dev
+  stage: ${opt:stage,'dev'}
   region: eu-west-1
+  environment:
+    NODE_ENV: ${self:custom.nodeEnv.${self:provider.stage}}
+
+custom:
+  stages:
+    - dev
+    - production
+  nodeEnv:
+    dev: dev
+    production: production
 
 functions:
   app:

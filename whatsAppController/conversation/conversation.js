@@ -22,6 +22,16 @@ exports.convertCoreResult = (userId, coreResult) => {
         stdReply['menu'] = [];
         coreResult['menu'].forEach(item => stdReply['menu'].push(item['payload']));
     }
+    if (coreResult.hasOwnProperty('intent')) {
+        // not recording entities at present, as not sure if need to, and privacy questions
+        stdReply['intent'] = {
+            'name': stdReply['intent']
+        };
+    }
+    if (coreResult.hasOwnProperty('action')) {
+        // for recording how Rasa core is doing
+        stdReply['action'] = coreResult['action'];
+    }
     return stdReply;
 }
 

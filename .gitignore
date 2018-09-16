@@ -14,7 +14,12 @@ izweLamiClinics/**
 **/run_local.sh
 **/env.json
 **/application-production.properties
+
+# Config json files
 **/local.json
+**/development.json
+**/production.json
+
 
 # JS and Claudia generated files
 **/node_modules

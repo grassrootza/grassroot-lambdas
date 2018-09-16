@@ -3,10 +3,25 @@ const config = require('config');
 const request = require('request-promise');
 
 const authHeader = {
-    'bearer': 'insert_token_here'
+    'bearer': config.get('auth.platform')
 };
 
 var exports = module.exports = {};
+
+exports.checkForJoinPhrase = (incomingPhrase, userId) => {
+    const options = {
+        method: 'POST',
+        uri: config.get('platform.url') + config.get('platform.paths.phrase.search'),
+        qs: {
+            'phrase': incomingPhrase,
+            'userId': userId
+        },
+        auth: authHeader,
+        json: true
+    };
+
+    return request(options);
+}
 
 exports.respondToTask = async (taskType, taskUid, response) => {
     const options = {
