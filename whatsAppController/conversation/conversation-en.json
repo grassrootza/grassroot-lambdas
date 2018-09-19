@@ -54,6 +54,18 @@
             }
         }
     ],
+    "restart": [
+        {
+            "_id": "start",
+            "_intent": "restart",
+            "_type": "opening_menu",
+            "_source": {
+                "response": [
+                    ["Alright, we have restarted what would you like to do?"]
+                ]
+            }
+        }
+    ],
     "act": [
         {
             "_id": "start",

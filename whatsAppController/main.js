@@ -9,15 +9,14 @@ app.use(bodyParser.json());
 
 const conversation = require('./conversation/conversation.js'); // for extracting and handling actual text back and forth
 const api = require('./api'); // for interacting with WhatsApp API, or whatever intermediary we are using
-const nlu = require ('./nlu'); // for calling and using the NLU
 const recording = require('./recording'); // for recording messages we send back and conversation flow
 const users = require('./users'); //for getting a user ID if not in prior
 const platform = require('./platform.js'); // for triggering tasks etc on the backend
+const utils = require('./utils');
 
-const MENU_NUMBER_REGEX = /\d+\W?/;
-
+// not used but recording for reference
 const DOMAINS = ['opening', 
-        'reset', // i.e., user just reset things 
+        'retart', // i.e., user just reset things 
         'platform', // i.e., joining a campaign, responding to a meeting notification, etc
         'service',  // i.e., looking for a service, like a clinic or shelter, etc
         'knowledge'] // i.e., finding knowledge on accountability stack, etc
@@ -52,7 +51,7 @@ app.post('/inbound', async (req, res, next) => {
         
         // log what we are sending back (should move to a separate lambda soon)
         console.time('log_result');
-        // await recording.logIncoming(content, response, userId);
+        await recording.logIncoming(content, response, userId);
         console.timeEnd('log_result');
 
         // last, send the responses back
@@ -83,34 +82,42 @@ const getMessageReply = async (content, prior, userId) => {
     console.log('User message: ', content['message']);
 
     // first: check for restart flag - if we have one, send opening message, and tell Rasa service to reset itself
-    if (content['type'] == 'text' && content['message'].toLowerCase() == 'reset') {
-        // send out the resets etc
-        return conversation.openingMsg(userId, 'reset');
+    // if (content['type'] == 'text') {
+    //     let restartCheck = await conversation.sendToCore(content, userId, 'opening'); // since opening NLU checks for reset intent
+    //     console.log('restart check from core: ', restartCheck);
+    //     if (restartCheck && restartCheck['intent']['name'] == 'restart' && restartCheck['intent']['confidence'] > 0.5) { // low threshold to allow way out
+    //         return conversation.restartUser(userId);
+    //     }
+    // }
+    if (content['message'] == 'restart') {
+        return conversation.Reply(userId, 'restart', 'Okay reset');
     }
 
-    // second, if at the start, or have reset, check for a campaign or group join word, and if so, initiate that flow
-    if (!prior || prior['domain'] == 'reset') {
-        possibleReply = newSession(content['message'], userId);
-        console.log('possibly reply based on platform: ', possibleReply);
+    // second, if at the start, or have reset, check for a campaign or group join word, and if so, initiate that flow; if in that flow, continue it
+    // todo : use NLU again to check for 'join' or other such intent
+    if (!prior || prior['domain'] == 'restart') {
+        possibleReply =  await platform.checkForJoinPhrase(content['message'], userId);
+        console.log('Result of checking for join word or similar phrase: ', possibleReply);
         if (possibleReply) return possibleReply;        
+    }
+
+    if (prior['domain'] == 'platform' && prior.hasOwnProperty('entity')) {
+        nextFlowStep = await platform.continueJoinFlow(prior, content, userId);
+        console.log('Got next step in flow: ', nextFlowStep);
+        if (nextFlowStep) return nextFlowStep;
     }
     
     // third, check if we are in the middle of menus, and a number was provided
     console.log(`prior : ${!!prior} && prior menu: ${prior && prior['menu']} && is message number: ${isMessageNumber(content)}`);
     const replyingToMenu = !!prior && !!prior['menu'] && isMessageNumber(content);
     if (replyingToMenu) {
-        content = reshapeContentFromMenu(content, prior);        
+        content = utils.reshapeContentFromMenu(content, prior);        
     }
 
     // fourth, ask the Rasa core domain coordinator for a next message / answer
     // this comes in the form of a dict with 'domain', 'responses', 'intent', 'intent_ranking', and 'entities'
     const coreResult = await conversation.sendToCore(content, userId, prior ? prior['domain'] : undefined);    
     console.log('core result: ', coreResult);
-
-    // 4-a : check if core result intent is 'reset' (but was not caught in simple check above), in which case, reset
-    if (coreResult.hasOwnProperty('intent') && coreResult['intent'] == 'reset') {
-        return conversation.openingMsg(userId, 'reset');
-    }
 
     // fifth, if there is no text reply, extract one from the domain openings, and return
     if (!hasSomethingInside(coreResult['responses'])) {
@@ -121,33 +128,6 @@ const getMessageReply = async (content, prior, userId) => {
 
     // else, return a response, recoded to our format
     return conversation.convertCoreResult(userId, coreResult);
-}
-
-const newSession = async (userMessage, userId) => {
-    let checkForJoinWord = await platform.checkForJoinPhrase(userMessage, userId);
-    console.log('platform check result: ', checkForJoinWord);
-    if (checkForJoinWord && checkForJoinWord['entityFound']) {
-        console.log('well we found something');
-        let reply = conversation.Reply(userId, 'platform', checkForJoinWord['responseMessages']);
-        if (checkForJoinWord.hasOwnProperty('responseMenu')) {
-            const menu = checkForJoinWord['responseMenu'];
-            reply['menu'] = Object.keys(menu);
-        }
-        reply['entity'] = checkForJoinWord['entityType'] + '::' + checkForJoinWord['entityUid'];
-        return reply;
-    } else {
-        return false;
-    }
-}
-
-const reshapeContentFromMenu = (content, prior) => {
-    console.log('extracting menu selection ... boolean check: ', /\d+/.test(content['message']));
-    const menuSelected = content['message'].match(/\d+/).map(Number);
-    const payload = prior['menu'][menuSelected - 1];
-    console.log(`extracted menu selection: ${menuSelected} and corresponding payload: ${payload}`);
-    content['type'] = 'payload';
-    content['payload'] = payload;
-    return content;
 }
 
 const hasSomethingInside = (entity) => {

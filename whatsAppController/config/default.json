@@ -22,8 +22,9 @@
   },
   "core": {
     "url": {
-      "base": "http://rasa.grassroot.cloud:5000/",
-      "suffix": "/parse"
+      "base": "http://localhost:5000/",
+      "suffix": "/parse",
+      "restart": "restart"
     }
   },
   "auth": {
@@ -34,6 +35,9 @@
     "paths": {
       "phrase": {
         "search": "/phrase/search"
+      },
+      "entity": {
+        "respond": "/entity/respond"
       },
       "tasks": {
         "respond": "/task/respond",

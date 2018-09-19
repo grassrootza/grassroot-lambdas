@@ -71,6 +71,24 @@ exports.sendToCore = async (userMessage, userId, domain) => {
     return request(options);
 }
 
+exports.restartUser = async (userId) => {
+    console.log('Alright, telling core to restart all');
+    const options = {
+        method: 'POST',
+        uri: config.get('core.url.base') + config.get('core.url.restart'),
+        qs: {
+            'user_id': userId
+        },
+        json: true
+    }
+
+    console.log('resetting via URL: ', options.uri);
+    const resetResult = await request(options);
+    console.log('Result of restart request: ', resetResult);
+    
+    return exports.openingMsg(userId, 'restart');
+}
+
 exports.openingMsg = (userId, domain) => {
     const block = conversation[domain];
     const body = exports.getResponseChunk(block, 'start', 0);
