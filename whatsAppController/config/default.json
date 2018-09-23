@@ -24,7 +24,8 @@
     "url": {
       "base": "http://localhost:5000/",
       "suffix": "/parse",
-      "restart": "restart"
+      "restart": "restart",
+      "province": "province"
     }
   },
   "auth": {

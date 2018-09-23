@@ -16,11 +16,49 @@ exports.Reply = (userId, domain, replyMessages) => {
     }
 }
 
+// first some special methods, basically for restarting and getting location info
+exports.isRestart = async (content, rasaNluResult) => {
+    if (content['type'] !== 'text')
+        return false;
+
+    if (!rasaNluResult)
+        return content['message'].toLowerCase() == 'restart';
+
+    console.log('restart check from core: ', rasaNluResult);
+    return (rasaNluResult && rasaNluResult['intent']['name'] == 'restart' && rasaNluResult['intent']['confidence'] > 0.5); // low threshold to allow way out
+}
+
+exports.restartConversation = (userId, resetRasa) => {
+    if (resetRasa) 
+        return exports.restartRasa(userId);
+    else
+        return exports.Reply(userId, 'restart', 'Okay reset');
+}
+
+exports.extractProvince = async (userText) => {
+    const options = {
+        method: 'GET',
+        uri: config.get('core.url.base') + config.get('core.url.province'),
+        qs: {
+            'user_id': userId,
+            'message': userText
+        },
+        json: true
+    }
+
+    return request(options);
+}
+
+// then the generic ones
 exports.convertCoreResult = (userId, coreResult) => {
     let stdReply = exports.Reply(userId, coreResult['domain'], coreResult['responses']);
     if (coreResult.hasOwnProperty('menu')) {
-        stdReply['menu'] = [];
-        coreResult['menu'].forEach(item => stdReply['menu'].push(item['payload']));
+        stdReply['menuPayload'] = [];
+        stdReply['menuText'] = [];
+        coreResult['menu'].forEach(item => {
+            stdReply['menuPayload'].push(item['payload']);
+            stdReply['menuText'].push(item['title']);
+        });
     }
     if (coreResult.hasOwnProperty('intent')) {
         // not recording entities at present, as not sure if need to, and privacy questions
@@ -71,7 +109,7 @@ exports.sendToCore = async (userMessage, userId, domain) => {
     return request(options);
 }
 
-exports.restartUser = async (userId) => {
+exports.restartRasa = async (userId) => {
     console.log('Alright, telling core to restart all');
     const options = {
         method: 'POST',

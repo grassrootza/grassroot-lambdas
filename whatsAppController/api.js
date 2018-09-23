@@ -44,21 +44,6 @@ exports.getMessageContent = (req) => {
 exports.sendResponse = async (toPhone, ourReply, expressRes) => {
     console.log('Complete, sending reply, looks like: ', ourReply);
     console.log('Sending to: ', toPhone);
-    
-    const loginOptions = {
-        method: 'POST',
-        uri: config.get('auth.whatsapp.url'),
-        auth: {
-            'user': config.get('auth.whatsapp.username'),
-            'pass': config.get('auth.whatsapp.password')
-        },
-        json: true
-    }
-
-    const authResult = await request(loginOptions);
-    console.log('auth result on whatsapp: ', authResult);
-    const authToken = authResult['users'][0]['token'];
-    console.log('and auth token: ', authToken);
 
     const responseBase = {
         'preview_url': false,
@@ -77,37 +62,20 @@ exports.sendResponse = async (toPhone, ourReply, expressRes) => {
             'Content-Type': 'application/json'
         },
         auth: {
-            'bearer': authToken
+            'bearer': config.get('auth.whatsapp.token')
         },
         json: true
     }
 
+    console.log('outbound url: ', outboundSend.uri);
+
     for (const reply of ourReply.replyMessages) {
         responseBase['text']['body'] = reply;
         outboundSend['body'] = responseBase;
+        console.log('outbound body: ', outboundSend.body)
         const outboundResult = await request(outboundSend);
         console.log('outbound result: ', outboundResult);
     }
 
-    // if (ourReply) {
-        
-    // } else {
-        
-    // }
     return 'dispatched';
-}
-
-const turnMsgsIntoBody = (replyMsgs) => {
-    if (replyMsgs) {
-        const twiml = new MessagingResponse();
-        replyMsgs.forEach(msg => twiml.message(msg));
-        return twiml.toString();
-    } else {
-        return exports.emptyMsgBody();
-    }
-}
-
-exports.emptyMsgBody = () => {
-    const twiml = new MessagingResponse();
-    return twiml.toString();
 }

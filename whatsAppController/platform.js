@@ -8,9 +8,28 @@ const authHeader = {
     'bearer': config.get('auth.platform')
 };
 
+const DATA_TYPES_REQUESTING_LOCATION = ['LOCATION_GPS_REQUIRED', 'LOCATION_PROVINCE_OKAY'];
+
+const PROVINCE_MAP = {
+    'gauteng': 'ZA_GP',
+    'western_cape': 'ZA_WC',
+    'eastern_cape': 'ZA_EC',
+    'northern_cape': 'ZA_NC',
+    'limpopo': 'ZA_LP',
+    'mpumalanga': 'ZA_MP',
+    'kzn': 'ZA_KZN',
+    'north_west': 'ZA_NW',
+    'free_state': 'ZA_FS'
+}
+
 var exports = module.exports = {};
 
-exports.checkForJoinPhrase = async (incomingPhrase, userId) => {
+exports.checkForJoinPhrase = async (incomingPhrase, rasaNluResult, userId) => {
+    // probably want to abstract this generic intent & confidence check 
+    if (!!rasaNluResult && rasaNluResult['intent'] == 'join' && !!rasaNluResult['entities']) {
+        incomingPhrase = rasaNluResult['entities'][0];
+    }
+
     const options = {
         method: 'POST',
         uri: config.get('platform.url') + config.get('platform.paths.phrase.search'),
@@ -28,7 +47,8 @@ exports.checkForJoinPhrase = async (incomingPhrase, userId) => {
         let reply = conversation.Reply(userId, 'platform', phraseSearchResult['responseMessages']);
         if (phraseSearchResult.hasOwnProperty('responseMenu')) {
             const menu = phraseSearchResult['responseMenu'];
-            reply['menu'] = Object.keys(menu);
+            reply['menuPayload'] = Object.keys(menu);
+            reply['menuText'] = Object.values(menu);
         }
         reply['entity'] = phraseSearchResult['entityType'] + '::' + phraseSearchResult['entityUid'];
         return reply;
@@ -43,21 +63,19 @@ exports.continueJoinFlow = async (priorMessage, userMessage, userId) => {
 
     const fullUrl = config.get('platform.url') + config.get('platform.paths.entity.respond') + `/${entityType}/${entityUid}`;
 
-    console.log(`prior message has menu: ${priorMessage.hasOwnProperty('menu')} and is number: ${utils.isMessageNumber(userMessage)}`);
-
-    if (priorMessage.hasOwnProperty('menu') && utils.isMessageNumber(userMessage)) {
-        userMessage = utils.reshapeContentFromMenu(userMessage, priorMessage);    
-    } else if (userMessage['message'] == 'regex of option') {
-        console.log('Looks like the message we sent')
-    } else if (priorMessage.hasOwnProperty('menu')) {
-        // send to NLU to figure out an intent, then map that to a response; we use opening because we are only interested in the intent
-        nluResult = conversation.sendToCore(userMessage, userId, 'opening');
-        if (nluResult['intent']['confidence'] > 0.7) { // need to abstract this / stick somewhere as constant
+    // if the last outbound message was a menu, and this inbound does not have a payload in it, test for string similariy
+    if (priorMessage.hasOwnProperty('menuPayload') && !userMessage.hasOwnProperty('payload')) {
+        // first do a quick similarity and contains check
+        console.log('prior message: ', priorMessage);
+        const possibleIndex = utils.isMessageLikeMenuTextOrPayload(userMessage, priorMessage['menuText']);
+        console.log('possible index: ', possibleIndex);
+        if (possibleIndex != -1) {
             userMessage['type'] = 'payload';
-            userMessage['payload'] = nluResult['intent']['name'];
-            console.log('initially reshaped message: ', userMessage);
-
+            userMessage['payload'] = priorMessage['menuPayload'][possibleIndex];
         }
+        // at present, not invoking NLU, because actions are so limited; review if necessary
+    } else if (exports.requiresLocation(priorMessage)) {
+        userMessage['payload'] = await exports.convertLocation(userMessage);
     }
 
     console.log('reshaped user message: ', userMessage);
@@ -80,17 +98,27 @@ exports.continueJoinFlow = async (priorMessage, userMessage, userId) => {
     }
 
     const entityFlowResponse = await request(options);
-    console.log('resposne from platform, raw: ', entityFlowResponse);
+    console.log('response from platform, raw: ', entityFlowResponse);
 
     let reply = conversation.Reply(userId, 'platform', entityFlowResponse['messages']);
     reply['entity'] = entityFlowResponse['entityType'] + '::' + entityFlowResponse['entityUid'];
-    if (entityFlowResponse.hasOwnProperty('menu')) {
-        reply['menu'] = Object.keys(entityFlowResponse['menu']);
-    } else {
-        console.log('no menu ... maybe reset this?');
+    reply['auxProperties'] = entityFlowResponse['auxProperties'];
+
+    console.log('entity response data request type: ', entityFlowResponse['requestDataType']);
+    if (entityFlowResponse['requestDataType'] == 'MENU_SELECTION') {
+        reply['menuPayload'] = Object.keys(entityFlowResponse['menu']);
+        reply['menuText'] = Object.values(entityFlowResponse['menu']);
+    } else if (entityFlowResponse['requestDataType'] !== 'NONE') { // nor does it equal menu, so must be one of the others
+        reply = exports.setReplyForDataRequest(reply, entityFlowResponse);
     }
     
-    reply['auxProperties'] = entityFlowResponse['auxProperties'];
+    return reply;
+}
+
+exports.setReplyForDataRequest = (reply, entityFlowResponse) => {    
+    reply['auxProperties'] = reply['auxProperties'] || {};
+    reply['auxProperties']['requestDataType'] = entityFlowResponse['requestDataType'];
+
     return reply;
 }
 
@@ -106,12 +134,38 @@ exports.respondToTask = async (taskType, taskUid, response) => {
     return request(options);
 }
 
-exports.createTask = async (taskType, taskParams) => {
-    const options = {
-        method: 'POST',
-        uri: config.get('tasks.url') + config.get('tasks.path.create') + taskType,
-        qs: taskParams,
-        auth: authHeader
-    };
-    return request(options);
+exports.requiresLocation = (priorMessage) => {
+    // send it to the nlu, to extract a province entity, then map that to platform syntax
+
+    if (!priorMessage.hasOwnProperty('auxProperties') || !priorMessage['auxProperties']) {
+        // we know it doesn't need a province, so just abort
+        return false;
+    }
+
+    if (!priorMessage['auxProperties'].hasOwnProperty('requestDataType') || !priorMessage['auxProperties']['requestDataType']) {
+        // as above
+        return false;
+    }
+
+    const dataType = priorMessage['auxProperties']['requestDataType'];
+    if (!DATA_TYPES_REQUESTING_LOCATION.includes(dataType)) {
+        // data type does not need a location
+        return false;
+    }
+
+    // could have done all the above in a single line in a more robust language, but proceeding now
+    return true;
+}
+
+exports.convertLocation = async (userMessage) => {
+    const nluResult = await conversation.extractProvince(userMessage['message']);
+    console.log('province check nlu result: ', nluResult);
+
+    if (nluResult['intent']['name'] == 'select' && !!nluResult['entities'] && nluResult['entities'][0]['entity'] == 'province') {
+        const nlu_province = nluResult['entities'][0]['value'];
+        console.log('extracted this province: ', nlu_province);
+        return PROVINCE_MAP[nlu_province];
+    }
+
+    return userMessage['message'];
 }

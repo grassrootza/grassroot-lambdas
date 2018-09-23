@@ -33,6 +33,42 @@ exports.getMostRecent = (userId) => {
     return docClient.query(params).promise();
 }
 
+exports.getLastMenu = async (userId) => {
+    console.log('Looking for last menu sent to user ...');
+
+    const cutoff = hoursInPast(config.get('conversation.cutoffHours'));
+    
+    const params = {
+        'TableName': 'chatConversationLogs',
+        'KeyConditionExpression': 'userId = :val and #timestamp > :cutoff',
+        'ExpressionAttributeNames': {
+            '#timestamp': 'timestamp'
+        },     
+        'ExpressionAttributeValues': {
+            ':val': userId,
+            ':cutoff': cutoff
+        },
+        'FilterExpression': 'attribute_exists(menuPayload)',
+        'ScanIndexForward': false
+    }
+    
+    console.log('about to call dynamodb');
+    let result = await docClient.query(params).promise();
+    console.log('DynamoDB menu check: ', result.Items);
+    if (!result.Items.length || result.Items.length == 0)
+        return undefined;
+
+    // filter expression is behaving unreliably, hence this
+    let menuIndex = result.Items.findIndex(item => item.hasOwnProperty('menuPayload') && item['menuPayload'].length > 0);
+    if (menuIndex == -1)
+        return undefined;
+    console.log('index of menu item: ', menuIndex);
+
+    console.log('found item: ', result.Items[menuIndex]['menuPayload']);
+
+    return result.Items[menuIndex]['menuPayload'];
+}
+
 // move this into its own lambda
 exports.logIncoming = async (content, reply, userId) => {
     console.log('will record: ', reply);
@@ -45,13 +81,21 @@ exports.logIncoming = async (content, reply, userId) => {
         'domain': reply.domain
     };
 
-    if (reply.hasOwnProperty('menu')) {
-        item['menu'] = reply['menu'];
+    // dynamodb does not reliably preserve ordering on maps, hence using menu for payloads and texts for what's shown to user
+    if (reply.hasOwnProperty('menuPayload')) {
+        item['menuPayload'] = reply['menuPayload'];
+        item['menuText'] = reply['menuText'];
     };
 
     if (reply.hasOwnProperty('entity')) {
         item['entity'] = reply['entity'];
     };
+
+    // todo: probably want a util for is non-empty dict
+    if (reply.hasOwnProperty('auxProperties') && reply['auxProperties'] && Object.keys(reply['auxProperties']).length > 0) {
+        console.log('Have aux properties present, storing');
+        item['auxProperties'] = reply['auxProperties'];
+    }
 
     console.log('assembled item to record: ', item);
 

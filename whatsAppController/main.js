@@ -14,6 +14,8 @@ const users = require('./users'); //for getting a user ID if not in prior
 const platform = require('./platform.js'); // for triggering tasks etc on the backend
 const utils = require('./utils');
 
+const stringSimilarity = require('string-similarity');
+
 // not used but recording for reference
 const DOMAINS = ['opening', 
         'retart', // i.e., user just reset things 
@@ -24,6 +26,10 @@ const DOMAINS = ['opening',
 app.get('/status', (req, res) => {
     res.send(`I am alive! My environment: ${process.env.NODE_ENV} and config is: ${config.get('__comment.whoami')}`);
 });
+
+app.get('/similarity', (req, res) => {
+    res.status(200).json(stringSimilarity.compareTwoStrings(req.query.s1, req.query.s2)).end();
+})
 
 app.post('/inbound', async (req, res, next) => {
     try {
@@ -81,40 +87,44 @@ app.listen(3000, () => console.log(`Listening on port 3000`));
 const getMessageReply = async (content, prior, userId) => {
     console.log('User message: ', content['message']);
 
+    // as an initial reference, get an NLU parse, as we'll use it to check for restart, and opening
+    const openingNluResult = await conversation.sendToCore(content, userId, 'opening');
+
     // first: check for restart flag - if we have one, send opening message, and tell Rasa service to reset itself
-    // if (content['type'] == 'text') {
-    //     let restartCheck = await conversation.sendToCore(content, userId, 'opening'); // since opening NLU checks for reset intent
-    //     console.log('restart check from core: ', restartCheck);
-    //     if (restartCheck && restartCheck['intent']['name'] == 'restart' && restartCheck['intent']['confidence'] > 0.5) { // low threshold to allow way out
-    //         return conversation.restartUser(userId);
-    //     }
-    // }
-    if (content['message'] == 'restart') {
-        return conversation.Reply(userId, 'restart', 'Okay reset');
+    const isRestartMsg = await conversation.isRestart(content, openingNluResult);
+    if (isRestartMsg) {
+        return conversation.restartConversation(userId, !!openingNluResult);
     }
 
     // second, if at the start, or have reset, check for a campaign or group join word, and if so, initiate that flow; if in that flow, continue it
     // todo : use NLU again to check for 'join' or other such intent
     if (!prior || prior['domain'] == 'restart') {
-        possibleReply =  await platform.checkForJoinPhrase(content['message'], userId);
+        possibleReply =  await platform.checkForJoinPhrase(content['message'], openingNluResult, userId);
         console.log('Result of checking for join word or similar phrase: ', possibleReply);
-        if (possibleReply) return possibleReply;        
+        if (possibleReply) return possibleReply;   
     }
 
+    // third, check if we are in the middle of menus, and a number was provided
+    console.log(`prior : ${!!prior} && prior menu: ${prior && prior['menuPayload']} && is message number: ${utils.isMessageNumber(content)}`);
+    if (utils.isMessageNumber(content)) {
+        let lastMenu;
+        // await is not playing nicely with ternary operator, hence this
+        if (prior && prior['menuPayload'])
+            lastMenu = prior['menuPayload'];
+        else
+            lastMenu = await recording.getLastMenu(userId);
+        console.log('last menu = ', lastMenu);
+        content = utils.reshapeContentFromMenu(content, lastMenu);
+    }
+
+    // fourth, if we are in platform domain, i.e., entity joins etc., continue
     if (prior['domain'] == 'platform' && prior.hasOwnProperty('entity')) {
         nextFlowStep = await platform.continueJoinFlow(prior, content, userId);
         console.log('Got next step in flow: ', nextFlowStep);
         if (nextFlowStep) return nextFlowStep;
     }
     
-    // third, check if we are in the middle of menus, and a number was provided
-    console.log(`prior : ${!!prior} && prior menu: ${prior && prior['menu']} && is message number: ${isMessageNumber(content)}`);
-    const replyingToMenu = !!prior && !!prior['menu'] && isMessageNumber(content);
-    if (replyingToMenu) {
-        content = utils.reshapeContentFromMenu(content, prior);        
-    }
-
-    // fourth, ask the Rasa core domain coordinator for a next message / answer
+    // fifth, ask the Rasa core domain coordinator for a next message / answer
     // this comes in the form of a dict with 'domain', 'responses', 'intent', 'intent_ranking', and 'entities'
     const coreResult = await conversation.sendToCore(content, userId, prior ? prior['domain'] : undefined);    
     console.log('core result: ', coreResult);
@@ -132,8 +142,4 @@ const getMessageReply = async (content, prior, userId) => {
 
 const hasSomethingInside = (entity) => {
     return typeof entity !== 'undefined' && entity !== null && entity.length > 0
-}
-
-const isMessageNumber = (inboundMsg) => {
-    return inboundMsg && inboundMsg['type'] && inboundMsg['type'] == 'text' && MENU_NUMBER_REGEX.test(inboundMsg['message']);
 }

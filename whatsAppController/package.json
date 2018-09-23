@@ -18,6 +18,7 @@
     "request": "^2.87.0",
     "request-promise": "^4.2.2",
     "serverless-http": "^1.6.0",
+    "string-similarity": "^1.2.2",
     "twilio": "^3.18.0"
   }
 }
