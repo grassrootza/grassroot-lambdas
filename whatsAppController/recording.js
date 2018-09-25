@@ -54,7 +54,7 @@ exports.getLastMenu = async (userId) => {
     
     console.log('about to call dynamodb');
     let result = await docClient.query(params).promise();
-    console.log('DynamoDB menu check: ', result.Items);
+    // console.log('DynamoDB menu check: ', result.Items);
     if (!result.Items.length || result.Items.length == 0)
         return undefined;
 
@@ -73,13 +73,22 @@ exports.getLastMenu = async (userId) => {
 exports.logIncoming = async (content, reply, userId) => {
     console.log('will record: ', reply);
     
+    const currentMillis = Date.now();
+    const expirySeconds = Math.round((currentMillis / 1000) + (3 * 24 * 60 * 60));
+
+    console.log(`Recording, with expiry seconds: ${expirySeconds} and current millis: ${currentMillis}`);
+
     const item = {
         'userId': userId,
-        'timestamp': Date.now(),
+        'timestamp': currentMillis,
         'message': content.message,
-        'reply': reply.textSingle,
+        'expiry': expirySeconds,
         'domain': reply.domain
     };
+
+    if (content.hasOwnProperty('textSingle') && content.textSingle.length > 0) {
+        item['reply'] = reply.textSingle;
+    }
 
     // dynamodb does not reliably preserve ordering on maps, hence using menu for payloads and texts for what's shown to user
     if (reply.hasOwnProperty('menuPayload')) {

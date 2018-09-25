@@ -16,6 +16,15 @@ exports.Reply = (userId, domain, replyMessages) => {
     }
 }
 
+exports.ReplyWithMenu = (userId, domain, messages) => {
+    const reply = exports.Reply(userId, domain, messages.replyMsgs);
+    if (!!messages['menuText'])
+        reply['menuText'] = messages['menuText'];
+    if (!!messages['menuPayload'])
+        reply['menuPayload'] = messages['menuPayload'];
+    return reply;
+}
+
 // first some special methods, basically for restarting and getting location info
 exports.isRestart = async (content, rasaNluResult) => {
     if (content['type'] !== 'text')
@@ -32,7 +41,7 @@ exports.restartConversation = (userId, resetRasa) => {
     if (resetRasa) 
         return exports.restartRasa(userId);
     else
-        return exports.Reply(userId, 'restart', 'Okay reset');
+        return exports.restartMsg(userId);
 }
 
 exports.extractProvince = async (userText) => {
@@ -73,6 +82,20 @@ exports.convertCoreResult = (userId, coreResult) => {
     return stdReply;
 }
 
+exports.directToDomain = async (content, userId, prior) => {
+    console.log('directing to domain, content: ', content);
+    if (content['payload'] == 'platform') {
+        const block = conversation['platform'];
+        const body = exports.getResponseChunk(block, 'start', 0);
+        const messages = exports.extractMessages(block, body);
+        return exports.ReplyWithMenu(userId, 'platform', messages);
+    } else if (content['payload'] == 'service') {
+        const rasaResponse = await requestToRasa('/find_services_gbv', 'service', userId);
+        console.log('Rasa response: ', rasaResponse);
+        return exports.convertCoreResult(userId, rasaResponse);
+    }
+}
+
 exports.sendToCore = async (userMessage, userId, domain) => {
     console.log('domain: ', domain);
     console.log('sending to core: ', userMessage);
@@ -93,12 +116,15 @@ exports.sendToCore = async (userMessage, userId, domain) => {
         console.log("JSON message: ", messageToTransmit);
     };
     console.log('and message to send: ', messageToTransmit);
+    return requestToRasa(messageToTransmit, domain, userId);
+}
 
+const requestToRasa = (message, domain, userId) => {
     const options = {
         method: 'GET',
         uri: config.get('core.url.base') + (domain || 'opening') + config.get('core.url.suffix'),
         qs: {
-            'message': messageToTransmit,
+            'message': message,
             'user_id': userId
         },
         json: true
@@ -124,7 +150,7 @@ exports.restartRasa = async (userId) => {
     const resetResult = await request(options);
     console.log('Result of restart request: ', resetResult);
     
-    return exports.openingMsg(userId, 'restart');
+    return exports.restartMsg(userId);
 }
 
 exports.openingMsg = (userId, domain) => {
@@ -133,7 +159,16 @@ exports.openingMsg = (userId, domain) => {
 
     const messages = exports.extractMessages(block, body);
 
-    return exports.Reply(userId, domain, messages.replyMsgs);
+    return exports.ReplyWithMenu(userId, domain, messages);
+}
+
+exports.restartMsg = (userId) => {
+    const block = conversation['opening'];
+    const body = exports.getResponseChunk(block, 'restart', 0);
+
+    const messages = exports.extractMessages(block, body);
+
+    return exports.ReplyWithMenu(userId, 'restart', messages);
 }
 
 exports.assembleErrorMsg = (msgId) => {
@@ -158,10 +193,11 @@ exports.getResponseChunk = (block, id, variant = 0) => {
 
 exports.extractMessages = (block, body) => {
     let replyMsgs = [];
+    var menuPayload = [];
+    var menuText = [];
 
-    const optionsRegex = /<<OPTIONS::\w+>>/g;
-    var optionsKeys;
-
+    const optionsRegex = /<<OPTIONS::\w+>>/;
+    
     // console.log('body: ', body);
     console.log('body length: ', body.length);
     
@@ -170,8 +206,12 @@ exports.extractMessages = (block, body) => {
             const optionsId = msgComponent.substring('<<OPTIONS::'.length, msgComponent.length - 2);
             console.log('extracted options src: ', optionsId); 
             let optionsEntity = getEntity(block, optionsId);
-            optionsKeys = extractOptionsKeys(optionsEntity); // may be randomly sorted in future
-            replyMsgs.push(extractOptionDescriptions(optionsEntity, optionsKeys).join('\n'));
+            menuPayload = extractOptionsKeys(optionsEntity); // may be randomly sorted in future
+            menuPayload.forEach((key, index) => {
+                const optionText = `${index + 1}. ${optionsEntity._source[key].trim()}`;
+                replyMsgs.push(optionText);
+                menuText.push(optionText);
+            });
         } else {
             replyMsgs.push(msgComponent);
         }
@@ -179,12 +219,9 @@ exports.extractMessages = (block, body) => {
 
     return {
         replyMsgs: replyMsgs,
-        optionsKeys: optionsKeys
+        menuPayload: menuPayload,
+        menuText: menuText,
     };
-}
-
-const extractOptionDescriptions = (optionsEntity, sortedKeys) => {
-    return sortedKeys.map((key, index) => (index + 1) + '. ' + optionsEntity._source[key].trim());
 }
 
 // may want to randomize this in future, and if so, will want to be sure this is same as above

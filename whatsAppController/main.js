@@ -14,7 +14,7 @@ const users = require('./users'); //for getting a user ID if not in prior
 const platform = require('./platform.js'); // for triggering tasks etc on the backend
 const utils = require('./utils');
 
-const stringSimilarity = require('string-similarity');
+var env = process.env.NODE_ENV || 'dev';
 
 // not used but recording for reference
 const DOMAINS = ['opening', 
@@ -24,12 +24,9 @@ const DOMAINS = ['opening',
         'knowledge'] // i.e., finding knowledge on accountability stack, etc
 
 app.get('/status', (req, res) => {
-    res.send(`I am alive! My environment: ${process.env.NODE_ENV} and config is: ${config.get('__comment.whoami')}`);
+    res.send(`I am alive! My environment: ${env} and config is: ${config.get('__comment.whoami')}, 
+        and my core url is: ${config.get('core.url.base')}`);
 });
-
-app.get('/similarity', (req, res) => {
-    res.status(200).json(stringSimilarity.compareTwoStrings(req.query.s1, req.query.s2)).end();
-})
 
 app.post('/inbound', async (req, res, next) => {
     try {
@@ -51,7 +48,7 @@ app.post('/inbound', async (req, res, next) => {
         const lastMessage = await recording.getMostRecent(userId);
         console.log('and most recent message: ', lastMessage);
 
-        // fourth, get the response from NLU
+        // fourth, get the response from the heart of all this, the NLU/Core engine
         const response = await getMessageReply(content, (typeof lastMessage !== 'undefined' && lastMessage) ? lastMessage['Items'][0] : null, userId);
         console.log('responding: ', response);
         
@@ -61,8 +58,7 @@ app.post('/inbound', async (req, res, next) => {
         console.timeEnd('log_result');
 
         // last, send the responses back
-        // const sentResult = await api.sendResponse(content['from'], response, res);
-        const sentResult = 'finished';
+        const sentResult = await (env == 'production' ? api.sendResponse(content['from'], response, res) : 'finished');
         console.log('Sent off result, looks like: ', sentResult);
 
         if (sentResult == 'dispatched') {
@@ -82,13 +78,17 @@ app.post('/inbound', async (req, res, next) => {
 });
 
 module.exports.handler = serverless(app);
-app.listen(3000, () => console.log(`Listening on port 3000`));
+
+if (env !== 'production') {
+    app.listen(3000, () => console.log(`Listening on port 3000`));
+}
 
 const getMessageReply = async (content, prior, userId) => {
     console.log('User message: ', content['message']);
 
     // as an initial reference, get an NLU parse, as we'll use it to check for restart, and opening
-    const openingNluResult = await conversation.sendToCore(content, userId, 'opening');
+    // const openingNluResult = await conversation.sendToCore(content, userId, 'opening');
+    const openingNluResult = null;
 
     // first: check for restart flag - if we have one, send opening message, and tell Rasa service to reset itself
     const isRestartMsg = await conversation.isRestart(content, openingNluResult);
@@ -96,30 +96,32 @@ const getMessageReply = async (content, prior, userId) => {
         return conversation.restartConversation(userId, !!openingNluResult);
     }
 
-    // second, if at the start, or have reset, check for a campaign or group join word, and if so, initiate that flow; if in that flow, continue it
-    // todo : use NLU again to check for 'join' or other such intent
-    if (!prior || prior['domain'] == 'restart') {
-        possibleReply =  await platform.checkForJoinPhrase(content['message'], openingNluResult, userId);
+    // second, check if we are in the middle of menus, and a number was provided
+    console.log(`prior : ${!!prior} && prior menu: ${prior && prior['menuPayload']} && is message number: ${utils.isMessageMenuNumber(content)}`);
+    if (utils.isMessageMenuNumber(content)) {
+        const lastMessageHasMenu = !!prior && !!prior['menuPayload'] && prior['menuPayload'].length > 0;
+        console.log(`last message contained menu? : ${lastMessageHasMenu}`);
+        const lastMenu = await (lastMessageHasMenu ? prior['menuPayload'] : recording.getLastMenu(userId));
+        console.log('last menu = ', lastMenu);
+        content = utils.reshapeContentFromMenu(content, lastMenu);
+        console.log('reshaped response: ', content);
+    }
+
+    // third, if at the start, or have reset, check for a menu response - if have one, direct based on it; if not, check for join word; else continue
+    if (!prior || prior['domain'] == 'opening' || prior['domain'] == 'restart') {
+        console.log('Inside opening, restart, or initial conversation, so direct if possible');
+        let possibleReply = await (!!content ['payload'] ? 
+            conversation.directToDomain(content, userId, prior) : // direct based on a payload - domain map
+            platform.checkForJoinPhrase(content['message'], openingNluResult, userId)); // look for a join word
         console.log('Result of checking for join word or similar phrase: ', possibleReply);
         if (possibleReply) return possibleReply;   
     }
 
-    // third, check if we are in the middle of menus, and a number was provided
-    console.log(`prior : ${!!prior} && prior menu: ${prior && prior['menuPayload']} && is message number: ${utils.isMessageNumber(content)}`);
-    if (utils.isMessageNumber(content)) {
-        let lastMenu;
-        // await is not playing nicely with ternary operator, hence this
-        if (prior && prior['menuPayload'])
-            lastMenu = prior['menuPayload'];
-        else
-            lastMenu = await recording.getLastMenu(userId);
-        console.log('last menu = ', lastMenu);
-        content = utils.reshapeContentFromMenu(content, lastMenu);
-    }
-
     // fourth, if we are in platform domain, i.e., entity joins etc., continue
-    if (prior['domain'] == 'platform' && prior.hasOwnProperty('entity')) {
-        nextFlowStep = await platform.continueJoinFlow(prior, content, userId);
+    if (prior && prior['domain'] == 'platform') {
+        nextFlowStep = await (prior.hasOwnProperty('entity') ? 
+            platform.continueJoinFlow(prior, content, userId) :
+            platform.checkForJoinPhrase(content['message'], openingNluResult, userId)); 
         console.log('Got next step in flow: ', nextFlowStep);
         if (nextFlowStep) return nextFlowStep;
     }

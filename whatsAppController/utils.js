@@ -1,12 +1,12 @@
 const stringSimilarity = require('string-similarity');
 
-const MENU_NUMBER_REGEX = /\d+\W?/;
+const MENU_NUMBER_REGEX = /^\s?\d{1,2}\W?$/;
 const STRING_CONF_THRESHOLD = 0.6;
 
 var exports = module.exports = {};
 
 
-exports.isMessageNumber = (inboundMsg) => {
+exports.isMessageMenuNumber = (inboundMsg) => {
     return inboundMsg && inboundMsg['type'] && inboundMsg['type'] == 'text' && MENU_NUMBER_REGEX.test(inboundMsg['message']);
 }
 

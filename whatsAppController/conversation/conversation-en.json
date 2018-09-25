@@ -38,9 +38,20 @@
             "_type": "opening_menu",
             "_source": {
                 "response": [
-                    ["Dumelang. Welcome! What do you want to do?", 
+                    ["Dumelang. Welcome! What do you want to do? For now, you can:", 
                     "<<OPTIONS::OPENING_OPTION>>",
                     "Feel free to answer with a number or word, as you prefer, or just use a shortcut word (e.g., 'izwe lami', or a campaign join word)"]
+                ]
+            }
+        },
+        {
+            "_id": "restart",
+            "_intent": "restart",
+            "_type": "restart_prompt",
+            "_source": {
+                "response": [
+                    ["Alright, we have restarted what would you like to do?",
+                    "<<OPTIONS::OPENING_OPTION>>"]
                 ]
             }
         },
@@ -48,20 +59,27 @@
             "_id": "OPENING_OPTION",
             "_source": {
                 "service": "Find services (e.g., health clinics, shelters)",
+                "platform": "Join a campaign or group (e.g., from Amandla.mobi)"
+            }
+        },
+        {
+            "_id": "TO_BE_BUILT",
+            "_source": {
                 "knowledge": "Get knowledge (e.g., on housing rights, ideas for action)",
                 "action": "Take action (e.g., join a group or campaign, call a meeting, issue an alert)",
                 "connection": "Talk to people (e.g., other activists, experts)"
             }
         }
     ],
-    "restart": [
+    "platform": [
         {
             "_id": "start",
-            "_intent": "restart",
-            "_type": "opening_menu",
+            "_intent": "join",
+            "_type": "join_prompt",
             "_source": {
                 "response": [
-                    ["Alright, we have restarted what would you like to do?"]
+                    ["Okay. To join a campaign or group, enter the campaign code, e.g., 'NHI'",
+                     "In the future you will be able to search groups and campaigns, for now please enter the join code exactly"]
                 ]
             }
         }

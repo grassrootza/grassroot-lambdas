@@ -50,6 +50,9 @@ exports.checkForJoinPhrase = async (incomingPhrase, rasaNluResult, userId) => {
             reply['menuPayload'] = Object.keys(menu);
             reply['menuText'] = Object.values(menu);
         }
+        if (phraseSearchResult.hasOwnProperty('requestDataType')) {
+            reply = exports.setReplyForDataRequest(reply, phraseSearchResult);
+        }
         reply['entity'] = phraseSearchResult['entityType'] + '::' + phraseSearchResult['entityUid'];
         return reply;
     } else {
