@@ -2,8 +2,10 @@ const config = require('config');
 
 const analyticsEnabled = config.has('analytics.apiKey');
 console.log('analytics enabled? :', analyticsEnabled);
-
 const dashbot = analyticsEnabled ? require('dashbot')(config.get('analytics.apiKey')).generic : null;
+
+const dlqEnabled = config.has('error.dlq');
+console.log('dlq enabled?: ', dlqEnabled);
 
 const AWS = require('aws-sdk');
 AWS.config.update({
@@ -139,6 +141,32 @@ exports.logIncoming = async (content, reply, userId) => {
         
         console.log('dispatching to dashbot: ', outgoingLog);
         dashbot.logOutgoing(outgoingLog);
+    }
+}
+
+exports.dispatchToDLQ = async (error) => {
+    if (dlqEnabled) {
+        const snsClient = new AWS.SNS();
+
+        // strip tokens from DLQ as it's going out by email etc
+        if (error.hasOwnProperty('options')) {
+            error['options']['auth'] = '';
+        }
+
+        if (error.response && error.response.request && error.response.request.headers) {
+            error['response']['request']['headers']['authorization'] = '';
+        }
+
+        const message = 'ALERT! WhatsApp Controller sprang an error. Error payload as follows:\n\n' + JSON.stringify(error, null, '\t');
+
+        const params = {
+            Message: message,
+            TopicArn: config.get('error.dlq')
+        };
+
+        const publishResult = await snsClient.publish(params).promise();
+        console.log('Result of sending to DLQ: ', publishResult);
+        return true;
     }
 }
 

@@ -29,19 +29,20 @@ app.get('/status', (req, res) => {
 });
 
 app.post('/inbound', async (req, res, next) => {
+    let userId;
+    let content;
     try {
         console.time('full_path');
         
         // first, decode the inbound message into a content object we can use
-        const content = api.getMessageContent(req);
+        content = api.getMessageContent(req);
         console.log('incoming content: ', content);
-        if (!content) {
-            res.status(200).end();
-            return;
+        if (!content || !content.message) {
+            throw noContentError(req);
         }
 
         // second, extract a user id, either from prior, or from phone number
-        const userId = await users.fetchUserId(content['from']);
+        userId = await users.fetchUserId(content['from']);
         console.log('user id: ', userId);
 
         // third, check for the last message sent, to see if there's a domain
@@ -51,28 +52,27 @@ app.post('/inbound', async (req, res, next) => {
         // fourth, get the response from the heart of all this, the NLU/Core engine
         const response = await getMessageReply(content, (typeof lastMessage !== 'undefined' && lastMessage) ? lastMessage['Items'][0] : null, userId);
         console.log('responding: ', response);
+
+        if (!response || !response.replyMessages || response.replyMessages.length == 0) {
+            throw noResponseError(response, content, lastMessage);
+        }
         
         // log what we are sending back (should move to a separate lambda soon)
         console.time('log_result');
         await recording.logIncoming(content, response, userId);
         console.timeEnd('log_result');
 
-        // last, send the responses back
-        const sentResult = await (env == 'production' ? api.sendResponse(content['from'], response, res) : 'finished');
-        console.log('Sent off result, looks like: ', sentResult);
-
-        if (sentResult == 'dispatched') {
-            res.status(200).end();
-        } else {
-            res.json(response).end();
-        }
+        // last, send the responses back and exit
+        await dispatchAndEnd(content, response, res);
         console.timeEnd('full_path');
 
     } catch (e) {
-        console.log('Error: ', e); // todo: stick in a DLQ, or report some other way
-        // await api.sendResponse(conversation.assembleErrorMsg('server'), res);
+        console.log('Error: ', e);
+        console.log('Inside error, do we have a userId: ? ', userId);
+        await recording.dispatchToDLQ(e); // to make sure it gets dispatched, whatever happens
+        const fallBackResponse = await handleErrorFailSafe(content, userId);
+        await dispatchAndEnd(content, fallBackResponse, res);
         console.log('Gracefully exited, hopefully');
-        res.status(200).end(); // have to do this, otherwise W/A will keep delivering in loop forever
     }
 
 });
@@ -140,6 +140,49 @@ const getMessageReply = async (content, prior, userId) => {
 
     // else, return a response, recoded to our format
     return conversation.convertCoreResult(userId, coreResult);
+}
+
+const dispatchAndEnd = async (content, response, res) => {
+    const sentResult = await (env == 'production' ? api.sendResponse(content['from'], response, res) : 'finished');
+    console.log('Sent off result, looks like: ', sentResult);
+
+    if (sentResult == 'dispatched') {
+        res.status(200).end();
+    } else {
+        res.json(response).end();
+    }
+}
+
+const handleErrorFailSafe = async (content, userId) => {
+    try {
+        const fallBackUserId = !!userId ? userId : 'unknown';
+        const fallBackResponse = await conversation.assembleErrorMsg(fallBackUserId, 'restart');
+
+        if (!!userId) {
+            await conversation.restartConversation(fallBackUserId, true);
+            await recording.logIncoming(content, fallBackResponse, userId);
+        }
+        
+        console.log('Fall back succeeded, returning it');
+        return fallBackResponse;
+    } catch (e) {
+        console.log('Nice error handling failed. Return failsafe. Within-error error: ', e);
+        return conversation.assembleErrorMsg('unknown', 'restart');
+    }
+}
+
+const noContentError = (req) => {
+    let err = new Error('No content in body!');
+    err.inboundRequest = req;
+    return err;
+}
+
+const noResponseError = (response, content, lastMessage) => {
+    let err = new Error('No response to user!');
+    err.responseDict = response;
+    err.inboundContent = content;
+    err.lastMessage = lastMessage;
+    return err;            
 }
 
 const hasSomethingInside = (entity) => {

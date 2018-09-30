@@ -66,28 +66,17 @@ exports.continueJoinFlow = async (priorMessage, userMessage, userId) => {
 
     const fullUrl = config.get('platform.url') + config.get('platform.paths.entity.respond') + `/${entityType}/${entityUid}`;
 
-    // if the last outbound message was a menu, and this inbound does not have a payload in it, test for string similariy
-    if (priorMessage.hasOwnProperty('menuPayload') && !userMessage.hasOwnProperty('payload')) {
-        // first do a quick similarity and contains check
-        console.log('prior message: ', priorMessage);
-        const possibleIndex = utils.isMessageLikeMenuTextOrPayload(userMessage, priorMessage['menuText']);
-        console.log('possible index: ', possibleIndex);
-        if (possibleIndex != -1) {
-            userMessage['type'] = 'payload';
-            userMessage['payload'] = priorMessage['menuPayload'][possibleIndex];
-        }
-        // at present, not invoking NLU, because actions are so limited; review if necessary
-    } else if (exports.requiresLocation(priorMessage)) {
-        userMessage['payload'] = await exports.convertLocation(userMessage);
+    let replyDict;
+    console.log('assembling reply dict for type: ', userMessage['type']);
+    if (userMessage['type'] == 'text' || userMessage['type'] == 'payload') {
+        replyDict = await exports.handleTextDataFlow(priorMessage, userMessage);
+    } else if (userMessage['type'] == 'location') {
+        replyDict = {
+            location: userMessage['message'],
+            auxProperties: priorMessage['auxProperties'],
+            menuOptionPayload: userMessage['payload']
+        };
     }
-
-    console.log('reshaped user message: ', userMessage);
-
-    const replyDict = {
-        userMessage: userMessage['message'],
-        auxProperties: priorMessage['auxProperties'],
-        menuOptionPayload: userMessage['payload']
-    };
 
     console.log('reply dict to platform: ', replyDict);
 
@@ -118,10 +107,37 @@ exports.continueJoinFlow = async (priorMessage, userMessage, userId) => {
     return reply;
 }
 
+exports.handleTextDataFlow = async (priorMessage, userMessage) => {
+    // if the last outbound message was a menu, and this inbound does not have a payload in it, test for string similariy
+    if (priorMessage.hasOwnProperty('menuPayload') && !userMessage.hasOwnProperty('payload')) {
+        // first do a quick similarity and contains check
+        console.log('prior message: ', priorMessage);
+        const possibleIndex = utils.isMessageLikeMenuTextOrPayload(userMessage, priorMessage['menuText']);
+        console.log('possible index: ', possibleIndex);
+        if (possibleIndex != -1) {
+            userMessage['type'] = 'payload';
+            userMessage['payload'] = priorMessage['menuPayload'][possibleIndex];
+        }
+    } else if (exports.isSkipIntent(userMessage)) {
+        userMessage['payload'] = "<<SKIP>>";
+    } else if (exports.requiresLocation(priorMessage)) {
+        userMessage['payload'] = await exports.convertLocation(userMessage);
+    }
+
+    console.log('reshaped user message: ', userMessage);
+
+    const replyDict = {
+        userMessage: userMessage['message'],
+        auxProperties: priorMessage['auxProperties'],
+        menuOptionPayload: userMessage['payload']
+    };
+
+    return replyDict;
+}
+
 exports.setReplyForDataRequest = (reply, entityFlowResponse) => {    
     reply['auxProperties'] = reply['auxProperties'] || {};
     reply['auxProperties']['requestDataType'] = entityFlowResponse['requestDataType'];
-
     return reply;
 }
 
@@ -140,24 +156,22 @@ exports.respondToTask = async (taskType, taskUid, response) => {
 exports.requiresLocation = (priorMessage) => {
     // send it to the nlu, to extract a province entity, then map that to platform syntax
 
-    if (!priorMessage.hasOwnProperty('auxProperties') || !priorMessage['auxProperties']) {
-        // we know it doesn't need a province, so just abort
+    if (!priorMessage.hasOwnProperty('auxProperties') || !priorMessage['auxProperties']) // we know it doesn't need a province, so just abort
         return false;
-    }
 
-    if (!priorMessage['auxProperties'].hasOwnProperty('requestDataType') || !priorMessage['auxProperties']['requestDataType']) {
-        // as above
+    if (!priorMessage['auxProperties'].hasOwnProperty('requestDataType') || !priorMessage['auxProperties']['requestDataType']) // as above
         return false;
-    }
 
     const dataType = priorMessage['auxProperties']['requestDataType'];
-    if (!DATA_TYPES_REQUESTING_LOCATION.includes(dataType)) {
-        // data type does not need a location
+    if (!DATA_TYPES_REQUESTING_LOCATION.includes(dataType)) // data type does not need a location
         return false;
-    }
 
     // could have done all the above in a single line in a more robust language, but proceeding now
     return true;
+}
+
+exports.isSkipIntent = (userMessage) => {
+    return userMessage['message'] == '0'; // for now
 }
 
 exports.convertLocation = async (userMessage) => {

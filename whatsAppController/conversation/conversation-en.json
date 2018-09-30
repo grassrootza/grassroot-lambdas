@@ -5,32 +5,6 @@
         "lastUpdated": "2018-08-03"
     },
     "stopWords": ["stop"],
-    "error": [
-        {
-            "_id": "general",
-            "_source": {
-                "response": [
-                    ["Oops. I did not understand what you asked!"]
-                ]
-            }            
-        },
-        {
-            "_id": "unimplemented",
-            "_source": {
-                "response": [
-                    ["Sorry! We haven't built this any further. Please come back later. Thanks!"]
-                ]
-            }            
-        },
-        {
-            "_id": "server",
-            "_source": {
-                "response": [
-                    ["Sorry, something failed inside me. My makers will try to fix it. In the meantime, dial *134*1994#, or visit https://www.grassroot.org.za"]
-                ]
-            }
-        }
-    ],
     "opening": [
         {
             "_id": "start",
@@ -68,6 +42,40 @@
                 "knowledge": "Get knowledge (e.g., on housing rights, ideas for action)",
                 "action": "Take action (e.g., join a group or campaign, call a meeting, issue an alert)",
                 "connection": "Talk to people (e.g., other activists, experts)"
+            }
+        }
+    ],
+    "error": [
+        {
+            "_id": "general",
+            "_source": {
+                "response": [
+                    ["We're sorry, we couldn't understand that or we had an error. We have restarted the conversation. Please try again - what would you like to do?",
+                    "<<OPTIONS::ERROR_OPTION>>"]
+                ]
+            }            
+        },
+        {
+            "_id": "unimplemented",
+            "_source": {
+                "response": [
+                    ["Sorry! We haven't built this any further. Please come back later. Thanks!"]
+                ]
+            }            
+        },
+        {
+            "_id": "server",
+            "_source": {
+                "response": [
+                    ["Sorry, something failed inside me. My makers will try to fix it. In the meantime, dial *134*1994#, or visit https://www.grassroot.org.za"]
+                ]
+            }
+        },
+        {
+            "_id": "ERROR_OPTION",
+            "_source": {
+                "service": "Find services (e.g., health clinics, shelters)",
+                "platform": "Join a campaign or group (e.g., from Amandla.mobi)"
             }
         }
     ],

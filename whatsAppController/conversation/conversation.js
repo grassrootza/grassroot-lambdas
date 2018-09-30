@@ -165,22 +165,16 @@ exports.openingMsg = (userId, domain) => {
 exports.restartMsg = (userId) => {
     const block = conversation['opening'];
     const body = exports.getResponseChunk(block, 'restart', 0);
-
     const messages = exports.extractMessages(block, body);
-
     return exports.ReplyWithMenu(userId, 'restart', messages);
 }
 
-exports.assembleErrorMsg = (msgId) => {
+exports.assembleErrorMsg = (userId, domain) => {
     const block = conversation['error'];
-    const body = exports.getResponseChunk(block, msgId, 0);
-
+    const body = exports.getResponseChunk(block, 'general', 0);
+    console.log('returning error, conversation body: ', body);
     const messages = exports.extractMessages(block, body);
-
-    return {
-        context: 'error::' + msgId,
-        replies: messages.replyMsgs
-    }
+    return exports.ReplyWithMenu(userId, domain, messages); // because we basically reset everything
 }
 
 const getEntity = (block, id) => {
