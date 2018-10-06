@@ -38,7 +38,8 @@
         "search": "/phrase/search"
       },
       "entity": {
-        "respond": "/entity/respond"
+        "respond": "/entity/respond",
+        "select": "/entity/select"
       },
       "tasks": {
         "respond": "/task/respond",

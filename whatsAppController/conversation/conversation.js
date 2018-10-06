@@ -2,7 +2,6 @@ const config = require('config');
 const request = require('request-promise');
 
 const conversation = require('./conversation-en.json'); // in time maybe switch to reading this from S3 ...?
-const START_WORD = new RegExp(config.get('conversation.startWordRegex')); // in case conversation 'finished', but want to re-initiate
 
 var exports = module.exports = {}
 
@@ -34,6 +33,10 @@ exports.isRestart = async (content, rasaNluResult) => {
         return content['message'].toLowerCase() == 'restart';
 
     console.log('restart check from core: ', rasaNluResult);
+
+    if (!rasaNluResult['intent'])
+        return false;
+
     return (rasaNluResult && rasaNluResult['intent']['name'] == 'restart' && rasaNluResult['intent']['confidence'] > 0.5); // low threshold to allow way out
 }
 
@@ -97,10 +100,12 @@ exports.directToDomain = async (content, userId, prior) => {
 }
 
 exports.sendToCore = async (userMessage, userId, domain) => {
-    console.log('domain: ', domain);
+    const safeDomain = !domain || domain == 'restart' ? 'opening' : domain;
+    console.log(`domain: ${domain} and safe domain: ${safeDomain}`);
     console.log('sending to core: ', userMessage);
 
     let messageToTransmit;
+
     if (userMessage['type'] === 'text') {
         messageToTransmit = userMessage['message'];
     } else if (userMessage['type'] === 'location') {
@@ -116,7 +121,7 @@ exports.sendToCore = async (userMessage, userId, domain) => {
         console.log("JSON message: ", messageToTransmit);
     };
     console.log('and message to send: ', messageToTransmit);
-    return requestToRasa(messageToTransmit, domain, userId);
+    return requestToRasa(messageToTransmit, safeDomain, userId);
 }
 
 const requestToRasa = (message, domain, userId) => {
@@ -131,6 +136,7 @@ const requestToRasa = (message, domain, userId) => {
     };
     
     console.log('options uri: ', options.uri);
+    console.log('options message: ', message);
 
     return request(options);
 }
@@ -169,9 +175,9 @@ exports.restartMsg = (userId) => {
     return exports.ReplyWithMenu(userId, 'restart', messages);
 }
 
-exports.assembleErrorMsg = (userId, domain) => {
+exports.assembleErrorMsg = (userId, domain, errorType = 'general') => {
     const block = conversation['error'];
-    const body = exports.getResponseChunk(block, 'general', 0);
+    const body = exports.getResponseChunk(block, errorType, 0);
     console.log('returning error, conversation body: ', body);
     const messages = exports.extractMessages(block, body);
     return exports.ReplyWithMenu(userId, domain, messages); // because we basically reset everything

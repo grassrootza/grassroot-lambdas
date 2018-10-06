@@ -1,0 +1,10 @@
+{
+    "api": {
+        "outbound": {
+          "url": "https://whatsapp.praekelt.org/v1/messages"
+        },
+        "contacts": {
+          "url": "https://whatsapp.praekelt.org/v1/contacts"
+        }
+    }    
+}

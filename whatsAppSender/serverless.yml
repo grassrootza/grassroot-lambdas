@@ -1,0 +1,62 @@
+# Welcome to Serverless!
+#
+# This file is the main config file for your service.
+# It's very minimal at this point and uses default values.
+# You can always add more config options for more control.
+# We've included some commented out config examples here.
+# Just uncomment any of them to get that config option.
+#
+# For full config options, check the docs:
+#    docs.serverless.com
+#
+# Happy Coding!
+
+service: whatsAppSender # NOTE: update this with your service name
+
+# You can pin your service to only deploy with a specific Serverless version
+# Check out our docs for more details
+# frameworkVersion: "=X.X.X"
+
+provider:
+  name: aws
+  runtime: nodejs8.10
+
+# you can overwrite defaults here
+  stage: ${opt:stage,'dev'}
+  region: eu-west-1
+
+# you can add statements to the Lambda function's IAM Role here
+#  iamRoleStatements:
+#    - Effect: "Allow"
+#      Action:
+#        - "s3:ListBucket"
+#      Resource: { "Fn::Join" : ["", ["arn:aws:s3:::", { "Ref" : "ServerlessDeploymentBucket" } ] ]  }
+#    - Effect: "Allow"
+#      Action:
+#        - "s3:PutObject"
+#      Resource:
+#        Fn::Join:
+#          - ""
+#          - - "arn:aws:s3:::"
+#            - "Ref" : "ServerlessDeploymentBucket"
+#            - "/*"
+
+custom:
+  stages:
+    - dev
+    - production
+  nodeEnv:
+    dev: dev
+    production: production
+
+functions:
+  send:
+    handler: handler.send
+    events:
+    - sqs: 
+        arn: arn:aws:sqs:eu-west-1:257542705753:whatsapp-bulk-outbound
+        batchSize: 1
+
+#    Define function environment variables here
+    environment:
+      NODE_ENV: ${self:custom.nodeEnv.${self:provider.stage}}

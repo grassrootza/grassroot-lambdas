@@ -38,7 +38,9 @@ app.post('/inbound', async (req, res, next) => {
         content = api.getMessageContent(req);
         console.log('incoming content: ', content);
         if (!content || !content.message) {
-            throw noContentError(req);
+            console.log('no incoming content or was a status message, exit');
+            res.status(200).end();
+            return;
         }
 
         // second, extract a user id, either from prior, or from phone number
@@ -50,11 +52,13 @@ app.post('/inbound', async (req, res, next) => {
         console.log('and most recent message: ', lastMessage);
 
         // fourth, get the response from the heart of all this, the NLU/Core engine
-        const response = await getMessageReply(content, (typeof lastMessage !== 'undefined' && lastMessage) ? lastMessage['Items'][0] : null, userId);
+        let response = await getMessageReply(content, (typeof lastMessage !== 'undefined' && lastMessage) ? lastMessage['Items'][0] : null, userId);
         console.log('responding: ', response);
 
         if (!response || !response.replyMessages || response.replyMessages.length == 0) {
-            throw noResponseError(response, content, lastMessage);
+            console.log(`Error! Message that is empty, dispatch to DLQ and say something to user`);
+            await recording.dispatchToDLQ(new noResponseError(response, content, prior));
+            response = await conversation.assembleErrorMsg(fallBackUserId, prior['domain'], 'empty');
         }
         
         // log what we are sending back (should move to a separate lambda soon)
@@ -114,12 +118,13 @@ const getMessageReply = async (content, prior, userId) => {
             conversation.directToDomain(content, userId, prior) : // direct based on a payload - domain map
             platform.checkForJoinPhrase(content['message'], openingNluResult, userId)); // look for a join word
         console.log('Result of checking for join word or similar phrase: ', possibleReply);
-        if (possibleReply) return possibleReply;   
+        if (possibleReply) return possibleReply;
     }
 
     // fourth, if we are in platform domain, i.e., entity joins etc., continue
     if (prior && prior['domain'] == 'platform') {
-        nextFlowStep = await (prior.hasOwnProperty('entity') ? 
+        console.log('Inside platform domain, so advance or initiate joining process');
+        nextFlowStep = await (prior.hasOwnProperty('entity') || prior.hasOwnProperty('menuPayload') ? 
             platform.continueJoinFlow(prior, content, userId) :
             platform.checkForJoinPhrase(content['message'], openingNluResult, userId)); 
         console.log('Got next step in flow: ', nextFlowStep);
@@ -130,13 +135,6 @@ const getMessageReply = async (content, prior, userId) => {
     // this comes in the form of a dict with 'domain', 'responses', 'intent', 'intent_ranking', and 'entities'
     const coreResult = await conversation.sendToCore(content, userId, prior ? prior['domain'] : undefined);    
     console.log('core result: ', coreResult);
-
-    // fifth, if there is no text reply, extract one from the domain openings, and return
-    if (!hasSomethingInside(coreResult['responses'])) {
-        return conversation.openingMsg(userId, coreResult['domain'])
-    };
-
-    // // maybe:: if we have a finished intent and entity, call corresponding service and exit
 
     // else, return a response, recoded to our format
     return conversation.convertCoreResult(userId, coreResult);
@@ -179,9 +177,10 @@ const noContentError = (req) => {
 
 const noResponseError = (response, content, lastMessage) => {
     let err = new Error('No response to user!');
+    err.type = 'EMPTY_RESPONSE_DICT';
+    err.lastMessage = lastMessage;
     err.responseDict = response;
     err.inboundContent = content;
-    err.lastMessage = lastMessage;
     return err;            
 }
 

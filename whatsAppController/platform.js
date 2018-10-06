@@ -43,24 +43,62 @@ exports.checkForJoinPhrase = async (incomingPhrase, rasaNluResult, userId) => {
 
     const phraseSearchResult = await request(options);
 
-    if (phraseSearchResult && phraseSearchResult['entityFound']) {
-        let reply = conversation.Reply(userId, 'platform', phraseSearchResult['responseMessages']);
-        if (phraseSearchResult.hasOwnProperty('responseMenu')) {
-            const menu = phraseSearchResult['responseMenu'];
-            reply['menuPayload'] = Object.keys(menu);
-            reply['menuText'] = Object.values(menu);
-        }
-        if (phraseSearchResult.hasOwnProperty('requestDataType')) {
-            reply = exports.setReplyForDataRequest(reply, phraseSearchResult);
-        }
-        reply['entity'] = phraseSearchResult['entityType'] + '::' + phraseSearchResult['entityUid'];
-        return reply;
+    if (phraseSearchResult && (phraseSearchResult['entityFound'] || phraseSearchResult['possibleEntities'])) {
+        return convertJoinResult(phraseSearchResult, userId);
     } else {
         return false;
     }
 }
 
+const convertJoinResult = (phraseSearchResult, userId) => {
+    let reply = conversation.Reply(userId, 'platform', phraseSearchResult['responseMessages']);
+        
+    if (phraseSearchResult.hasOwnProperty('responseMenu')) {
+        const menu = phraseSearchResult['responseMenu'];
+        reply['menuPayload'] = Object.keys(menu);
+        reply['menuText'] = Object.values(menu);
+    }
+    
+    if (phraseSearchResult.hasOwnProperty('requestDataType')) {
+        reply = exports.setReplyForDataRequest(reply, phraseSearchResult);
+    }
+    
+    if (phraseSearchResult['entityFound']) {
+        reply['entity'] = phraseSearchResult['entityType'] + '::' + phraseSearchResult['entityUid'];
+    }
+
+    return reply;
+}
+
 exports.continueJoinFlow = async (priorMessage, userMessage, userId) => {
+    if (priorMessage['entity'])
+        return exports.continueJoinFlowEntityKnown(priorMessage, userMessage, userId);
+    else if (userMessage['payload'])
+        return exports.continueJoinFlowSelectEntity(priorMessage, userMessage, userId);
+}
+
+exports.continueJoinFlowSelectEntity = async (priorMessage, userMessage, userId) => {
+    entityType = userMessage['payload'].substring(0, userMessage['payload'].indexOf('::'));
+    entityUid = userMessage['payload'].substring(userMessage['payload'].indexOf('::') + 2);
+
+    const fullUrl = config.get('platform.url') + config.get('platform.paths.entity.select') + `/${entityType}/${entityUid}`;
+    
+    const options = {
+        method: 'POST',
+        uri: fullUrl,
+        qs: { 
+            'userId': userId 
+        },
+        auth: authHeader,
+        json: true
+    }
+
+    const entityFlowResponse = await request(options);
+
+    return convertJoinResult(entityFlowResponse, userId);
+}
+
+exports.continueJoinFlowEntityKnown = async (priorMessage, userMessage, userId) => {
     entityType = priorMessage['entity'].substring(0, priorMessage['entity'].indexOf('::'));
     entityUid = priorMessage['entity'].substring(priorMessage['entity'].indexOf('::') + 2);
 

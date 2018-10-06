@@ -7,7 +7,7 @@ var exports = module.exports = {};
 
 exports.getMessageContent = (req) => {
     console.log('message body: ', req.body);
-    if (!req.body['messages']) {
+    if (!!req.body['statuses'] || !req.body['messages']) {
         return false;
     }
 
@@ -31,6 +31,14 @@ exports.getMessageContent = (req) => {
         incoming_raw = JSON.stringify(pulledBody['location'])
     };
 
+    if (incoming_type === 'image') {
+        incoming_message ={
+            mime_type: pulledBody['image']['mime_type'],
+            media_id: pulledBody['image']['id'],
+            media_caption: pulledBody['image']['caption']
+        }
+    }
+
     const incoming_phone = pulledBody['from'];
     return {
         'type': incoming_type,
@@ -44,6 +52,11 @@ exports.getMessageContent = (req) => {
 exports.sendResponse = async (toPhone, ourReply, expressRes) => {
     console.log('Complete, sending reply, looks like: ', ourReply);
     console.log('Sending to: ', toPhone);
+
+    if (!toPhone) {
+        console.log('No one to send to, returning false');
+        return 'dispatched'; // since we want to make sure nothing happens
+    }
 
     const responseBase = {
         'preview_url': false,
@@ -78,4 +91,8 @@ exports.sendResponse = async (toPhone, ourReply, expressRes) => {
     }
 
     return 'dispatched';
+}
+
+const extractAndStoreMedia = (media_id) => {
+    // do the needful.
 }

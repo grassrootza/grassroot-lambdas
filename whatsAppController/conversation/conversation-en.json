@@ -72,6 +72,14 @@
             }
         },
         {
+            "_id": "empty",
+            "_source": {
+                "response": [
+                    ["Sorry, we couldn't find a response to send you. Could you repeat your last message or send 'restart' to start again?"]
+                ]
+            }  
+        },
+        {
             "_id": "ERROR_OPTION",
             "_source": {
                 "service": "Find services (e.g., health clinics, shelters)",

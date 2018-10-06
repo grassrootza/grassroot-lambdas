@@ -157,7 +157,9 @@ exports.dispatchToDLQ = async (error) => {
             error['response']['request']['headers']['authorization'] = '';
         }
 
-        const message = 'ALERT! WhatsApp Controller sprang an error. Error payload as follows:\n\n' + JSON.stringify(error, null, '\t');
+        const message = error.hasOwnProperty('type') && error['type'] == 'EMPTY_RESPONSE_DICT' ?
+            'ALERT! Another empty response dict. Details follow' + JSON.stringify(error, null, '\t'):
+            'ALERT! WhatsApp Controller sprang an error. Error payload as follows:\n\n' + JSON.stringify(error, null, '\t');
 
         const params = {
             Message: message,
