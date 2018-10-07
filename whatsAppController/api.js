@@ -1,12 +1,13 @@
 const config = require('config');
 const request = require('request-promise');
+const util = require('util');
 
 // const MessagingResponse = require('twilio').twiml.MessagingResponse;
 
 var exports = module.exports = {};
 
 exports.getMessageContent = (req) => {
-    console.log('message body: ', req.body);
+    console.log('message body: ', util.inspect(req.body, false, null, true));
     if (!!req.body['statuses'] || !req.body['messages']) {
         return false;
     }
@@ -32,6 +33,7 @@ exports.getMessageContent = (req) => {
     };
 
     if (incoming_type === 'image') {
+        console.log('image body = ', pulledBody['image']);
         incoming_message ={
             mime_type: pulledBody['image']['mime_type'],
             media_id: pulledBody['image']['id'],

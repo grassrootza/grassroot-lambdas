@@ -1,0 +1,12 @@
+{
+    "whatsapp": {
+        "url": "https://whatsapp.praekelt.org/v1/media"
+    },
+    "s3": {
+        "bucket": "grassroot-media-files-general",
+        "folder": "whatsapp"
+    },
+    "dynamo": {
+        "table": "whatsapp_media_files"
+    }
+}
