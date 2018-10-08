@@ -2,8 +2,6 @@ const config = require('config');
 const request = require('request-promise');
 const util = require('util');
 
-// const MessagingResponse = require('twilio').twiml.MessagingResponse;
-
 var exports = module.exports = {};
 
 exports.getMessageContent = (req) => {

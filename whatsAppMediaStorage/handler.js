@@ -28,19 +28,24 @@ module.exports.store = async (event, context) => {
   console.log('Fetching media file from WhatsApp');
   const mediaFile = await retrieveMediaFromWhatsApp(payload['media_id']);
   console.log('Retrieved media file, proceeding to stash in S3.');
-  
-  if (!!mediaFile) {
-    // fs.writeFile('./image.jpg', mediaFile, 'binary', () => console.log('File written'));
-    const ourImageId = uuid();
-    console.log('Stashing in S3, with uuid: ', ourImageId);
-    const s3Upload = await storeFileInS3(ourImageId, payload['media_type'], mediaFile)
-    console.log('Completed s3 upload, result: ', s3Upload);
+
+  if (!mediaFile) {
+    return { statusCode: 404, body: JSON.stringify({message: 'Failed! Could not find on WhatsApp', input: event})}
   }
+  
+  // fs.writeFile('./image.jpg', mediaFile, 'binary', () => console.log('File written'));
+  const ourImageId = uuid();
+  console.log('Stashing in S3, with uuid: ', ourImageId);
+  const s3Upload = await storeFileInS3(ourImageId, payload['media_type'], mediaFile)
+  console.log('Completed s3 upload, result: ', s3Upload);
+
+  const dynamoRecord = await insertRecordInDynamoDb(ourImageId, payload['user_id'], payload['entity_type'], payload['entity_uid']);
+  console.log('Result of Dynamo DB insertion: ', dynamoRecord);
 
   return {
     statusCode: 200,
     body: JSON.stringify({
-      message: 'Go Serverless v1.0! Your function executed successfully!',
+      message_id: ourImageId,
       input: event,
     }),
   };
@@ -87,4 +92,25 @@ const storeFileInS3 = (uuid, mimeType, data) => {
       console.log('Upload failed! Error: ', err);
       return false;
     });
+}
+
+const insertRecordInDynamoDb = (media_file_id, user_id, associated_entity_type, associated_entity_id) => {
+  const currentMillis = Date.now();
+
+  // maybe, just maybe, we could have two of the same assoc entity at some milli, but seems extremely unlikely
+  const item = {
+    assoc_entity_id: associated_entity_id,
+    media_file_id: media_file_id,
+    stored_timestamp: currentMillis,
+    bucket: storageBucket,
+    folder: storageFolder,
+    assoc_entity_type: associated_entity_type
+  };
+
+  const params = {
+    TableName: dynamoDbTable,
+    Item: item
+  };
+
+  return docClient.put(params).promise();
 }

@@ -13,14 +13,17 @@ module.exports.send = async (event, context) => {
   const messages = payload['messages'];
 
   const contactCheckResult = await checkPhoneNumberInContacts(recipient);
-  const thisContact = contactCheckResult['contacts'][0];
+  console.log(`rate limit left: ${contactCheckResult['headers']['x-ratelimit-remaining']}, rate limit reset: ${contactCheckResult['headers']['x-ratelimit-reset']}`);
+  
+  const thisContact = contactCheckResult['data']['contacts'][0];
+  console.log('this contact: ', thisContact);
 
   if (thisContact['status'] !== 'valid') {
     console.log('Invalid contact, not sending');
     return { message: 'Contact invalid!' }; // todo : stick in DLQ
   }
 
-  await sendMessagesToRecipient(thisContact['wa_id'], messages);
+  // await sendMessagesToRecipient(thisContact['wa_id'], messages);
 
   // then: dispatch to recording queue [NB]
 
@@ -29,6 +32,10 @@ module.exports.send = async (event, context) => {
   };
  
 }
+
+const _include_headers = function(body, response, resolveWithFullResponse) {
+  return {'headers': response.headers, 'data': body};
+};
 
 const checkPhoneNumberInContacts = async (recipient) => {
 
@@ -45,13 +52,14 @@ const checkPhoneNumberInContacts = async (recipient) => {
       'blocking': 'wait',
       'contacts': [ '+' + recipient ]
     },
+    transform: _include_headers,
     json: true
   }
 
   console.log('sending object: ', checkObject);
 
   const contactCheckResult = await request(checkObject);
-  console.log('contact check result: ', contactCheckResult);
+  // console.log('contact check result: ', contactCheckResult);
   return contactCheckResult;
 }
 

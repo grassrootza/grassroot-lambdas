@@ -7,6 +7,6 @@
         "folder": "whatsapp"
     },
     "dynamo": {
-        "table": "whatsapp_media_files"
+        "table": "inbound_media_file_records"
     }
 }

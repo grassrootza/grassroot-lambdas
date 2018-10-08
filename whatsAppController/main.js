@@ -37,15 +37,25 @@ app.post('/inbound', async (req, res, next) => {
         // first, decode the inbound message into a content object we can use
         content = api.getMessageContent(req);
         console.log('incoming content: ', content);
+        
+        // if there is no content, then just return
         if (!content || !content.message) {
-            console.log('no incoming content or was a status message, exit');
+            console.log('No incoming content or was a status message, exit');
             res.status(200).end();
             return;
         }
 
         // second, extract a user id, either from prior, or from phone number
-        userId = await users.fetchUserId(content['from']);
+        // userId = await users.fetchUserId(content['from']);
+        userId = '1234';
         console.log('user id: ', userId);
+
+        if (content['type'] == 'image') {
+            console.log('fetching image, reshaped content: ', content);
+            const mediaStoreResponse = await recording.storeInboundMedia(userId, content);
+            console.log('response: ', mediaStoreResponse);
+            return mediaStoreResponse;
+        }
 
         // third, check for the last message sent, to see if there's a domain
         const lastMessage = await recording.getMostRecent(userId);
@@ -57,7 +67,7 @@ app.post('/inbound', async (req, res, next) => {
 
         if (!response || !response.replyMessages || response.replyMessages.length == 0) {
             console.log(`Error! Message that is empty, dispatch to DLQ and say something to user`);
-            await recording.dispatchToDLQ(new noResponseError(response, content, prior));
+            await recording.dispatchToDLQ(new noResponseError(response, content, lastMessage));
             response = await conversation.assembleErrorMsg(fallBackUserId, prior['domain'], 'empty');
         }
         

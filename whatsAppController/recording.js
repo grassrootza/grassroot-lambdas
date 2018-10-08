@@ -12,8 +12,30 @@ AWS.config.update({
     region: 'eu-west-1',
 });
 const docClient = new AWS.DynamoDB.DocumentClient();
+const lambdaClient = new AWS.Lambda();
 
 var exports = module.exports = {};
+
+exports.storeInboundMedia = (userId, userMessage) => {
+    const payload = {
+        "media_id": userMessage['message']['media_id'],
+        "mime_type": userMessage['message']['media_type'],
+        "user_id": userId,
+        "entity_uid": "campaign_12345",
+        "entity_type": "CAMPAIGN"
+    }
+
+    const lambdaParams = {
+        FunctionName: "whatsAppMediaStorage-production-store",
+        Payload: JSON.stringify(payload)
+    };
+
+    const lambdaResponse = lambdaClient.invoke(lambdaParams).promise();
+
+    console.log('Response from Lambda: ', lambdaResponse);
+
+    return lambdaResponse;
+}
 
 exports.getMostRecent = (userId) => {
     const cutoff = hoursInPast(config.get('conversation.cutoffHours'));
