@@ -29,15 +29,3 @@ exports.isMessageLikeMenuTextOrPayload = (inboundText, priorMenuTexts) => {
 
     return -1;
 }
-
-exports.reshapeContentFromMenu = (content, lastMenu) => {
-    console.log('extracting menu selection ... boolean check: ', /\d+/.test(content['message']));
-    const menuSelected = content['message'].match(/\d+/).map(Number);
-    console.log('and menu select = ', menuSelected);
-    console.log('prior menu: ', lastMenu);
-    const payload = lastMenu[menuSelected - 1];
-    console.log(`extracted menu selection: ${menuSelected} and corresponding payload: ${payload}`);
-    content['type'] = 'payload';
-    content['payload'] = payload;
-    return content;
-}

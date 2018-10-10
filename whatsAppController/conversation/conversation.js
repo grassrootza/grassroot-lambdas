@@ -40,6 +40,10 @@ exports.isRestart = async (content, rasaNluResult) => {
     return (rasaNluResult && rasaNluResult['intent']['name'] == 'restart' && rasaNluResult['intent']['confidence'] > 0.5); // low threshold to allow way out
 }
 
+exports.isIntent = (rasaNluResult, desiredIntent, confidenceThreshold = 0.5) => {
+    return rasaNluResult && rasaNluResult['intent']['name'] == desiredIntent && rasaNluResult['intent']['confidence'] > confidenceThreshold;
+}
+
 exports.restartConversation = (userId, resetRasa) => {
     if (resetRasa) 
         return exports.restartRasa(userId);
@@ -105,7 +109,7 @@ exports.sendToCore = async (userMessage, userId, domain) => {
     console.log('sending to core: ', userMessage);
 
     let messageToTransmit;
-
+    
     if (userMessage['type'] === 'text') {
         messageToTransmit = userMessage['message'];
     } else if (userMessage['type'] === 'location') {
@@ -120,7 +124,7 @@ exports.sendToCore = async (userMessage, userId, domain) => {
         messageToTransmit = '/select' + JSON.stringify(obj);
         console.log("JSON message: ", messageToTransmit);
     };
-    console.log('and message to send: ', messageToTransmit);
+    
     return requestToRasa(messageToTransmit, safeDomain, userId);
 }
 
@@ -135,9 +139,8 @@ const requestToRasa = (message, domain, userId) => {
         json: true
     };
     
-    console.log('options uri: ', options.uri);
-    console.log('options message: ', message);
-
+    console.log(`Sending message to Rasa with options uri: ${options.uri} and message: ${message}`);
+    
     return request(options);
 }
 
@@ -159,7 +162,7 @@ exports.restartRasa = async (userId) => {
     return exports.restartMsg(userId);
 }
 
-exports.openingMsg = (userId, domain) => {
+exports.openingMsg = (userId, domain = 'opening') => {
     const block = conversation[domain];
     const body = exports.getResponseChunk(block, 'start', 0);
 

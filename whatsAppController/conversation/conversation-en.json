@@ -14,7 +14,7 @@
                 "response": [
                     ["Dumelang. Welcome! What do you want to do? For now, you can:", 
                     "<<OPTIONS::OPENING_OPTION>>",
-                    "Feel free to answer with a number or word, as you prefer, or just use a shortcut word (e.g., 'izwe lami', or a campaign join word)"]
+                    "Feel free to answer with a number or word, as you prefer, or just use a shortcut word (e.g., 'izwi lami', or a campaign join word)"]
                 ]
             }
         },
@@ -95,48 +95,18 @@
             "_source": {
                 "response": [
                     ["Okay. To join a campaign or group, enter the campaign code, e.g., 'NHI'",
-                     "In the future you will be able to search groups and campaigns, for now please enter the join code exactly"]
+                     "Please enter the join word exactly if you know it, or otherwise we will search campaigns and public groups for you"]
                 ]
             }
-        }
-    ],
-    "act": [
+        },
         {
-            "_id": "start",
-            "_intent": "choose_action",
-            "_type": "primary_menu",
+            "_id": "media",
+            "_intent": "store_media",
+            "_type": "confirmation",
             "_source": {
                 "response": [
-                    ["Okay. You can go through the action menus just like when you dial *134*1994#",
-                    "<<OPTIONS::ACTION_MAIN_MENU>>",
-                    "Or you can just type something like, 'call a meeting for Saturday 9am' and we'll do our best to understand"]
+                    ["Thanks! We have stored that and notified the campaign. Thanks for joining forces with us!"]
                 ]
-            }
-        },
-        {
-            "_id": "meet",
-            "_intent": "set_meeting",
-            "_type": "entity_completion",
-            "_source": {
-                "opening": "Alright. We'll call a meeting.",
-                "entities": {
-                    "subject": "What is the meeting about?",
-                    "time": "When will the meeting be? (insert guidance)",
-                    "location": "Where will it happen?",
-                    "group": "What group is meeting?"
-                },
-                "confirmation": "Alright, confirming a meeting of <group>, about <subject>, on <time>, at <location>. Yes?",
-                "confirmed": "Done! Meeting called. Thanks for using Grassroot!"
-            }
-        },
-        {
-            "_id": "ACTION_MAIN_MENU",
-            "_type": "option_set",
-            "_source": {
-                "meet": "Call a meeting",
-                "vote": "Take a vote",
-                "volunteer": "Ask for volunteers",
-                "act": "Record action item"
             }
         }
     ],

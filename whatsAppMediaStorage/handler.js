@@ -45,7 +45,7 @@ module.exports.store = async (event, context) => {
   return {
     statusCode: 200,
     body: JSON.stringify({
-      message_id: ourImageId,
+      media_record_id: ourImageId,
       input: event,
     }),
   };

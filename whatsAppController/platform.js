@@ -24,8 +24,9 @@ const PROVINCE_MAP = {
 
 var exports = module.exports = {};
 
-exports.checkForJoinPhrase = async (incomingPhrase, rasaNluResult, userId) => {
+exports.checkForJoinPhrase = async (incomingPhrase, rasaNluResult, userId, broadSearch) => {
     // probably want to abstract this generic intent & confidence check 
+    console.log(`Checking for a join phrase, incoming phrase = ${incomingPhrase}`)
     if (!!rasaNluResult && rasaNluResult['intent'] == 'join' && !!rasaNluResult['entities']) {
         incomingPhrase = rasaNluResult['entities'][0];
     }
@@ -35,28 +36,42 @@ exports.checkForJoinPhrase = async (incomingPhrase, rasaNluResult, userId) => {
         uri: config.get('platform.url') + config.get('platform.paths.phrase.search'),
         qs: {
             'phrase': incomingPhrase,
-            'userId': userId
+            'userId': userId,
+            'broadSearch': broadSearch
         },
         auth: authHeader,
         json: true
     };
 
     const phraseSearchResult = await request(options);
+    console.log('Result of phrase search on platform: ', phraseSearchResult);
 
     if (phraseSearchResult && (phraseSearchResult['entityFound'] || phraseSearchResult['possibleEntities'])) {
         return convertJoinResult(phraseSearchResult, userId);
     } else {
+        console.log('Found nothing, out');
         return false;
     }
 }
 
 const convertJoinResult = (phraseSearchResult, userId) => {
+    console.log('Converting join result: ', phraseSearchResult);
     let reply = conversation.Reply(userId, 'platform', phraseSearchResult['responseMessages']);
         
-    if (phraseSearchResult.hasOwnProperty('responseMenu')) {
+    const numberOfPossibleEntities = !phraseSearchResult.hasOwnProperty('possibleEntities') ? 0 : 
+        Object.keys(phraseSearchResult['possibleEntities']).length;
+    console.log('How many possible entities? : ', numberOfPossibleEntities);
+
+    if (numberOfPossibleEntities > 1) {
         const menu = phraseSearchResult['responseMenu'];
         reply['menuPayload'] = Object.keys(menu);
         reply['menuText'] = Object.values(menu);
+    }
+
+    if (numberOfPossibleEntities == 1) {
+        Object.keys(phraseSearchResult['possibleEntities']).forEach(key => {
+            reply['menuPayload'] = [key + '::' + phraseSearchResult['possibleEntities'][key]];
+        });
     }
     
     if (phraseSearchResult.hasOwnProperty('requestDataType')) {
@@ -67,10 +82,12 @@ const convertJoinResult = (phraseSearchResult, userId) => {
         reply['entity'] = phraseSearchResult['entityType'] + '::' + phraseSearchResult['entityUid'];
     }
 
+    console.log('Completed join result conversion, returning: ', reply);
     return reply;
 }
 
 exports.continueJoinFlow = async (priorMessage, userMessage, userId) => {
+    console.log(`Continuing join flow, userMessage = ${userMessage} and userId = ${userId}`)
     if (priorMessage['entity'])
         return exports.continueJoinFlowEntityKnown(priorMessage, userMessage, userId);
     else if (userMessage['payload'])
