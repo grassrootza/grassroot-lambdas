@@ -22,7 +22,7 @@
   },
   "core": {
     "url": {
-      "base": "http://localhost:5000/",
+      "base": "https://rasas.grassroot.cloud/",
       "suffix": "/parse",
       "restart": "restart",
       "province": "province"

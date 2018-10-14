@@ -16,14 +16,18 @@ const lambdaClient = new AWS.Lambda();
 
 var exports = module.exports = {};
 
-exports.storeInboundMedia = (userId, userMessage) => {
+exports.storeInboundMedia = (userId, userMessage, assocEntity) => {
+    console.log(`Storing media, type: ${userMessage['message']['mime_type']} and ID: ${userMessage['message']['media_id']}`);
+
     const payload = {
         "media_id": userMessage['message']['media_id'],
-        "mime_type": userMessage['message']['media_type'],
+        "media_type": userMessage['message']['mime_type'],
         "user_id": userId,
-        "entity_uid": "campaign_12345",
-        "entity_type": "CAMPAIGN"
+        "entity_uid": assocEntity['entityUid'],
+        "entity_type": assocEntity['entityType']
     }
+
+    console.log('Dispatching to media storage Lambda, payload: ', payload);
 
     const lambdaParams = {
         FunctionName: "whatsAppMediaStorage-production-store",

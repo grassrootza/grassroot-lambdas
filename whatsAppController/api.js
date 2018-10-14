@@ -4,8 +4,14 @@ const util = require('util');
 
 var exports = module.exports = {};
 
+const MEDIA_TYPES = ['image', 'voice', 'video', 'audio']
+
+exports.isMediaType = (type) => {
+    return MEDIA_TYPES.indexOf(type) > -1;
+}
+
 exports.getMessageContent = (req) => {
-    console.log('message body: ', util.inspect(req.body, false, null, true));
+    console.log('message body: ', util.inspect(req.body, false, null, false));
     if (!!req.body['statuses'] || !req.body['messages']) {
         return false;
     }
@@ -30,12 +36,14 @@ exports.getMessageContent = (req) => {
         incoming_raw = JSON.stringify(pulledBody['location'])
     };
 
-    if (incoming_type === 'image') {
+    console.log(`Is incoming message right? : ${exports.isMediaType(incoming_type)}`)
+    if (exports.isMediaType(incoming_type)) {
         console.log('image body = ', pulledBody['image']);
+        const mediaBody = pulledBody[incoming_type];
         incoming_message ={
-            mime_type: pulledBody['image']['mime_type'],
-            media_id: pulledBody['image']['id'],
-            media_caption: pulledBody['image']['caption']
+            mime_type: mediaBody['mime_type'],
+            media_id: mediaBody['id'],
+            media_caption: mediaBody['caption']
         }
     }
 
@@ -81,8 +89,11 @@ exports.sendResponse = async (toPhone, ourReply, expressRes) => {
     }
 
     console.log('outbound url: ', outboundSend.uri);
+    
+    const nonEmptyReplies = ourReply.replyMessages.filter(reply => !!reply);
+    console.log('Sending non-empty replies: ', nonEmptyReplies);
 
-    for (const reply of ourReply.replyMessages) {
+    for (const reply of nonEmptyReplies) {
         responseBase['text']['body'] = reply;
         outboundSend['body'] = responseBase;
         console.log('outbound body: ', outboundSend.body)
@@ -91,8 +102,4 @@ exports.sendResponse = async (toPhone, ourReply, expressRes) => {
     }
 
     return 'dispatched';
-}
-
-const extractAndStoreMedia = (media_id) => {
-    // do the needful.
 }

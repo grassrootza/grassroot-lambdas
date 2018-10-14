@@ -3,6 +3,7 @@ const config = require('config');
 const request = require('request-promise');
 const conversation = require('./conversation/conversation.js');
 const utils = require('./utils.js');
+const api = require('./api.js');
 
 const authHeader = {
     'bearer': config.get('auth.platform')
@@ -62,12 +63,14 @@ const convertJoinResult = (phraseSearchResult, userId) => {
         Object.keys(phraseSearchResult['possibleEntities']).length;
     console.log('How many possible entities? : ', numberOfPossibleEntities);
 
-    if (numberOfPossibleEntities > 1) {
+    const hasMenu = numberOfPossibleEntities > 1 || (numberOfPossibleEntities == 0 && phraseSearchResult.hasOwnProperty('responseMenu'));
+    if (hasMenu) {
         const menu = phraseSearchResult['responseMenu'];
         reply['menuPayload'] = Object.keys(menu);
         reply['menuText'] = Object.values(menu);
     }
 
+    // this is for the case where e.g., there is one entity found
     if (numberOfPossibleEntities == 1) {
         Object.keys(phraseSearchResult['possibleEntities']).forEach(key => {
             reply['menuPayload'] = [key + '::' + phraseSearchResult['possibleEntities'][key]];
@@ -85,6 +88,10 @@ const convertJoinResult = (phraseSearchResult, userId) => {
     console.log('Completed join result conversion, returning: ', reply);
     return reply;
 }
+
+// ##########################################################
+// ## SUBSEQUENT, ONCE ENTITY (CAMPAIGN, GROUP, ETC) FOUND ##
+// ##########################################################
 
 exports.continueJoinFlow = async (priorMessage, userMessage, userId) => {
     console.log(`Continuing join flow, userMessage = ${userMessage} and userId = ${userId}`)
@@ -124,12 +131,19 @@ exports.continueJoinFlowEntityKnown = async (priorMessage, userMessage, userId) 
     let replyDict;
     console.log('assembling reply dict for type: ', userMessage['type']);
     if (userMessage['type'] == 'text' || userMessage['type'] == 'payload') {
-        replyDict = await exports.handleTextDataFlow(priorMessage, userMessage);
+        replyDict = await handleTextResponseForEntity(priorMessage, userMessage);
     } else if (userMessage['type'] == 'location') {
         replyDict = {
             location: userMessage['message'],
             auxProperties: priorMessage['auxProperties'],
             menuOptionPayload: userMessage['payload']
+        };
+    } else if (api.isMediaType(userMessage['type'])) {
+        console.log(`We have an image! Do we know what it's for? Prior payload: ${priorMessage['menuPayload']}`);
+        // note: as far as the platform is concerned, the payload is _not_ the media image ID, but the last thing it sent to user, hence
+        replyDict = {
+            menuOptionPayload: !!priorMessage['menuPayload'] ? priorMessage['menuPayload'][0] : userMessage['payload'],
+            auxProperties: priorMessage['auxProperties']
         };
     }
 
@@ -151,32 +165,40 @@ exports.continueJoinFlowEntityKnown = async (priorMessage, userMessage, userId) 
     reply['entity'] = entityFlowResponse['entityType'] + '::' + entityFlowResponse['entityUid'];
     reply['auxProperties'] = entityFlowResponse['auxProperties'];
 
-    console.log('entity response data request type: ', entityFlowResponse['requestDataType']);
-    if (entityFlowResponse['requestDataType'] == 'MENU_SELECTION') {
+    const requestType = entityFlowResponse['requestDataType'];
+    const hasMenu = !!entityFlowResponse['menu'] && Object.keys(entityFlowResponse['menu']).length > 0;
+    
+    if (hasMenu) {
         reply['menuPayload'] = Object.keys(entityFlowResponse['menu']);
-        reply['menuText'] = Object.values(entityFlowResponse['menu']);
-    } else if (entityFlowResponse['requestDataType'] !== 'NONE') { // nor does it equal menu, so must be one of the others
-        reply = exports.setReplyForDataRequest(reply, entityFlowResponse);
+        reply['menuText'] = requestType == 'MENU_SELECTION' ? Object.values(entityFlowResponse['menu']) : [];
+    } else if (requestType !== 'NONE') { // nor does it equal menu, so must be one of the others
+        reply = setReplyForDataRequest(reply, entityFlowResponse);
     }
     
     return reply;
 }
 
-exports.handleTextDataFlow = async (priorMessage, userMessage) => {
+const handleTextResponseForEntity = async (priorMessage, userMessage) => {
     // if the last outbound message was a menu, and this inbound does not have a payload in it, test for string similariy
-    if (priorMessage.hasOwnProperty('menuPayload') && !userMessage.hasOwnProperty('payload')) {
-        // first do a quick similarity and contains check
-        console.log('prior message: ', priorMessage);
-        const possibleIndex = utils.isMessageLikeMenuTextOrPayload(userMessage, priorMessage['menuText']);
-        console.log('possible index: ', possibleIndex);
-        if (possibleIndex != -1) {
-            userMessage['type'] = 'payload';
-            userMessage['payload'] = priorMessage['menuPayload'][possibleIndex];
+    const needToSetPaylod = priorMessage.hasOwnProperty('menuPayload') && !userMessage.hasOwnProperty('payload');
+    if (needToSetPaylod) {
+        if (priorMessage['menuPayload'].length == 1) {
+            // prior menu was free form, so just set the payload and send it back
+            userMessage['payload'] = priorMessage['menuPayload'][0];
+        } else {
+            // menu had multiple options, so pick out the one that's necessary and send it back
+            console.log('prior message: ', priorMessage);
+            const possibleIndex = utils.isMessageLikeMenuTextOrPayload(userMessage, priorMessage['menuText']);
+            console.log('possible index: ', possibleIndex);
+            if (possibleIndex != -1) {
+                userMessage['type'] = 'payload';
+                userMessage['payload'] = priorMessage['menuPayload'][possibleIndex];
+            }
         }
-    } else if (exports.isSkipIntent(userMessage)) {
+    } else if (isSkipIntent(userMessage)) {
         userMessage['payload'] = "<<SKIP>>";
-    } else if (exports.requiresLocation(priorMessage)) {
-        userMessage['payload'] = await exports.convertLocation(userMessage);
+    } else if (requiresLocation(priorMessage)) {
+        userMessage['payload'] = await convertLocation(userMessage);
     }
 
     console.log('reshaped user message: ', userMessage);
@@ -190,25 +212,13 @@ exports.handleTextDataFlow = async (priorMessage, userMessage) => {
     return replyDict;
 }
 
-exports.setReplyForDataRequest = (reply, entityFlowResponse) => {    
+const setReplyForDataRequest = (reply, entityFlowResponse) => {    
     reply['auxProperties'] = reply['auxProperties'] || {};
     reply['auxProperties']['requestDataType'] = entityFlowResponse['requestDataType'];
     return reply;
 }
 
-exports.respondToTask = async (taskType, taskUid, response) => {
-    const options = {
-        method: 'POST',
-        uri: config.get('tasks.url') + config.get('tasks.path.respond') + taskType + '/' + taskUid,
-        qs: {
-            'response': response
-        },
-        auth: authHeader
-    };
-    return request(options);
-}
-
-exports.requiresLocation = (priorMessage) => {
+const requiresLocation = (priorMessage) => {
     // send it to the nlu, to extract a province entity, then map that to platform syntax
 
     if (!priorMessage.hasOwnProperty('auxProperties') || !priorMessage['auxProperties']) // we know it doesn't need a province, so just abort
@@ -225,11 +235,11 @@ exports.requiresLocation = (priorMessage) => {
     return true;
 }
 
-exports.isSkipIntent = (userMessage) => {
+const isSkipIntent = (userMessage) => {
     return userMessage['message'] == '0'; // for now
 }
 
-exports.convertLocation = async (userMessage) => {
+const convertLocation = async (userMessage) => {
     const nluResult = await conversation.extractProvince(userMessage['message']);
     console.log('province check nlu result: ', nluResult);
 

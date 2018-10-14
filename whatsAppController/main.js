@@ -51,18 +51,21 @@ app.post('/inbound', async (req, res, next) => {
         userId = await users.fetchUserId(content['from']);
         console.log('user id: ', userId);
 
-        if (content['type'] == 'image') {
-            const mediaFileId = await handleMedia(userId, content);
-            console.log('Returned media file ID: ', mediaFileId);
-            content['payload'] = 'media_record_id::' + mediaFileId;
-        }
-
         // third, check for the last message sent, to see if there's a domain
         const lastMessage = await recording.getMostRecent(userId);
-        console.log('and most recent message: ', lastMessage);
+        console.log('Raw record of most recent message: ', lastMessage);
+        const nonEmptyLastMessage = !!lastMessage && lastMessage.hasOwnProperty('Items') && lastMessage['Items'].length > 0;
+        console.log('As processed, non empty last message? : ', nonEmptyLastMessage);
 
-        // fourth, get the response from the heart of all this, the NLU/Core engine
-        let response = await getMessageReply(content, (typeof lastMessage !== 'undefined' && lastMessage) ? lastMessage['Items'][0] : null, userId);
+        // fourth, if this has media, retrieve it from WhatsApp and stash it before continuing
+        if (api.isMediaType(content['type'])) {
+            const mediaFileId = await handleMedia(userId, content, nonEmptyLastMessage ? lastMessage['Items'][0] : null);
+            console.log('Returned media file ID: ', mediaFileId);
+            content['payload'] = !!mediaFileId ? 'media_record_id::' + mediaFileId : '';
+        }
+        
+        // fifth, get the response from the heart of all this, the NLU/Core engine
+        let response = await getMessageReply(content,  nonEmptyLastMessage ? lastMessage['Items'][0] : null, userId);
         console.log('responding: ', response);
 
         if (noMessagesInResponse(response)) {
@@ -98,13 +101,19 @@ if (env !== 'production') {
     app.listen(3000, () => console.log(`Listening on port 3000`));
 }
 
-const handleMedia = async (userId, content) => {
-    console.log('fetching image, reshaped content: ', content);
-    const mediaStoreResponse = await recording.storeInboundMedia(userId, content);
-    console.log('response: ', mediaStoreResponse);
+const handleMedia = async (userId, inboundMessage, priorOutbound) => {
+    if (!priorOutbound || !priorOutbound['entity']) {
+        console.log('Received media, but have no context for it, so just abord');
+        return false;
+    }
+
+    const assocEntity = utils.extractEntityFromPrior(priorOutbound);
+    console.log('Fetching media, associated entity details: ', assocEntity);
+    const mediaStoreResponse = await recording.storeInboundMedia(userId, inboundMessage, assocEntity);
+    console.log('Response from lambda, raw: ', mediaStoreResponse);
     const payload = JSON.parse(mediaStoreResponse.Payload)
-    console.log('extracted payload: ', payload);
     const messageBody = JSON.parse(payload.body);
+    console.log('Extracted payload: ', messageBody);
     return messageBody['media_record_id'];
 }
 
@@ -234,10 +243,10 @@ const handleErrorFailSafe = async (content, userId) => {
         const fallBackUserId = !!userId ? userId : 'unknown';
         const fallBackResponse = await conversation.assembleErrorMsg(fallBackUserId, 'restart');
 
-        if (!!userId) {
-            await conversation.restartConversation(fallBackUserId, true);
-            await recording.logIncoming(content, fallBackResponse, userId);
-        }
+        // if (!!userId) {
+            // await conversation.restartConversation(fallBackUserId, true);
+            // await recording.logIncoming(content, fallBackResponse, userId);
+        // }
         
         console.log('Fall back succeeded, returning it');
         return fallBackResponse;

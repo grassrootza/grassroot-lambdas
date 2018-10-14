@@ -39,7 +39,7 @@ module.exports.store = async (event, context) => {
   const s3Upload = await storeFileInS3(ourImageId, payload['media_type'], mediaFile)
   console.log('Completed s3 upload, result: ', s3Upload);
 
-  const dynamoRecord = await insertRecordInDynamoDb(ourImageId, payload['user_id'], payload['entity_type'], payload['entity_uid']);
+  const dynamoRecord = await insertRecordInDynamoDb(ourImageId, payload);
   console.log('Result of Dynamo DB insertion: ', dynamoRecord);
 
   return {
@@ -94,17 +94,19 @@ const storeFileInS3 = (uuid, mimeType, data) => {
     });
 }
 
-const insertRecordInDynamoDb = (media_file_id, user_id, associated_entity_type, associated_entity_id) => {
+const insertRecordInDynamoDb = (media_file_id, payload) => {
   const currentMillis = Date.now();
 
   // maybe, just maybe, we could have two of the same assoc entity at some milli, but seems extremely unlikely
   const item = {
-    assoc_entity_id: associated_entity_id,
+    assoc_entity_id: payload['entity_uid'],
     media_file_id: media_file_id,
     stored_timestamp: currentMillis,
     bucket: storageBucket,
     folder: storageFolder,
-    assoc_entity_type: associated_entity_type
+    media_type: payload['media_type'],
+    assoc_entity_type: payload['entity_type'],
+    submitting_user_id: payload['user_id']
   };
 
   const params = {
