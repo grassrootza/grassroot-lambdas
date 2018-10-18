@@ -183,11 +183,15 @@ app.get('/metric/stats', (req, res) => {
     return executeRequest(metricQuery('stats'), buildMetricParams(req), res);
 })
 
-app.get('/metric/scores', (req, res) => {
-    console.log("Getting metric scores");
-    return executeRequest(metricQuery('scores'), buildMetricParams(req), res);
+app.get('/metric/scores/rank', (req, res) => {
+    console.log("Getting metric scores by rank range");
+    return executeRequest(metricQuery('scoresByRankRange'), buildMetricParams(req), res);
 })
 
+app.get('/metric/scores/score', (req, res) => {
+    console.log("Getting metric scores by score range");
+    return executeRequest(metricQuery('scoresByScoreRange'), buildMetricParams(req), res);
+})
 const buildMetricParams = (req) => {
     return {
         metric_type: req.query.metric_type,
