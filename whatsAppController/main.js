@@ -19,9 +19,15 @@ var env = process.env.NODE_ENV || 'dev';
 // not used but recording for reference
 const DOMAINS = ['opening', 
         'retart', // i.e., user just reset things 
-        'platform', // i.e., joining a campaign, responding to a meeting notification, etc
+        'campaign', // i.e., joining a campaign (or a public group, which we include in this domain)
         'service',  // i.e., looking for a service, like a clinic or shelter, etc
-        'knowledge'] // i.e., finding knowledge on accountability stack, etc
+        'action'  // i.e., calling a meeting, etc 
+    ]
+
+// we use these, which are not like intents, to immediately trigger route into 
+const DOMAIN_TRIGGERS = {
+    'action': ['act now', 'action', 'frtknx']
+}
 
 app.get('/status', (req, res) => {
     res.send(`I am alive! My environment: ${env} and config is: ${config.get('__comment.whoami')}, 
@@ -70,7 +76,7 @@ app.post('/inbound', async (req, res, next) => {
 
         if (noMessagesInResponse(response)) {
             console.log(`Error! Message that is empty, dispatch to DLQ and say something to user`);
-            await recording.dispatchToDLQ(new noResponseError(response, content, lastMessage));
+            await recording.dispatchToDLQ(noResponseError(response, content, lastMessage));
             response = await conversation.assembleErrorMsg(fallBackUserId, prior['domain'], 'empty');
         }
         
@@ -216,12 +222,24 @@ const addSelectedMenuPayloadToMessage = async (prior, userId, content, openingNl
 
 const handleFirstMessageInConversation = async (prior, userId, content, openingNluResult) => {
     console.log('Inside opening, restart, or initial conversation, so direct if possible. Content payload: ', content['payload']);
-    console.log('Fricking JS bullcrap: ', !!content['payload']);
-    let possibleReply = await (!!content ['payload'] ? 
-        conversation.directToDomain(content, userId, prior) : // direct based on a payload - domain map
+    const likelyDomain = !!content['payload'] ? content['payload'] : checkForTriggerWord(content['message']);
+    console.log(`Likely domain: ${likelyDomain} and routing flag: ${!!likelyDomain}`);
+    let possibleReply = await (!!likelyDomain ? 
+        conversation.getDomainOpening(likelyDomain, userId) : // direct based on a payload - domain map
         platform.checkForJoinPhrase(content['message'], openingNluResult, userId, false)); // look for a join word, narrowly
     console.log('Result of checking for join word or similar phrase: ', possibleReply);
     return possibleReply;
+}
+
+const checkForTriggerWord = (userMessage) => {
+    const normalized = userMessage.trim().toLowerCase();
+    console.log(`Checking if ${normalized} is a trigger word`);
+    const platformIndex = Object.keys(DOMAIN_TRIGGERS).find(key => {
+        console.log(`Looking for domain ${key} with words ${DOMAIN_TRIGGERS[key]}`);
+        return DOMAIN_TRIGGERS[key].findIndex(trigger => userMessage == normalized) != -1;
+    });
+    console.log('Found a platform for user message? : ', platformIndex);
+    return platformIndex;
 }
 
 const checkForCoherentPlatformResponse = async (prior, userId, content, openingNluResult) => {

@@ -89,16 +89,20 @@ exports.convertCoreResult = (userId, coreResult) => {
     return stdReply;
 }
 
-exports.directToDomain = async (content, userId, prior) => {
-    console.log('directing to domain, content: ', content);
-    if (content['payload'] == 'platform') {
+exports.getDomainOpening = async (domain, userId) => {
+    console.log('directing to domain: ', domain);
+    if (domain == 'platform') {
         const block = conversation['platform'];
         const body = exports.getResponseChunk(block, 'start', 0);
         const messages = exports.extractMessages(block, body);
         return exports.ReplyWithMenu(userId, 'platform', messages);
-    } else if (content['payload'] == 'service') {
+    } else if (domain == 'service') {
         const rasaResponse = await requestToRasa('/find_services_gbv', 'service', userId);
         console.log('Rasa response: ', rasaResponse);
+        return exports.convertCoreResult(userId, rasaResponse);
+    } else if (domain == 'action') {
+        const rasaResponse = await requestToRasa('/take_action', 'action', userId);
+        console.log('Action domain, response: ', rasaResponse);
         return exports.convertCoreResult(userId, rasaResponse);
     }
 }
