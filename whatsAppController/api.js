@@ -1,4 +1,6 @@
 const config = require('config');
+const logger = require('debug')('grassroot:whatsapp:api');
+
 const request = require('request-promise');
 const util = require('util');
 
@@ -11,7 +13,7 @@ exports.isMediaType = (type) => {
 }
 
 exports.getMessageContent = (req) => {
-    console.log('message body: ', util.inspect(req.body, false, null, false));
+    logger('message body: ', util.inspect(req.body, false, null, false));
     if (!!req.body['statuses'] || !req.body['messages']) {
         return false;
     }
@@ -36,9 +38,9 @@ exports.getMessageContent = (req) => {
         incoming_raw = JSON.stringify(pulledBody['location'])
     };
 
-    console.log(`Is incoming message right? : ${exports.isMediaType(incoming_type)}`)
+    logger(`Is incoming message right? : ${exports.isMediaType(incoming_type)}`)
     if (exports.isMediaType(incoming_type)) {
-        console.log('image body = ', pulledBody['image']);
+        logger('image body = ', pulledBody['image']);
         const mediaBody = pulledBody[incoming_type];
         incoming_message ={
             mime_type: mediaBody['mime_type'],
@@ -58,11 +60,11 @@ exports.getMessageContent = (req) => {
 
 // in current case (= W/A API direct, we don't send a response back, hence it's unused, but leaving in sig in case in future)
 exports.sendResponse = async (toPhone, ourReply, expressRes) => {
-    console.log('Complete, sending reply, looks like: ', ourReply);
-    console.log('Sending to: ', toPhone);
+    logger('Complete, sending reply, looks like: ', ourReply);
+    logger('Sending to: ', toPhone);
 
     if (!toPhone) {
-        console.log('No one to send to, returning false');
+        logger('No one to send to, returning false');
         return 'dispatched'; // since we want to make sure nothing happens
     }
 
@@ -88,17 +90,17 @@ exports.sendResponse = async (toPhone, ourReply, expressRes) => {
         json: true
     }
 
-    console.log('outbound url: ', outboundSend.uri);
+    logger('outbound url: ', outboundSend.uri);
     
     const nonEmptyReplies = ourReply.replyMessages.filter(reply => !!reply);
-    console.log('Sending non-empty replies: ', nonEmptyReplies);
+    logger('Sending non-empty replies: ', nonEmptyReplies);
 
     for (const reply of nonEmptyReplies) {
         responseBase['text']['body'] = reply;
         outboundSend['body'] = responseBase;
-        console.log('outbound body: ', outboundSend.body)
+        logger('outbound body: ', outboundSend.body)
         const outboundResult = await request(outboundSend);
-        console.log('outbound result: ', outboundResult);
+        logger('outbound result: ', outboundResult);
     }
 
     return 'dispatched';

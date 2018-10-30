@@ -1,6 +1,7 @@
 const config = require('config');
-const request = require('request-promise');
+const logger = require('debug')('grassroot:whatsapp:users');
 
+const request = require('request-promise');
 const authHeader = {
     'bearer': config.get('auth.platform')
 };
@@ -11,12 +12,12 @@ var exports = module.exports = {};
 
 exports.fetchUserId = async (phoneNumber) => {
     userId = await fetchIdFromServer(phoneNumber);
-    console.log('retrieved userId: ', userId);
+    logger('retrieved userId: ', userId);
     return userId;
 }
 
 fetchIdFromServer = (phoneNumber) => {
-    console.log('fetching user ID for phone number: ', phoneNumber);
+    logger('fetching user ID for phone number: ', phoneNumber);
     const options = {
         method: 'POST',
         uri: config.get('users.url') + config.get('users.path.id'),
@@ -25,7 +26,7 @@ fetchIdFromServer = (phoneNumber) => {
             'msisdn': phoneNumber
         }
     };
-    console.log('calling: ', options.uri);
-    console.log('query params: ', options.qs);
-    return request(options);
+    logger('calling: ', options.uri);
+    logger('query params: ', options.qs);
+    return request.post(options);
 }

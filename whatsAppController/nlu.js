@@ -1,4 +1,6 @@
 const config = require('config');
+const logger = require('debug')('grassroot:whatsapp:nlu');
+
 const request = require('request-promise');
 
 var exports = module.exports = {};
@@ -26,7 +28,7 @@ exports.transformNluResponse = (raw) => {
     console.time('nlu_call');
     
     let response = JSON.parse(raw);
-    console.log('parsed body: ', response['parsed']);
+    logger('parsed body: ', response['parsed']);
 
     let transformed = {
         nlu_id: response['uid'],

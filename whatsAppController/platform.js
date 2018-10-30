@@ -1,5 +1,7 @@
 // module for handling calls to main platform for task creation and response (task = meeting, vote, action, livewire alert, etc)
 const config = require('config');
+const logger = require('debug')('grassroot:whatsapp:platform');
+
 const request = require('request-promise');
 const conversation = require('./conversation/conversation.js');
 const utils = require('./utils.js');
@@ -27,7 +29,7 @@ var exports = module.exports = {};
 
 exports.checkForJoinPhrase = async (incomingPhrase, rasaNluResult, userId, broadSearch) => {
     // probably want to abstract this generic intent & confidence check 
-    console.log(`Checking for a join phrase, incoming phrase = ${incomingPhrase}`)
+    logger(`Checking for a join phrase, incoming phrase = ${incomingPhrase}`)
     if (!!rasaNluResult && rasaNluResult['intent'] == 'join' && !!rasaNluResult['entities']) {
         incomingPhrase = rasaNluResult['entities'][0];
     }
@@ -44,24 +46,26 @@ exports.checkForJoinPhrase = async (incomingPhrase, rasaNluResult, userId, broad
         json: true
     };
 
-    const phraseSearchResult = await request(options);
-    console.log('Result of phrase search on platform: ', phraseSearchResult);
+    logger('Sending options to platform: ', options);
+
+    const phraseSearchResult = await request.post(options);
+    logger('Result of phrase search on platform: ', phraseSearchResult);
 
     if (phraseSearchResult && (phraseSearchResult['entityFound'] || phraseSearchResult['possibleEntities'])) {
         return convertJoinResult(phraseSearchResult, userId);
     } else {
-        console.log('Found nothing, out');
+        logger('Found nothing, out');
         return false;
     }
 }
 
 const convertJoinResult = (phraseSearchResult, userId) => {
-    console.log('Converting join result: ', phraseSearchResult);
+    logger('Converting join result: ', phraseSearchResult);
     let reply = conversation.Reply(userId, 'platform', phraseSearchResult['responseMessages']);
         
     const numberOfPossibleEntities = !phraseSearchResult.hasOwnProperty('possibleEntities') ? 0 : 
         Object.keys(phraseSearchResult['possibleEntities']).length;
-    console.log('How many possible entities? : ', numberOfPossibleEntities);
+    logger('How many possible entities? : ', numberOfPossibleEntities);
 
     const hasMenu = numberOfPossibleEntities > 1 || (numberOfPossibleEntities == 0 && phraseSearchResult.hasOwnProperty('responseMenu'));
     if (hasMenu) {
@@ -78,14 +82,14 @@ const convertJoinResult = (phraseSearchResult, userId) => {
     }
     
     if (phraseSearchResult.hasOwnProperty('requestDataType')) {
-        reply = exports.setReplyForDataRequest(reply, phraseSearchResult);
+        reply = setReplyForDataRequest(reply, phraseSearchResult);
     }
     
     if (phraseSearchResult['entityFound']) {
         reply['entity'] = phraseSearchResult['entityType'] + '::' + phraseSearchResult['entityUid'];
     }
 
-    console.log('Completed join result conversion, returning: ', reply);
+    logger('Completed join result conversion, returning: ', reply);
     return reply;
 }
 
@@ -94,7 +98,7 @@ const convertJoinResult = (phraseSearchResult, userId) => {
 // ##########################################################
 
 exports.continueJoinFlow = async (priorMessage, userMessage, userId) => {
-    console.log(`Continuing join flow, userMessage = ${userMessage} and userId = ${userId}`)
+    logger(`Continuing join flow, userMessage = ${userMessage} and userId = ${userId}`)
     if (priorMessage['entity'])
         return exports.continueJoinFlowEntityKnown(priorMessage, userMessage, userId);
     else if (userMessage['payload'])
@@ -129,7 +133,7 @@ exports.continueJoinFlowEntityKnown = async (priorMessage, userMessage, userId) 
     const fullUrl = config.get('platform.url') + config.get('platform.paths.entity.respond') + `/${entityType}/${entityUid}`;
 
     let replyDict;
-    console.log('assembling reply dict for type: ', userMessage['type']);
+    logger('assembling reply dict for type: ', userMessage['type']);
     if (userMessage['type'] == 'text' || userMessage['type'] == 'payload') {
         replyDict = await handleTextResponseForEntity(priorMessage, userMessage);
     } else if (userMessage['type'] == 'location') {
@@ -139,7 +143,7 @@ exports.continueJoinFlowEntityKnown = async (priorMessage, userMessage, userId) 
             menuOptionPayload: userMessage['payload']
         };
     } else if (api.isMediaType(userMessage['type'])) {
-        console.log(`We have an image! Do we know what it's for? Prior payload: ${priorMessage['menuPayload']}`);
+        logger(`We have an image! Do we know what it's for? Prior payload: ${priorMessage['menuPayload']}`);
         // note: as far as the platform is concerned, the payload is _not_ the media image ID, but the last thing it sent to user, hence
         replyDict = {
             menuOptionPayload: !!priorMessage['menuPayload'] ? priorMessage['menuPayload'][0] : userMessage['payload'],
@@ -147,7 +151,7 @@ exports.continueJoinFlowEntityKnown = async (priorMessage, userMessage, userId) 
         };
     }
 
-    console.log('reply dict to platform: ', replyDict);
+    logger('reply dict to platform: ', replyDict);
 
     const options = {
         method: 'POST',
@@ -159,7 +163,7 @@ exports.continueJoinFlowEntityKnown = async (priorMessage, userMessage, userId) 
     }
 
     const entityFlowResponse = await request(options);
-    console.log('response from platform, raw: ', entityFlowResponse);
+    logger('response from platform, raw: ', entityFlowResponse);
 
     let reply = conversation.Reply(userId, 'platform', entityFlowResponse['messages']);
     reply['entity'] = entityFlowResponse['entityType'] + '::' + entityFlowResponse['entityUid'];
@@ -187,9 +191,9 @@ const handleTextResponseForEntity = async (priorMessage, userMessage) => {
             userMessage['payload'] = priorMessage['menuPayload'][0];
         } else {
             // menu had multiple options, so pick out the one that's necessary and send it back
-            console.log('prior message: ', priorMessage);
+            logger('prior message: ', priorMessage);
             const possibleIndex = utils.isMessageLikeMenuTextOrPayload(userMessage, priorMessage['menuText']);
-            console.log('possible index: ', possibleIndex);
+            logger('possible index: ', possibleIndex);
             if (possibleIndex != -1) {
                 userMessage['type'] = 'payload';
                 userMessage['payload'] = priorMessage['menuPayload'][possibleIndex];
@@ -201,7 +205,7 @@ const handleTextResponseForEntity = async (priorMessage, userMessage) => {
         userMessage['payload'] = await convertLocation(userMessage);
     }
 
-    console.log('reshaped user message: ', userMessage);
+    logger('reshaped user message: ', userMessage);
 
     const replyDict = {
         userMessage: userMessage['message'],
@@ -241,11 +245,11 @@ const isSkipIntent = (userMessage) => {
 
 const convertLocation = async (userMessage) => {
     const nluResult = await conversation.extractProvince(userMessage['message']);
-    console.log('province check nlu result: ', nluResult);
+    logger('province check nlu result: ', nluResult);
 
     if (nluResult['intent']['name'] == 'select' && !!nluResult['entities'] && nluResult['entities'][0]['entity'] == 'province') {
         const nlu_province = nluResult['entities'][0]['value'];
-        console.log('extracted this province: ', nlu_province);
+        logger('extracted this province: ', nlu_province);
         return PROVINCE_MAP[nlu_province];
     }
 

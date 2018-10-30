@@ -1,4 +1,6 @@
 const config = require('config');
+const logger = require('debug')('grassroot:whatsapp:conv');
+
 const request = require('request-promise');
 
 const conversation = require('./conversation-en.json'); // in time maybe switch to reading this from S3 ...?
@@ -32,7 +34,7 @@ exports.isRestart = async (content, rasaNluResult) => {
     if (!rasaNluResult)
         return content['message'].toLowerCase() == 'restart';
 
-    console.log('restart check from core: ', rasaNluResult);
+    logger('restart check from core: ', rasaNluResult);
 
     if (!rasaNluResult['intent'])
         return false;
@@ -90,7 +92,7 @@ exports.convertCoreResult = (userId, coreResult) => {
 }
 
 exports.getDomainOpening = async (domain, userId) => {
-    console.log('directing to domain: ', domain);
+    logger('directing to domain: ', domain);
     if (domain == 'platform') {
         const block = conversation['platform'];
         const body = exports.getResponseChunk(block, 'start', 0);
@@ -98,19 +100,19 @@ exports.getDomainOpening = async (domain, userId) => {
         return exports.ReplyWithMenu(userId, 'platform', messages);
     } else if (domain == 'service') {
         const rasaResponse = await requestToRasa('/find_services_gbv', 'service', userId);
-        console.log('Rasa response: ', rasaResponse);
+        logger('Rasa response: ', rasaResponse);
         return exports.convertCoreResult(userId, rasaResponse);
     } else if (domain == 'action') {
         const rasaResponse = await requestToRasa('/take_action', 'action', userId);
-        console.log('Action domain, response: ', rasaResponse);
+        logger('Action domain, response: ', rasaResponse);
         return exports.convertCoreResult(userId, rasaResponse);
     }
 }
 
 exports.sendToCore = async (userMessage, userId, domain) => {
     const safeDomain = !domain || domain == 'restart' ? 'opening' : domain;
-    console.log(`domain: ${domain} and safe domain: ${safeDomain}`);
-    console.log('sending to core: ', userMessage);
+    logger(`domain: ${domain} and safe domain: ${safeDomain}`);
+    logger('sending to core: ', userMessage);
 
     let messageToTransmit;
     
@@ -118,7 +120,7 @@ exports.sendToCore = async (userMessage, userId, domain) => {
         messageToTransmit = userMessage['message'];
     } else if (userMessage['type'] === 'location') {
         messageToTransmit = '/select' + JSON.stringify(userMessage['message']);
-        console.log('converted message: ', messageToTransmit);
+        logger('converted message: ', messageToTransmit);
     } else if (userMessage['type'] === 'payload') {
         const payload = userMessage['payload'];
         const slot = payload.substring(0, payload.indexOf('::'));
@@ -126,7 +128,7 @@ exports.sendToCore = async (userMessage, userId, domain) => {
         let obj = {};
         obj[slot] = value;
         messageToTransmit = '/select' + JSON.stringify(obj);
-        console.log("JSON message: ", messageToTransmit);
+        logger("JSON message: ", messageToTransmit);
     };
     
     return requestToRasa(messageToTransmit, safeDomain, userId);
@@ -143,13 +145,13 @@ const requestToRasa = (message, domain, userId) => {
         json: true
     };
     
-    console.log(`Sending message to Rasa with options uri: ${options.uri} and message: ${message}`);
+    logger(`Sending message to Rasa with options uri: ${options.uri} and message: ${message}`);
     
     return request(options);
 }
 
 exports.restartRasa = async (userId) => {
-    console.log('Alright, telling core to restart all');
+    logger('Alright, telling core to restart all');
     const options = {
         method: 'POST',
         uri: config.get('core.url.base') + config.get('core.url.restart'),
@@ -159,9 +161,9 @@ exports.restartRasa = async (userId) => {
         json: true
     }
 
-    console.log('resetting via URL: ', options.uri);
+    logger('resetting via URL: ', options.uri);
     const resetResult = await request(options);
-    console.log('Result of restart request: ', resetResult);
+    logger('Result of restart request: ', resetResult);
     
     return exports.restartMsg(userId);
 }
@@ -185,7 +187,7 @@ exports.restartMsg = (userId) => {
 exports.assembleErrorMsg = (userId, domain, errorType = 'general') => {
     const block = conversation['error'];
     const body = exports.getResponseChunk(block, errorType, 0);
-    console.log('returning error, conversation body: ', body);
+    logger('returning error, conversation body: ', body);
     const messages = exports.extractMessages(block, body);
     return exports.ReplyWithMenu(userId, domain, messages); // because we basically reset everything
 }
@@ -205,13 +207,13 @@ exports.extractMessages = (block, body) => {
 
     const optionsRegex = /<<OPTIONS::\w+>>/;
     
-    // console.log('body: ', body);
-    console.log('body length: ', body.length);
+    // logger('body: ', body);
+    logger('body length: ', body.length);
     
     body.forEach(msgComponent => {
         if (optionsRegex.test(msgComponent)) {
             const optionsId = msgComponent.substring('<<OPTIONS::'.length, msgComponent.length - 2);
-            console.log('extracted options src: ', optionsId); 
+            logger('extracted options src: ', optionsId); 
             let optionsEntity = getEntity(block, optionsId);
             menuPayload = extractOptionsKeys(optionsEntity); // may be randomly sorted in future
             menuPayload.forEach((key, index) => {

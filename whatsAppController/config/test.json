@@ -1,0 +1,11 @@
+{
+  "core": {
+    "url": {
+      "base": "https://rasas.grassroot.cloud/"
+    }
+  },
+  "__comment": {
+    "whoami": "test",
+    "testPhone": "27815550000X"
+  }
+}
