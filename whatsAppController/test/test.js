@@ -79,9 +79,6 @@ describe('Tests of handling status messages properly', () => {
 
 const restartTest = (done) => { // this also helps clean out this user in the temproary chat logs
   const testMessage = assembleTestMessage('Restart');
-
-  // const expectedResult = conversation.openingMsg(testUserId);
-
   chai.request(server)
     .post('/inbound')
     .send(testMessage)
@@ -108,21 +105,11 @@ describe('Test Izwi Lami messages', () => {
 
   it('Should respond to Hello correctly', (done) => {
     const testMessage = assembleTestMessage("Hello");
-
-    const expectedResult = conversation.openingMsg(testUserId);
-
     logger('Sending greeting to server');
     chai.request(server)
       .post('/inbound')
       .send(testMessage)
-      .end((err, res) => {
-        logger('Received server response');
-        res.should.have.status(200);
-        res.should.not.be.empty;
-        res.should.be.json;
-        res.body.should.deep.equal(expectedResult);
-        done();
-      })
+      .end((err, res) => testGreetingOkay(done, res))
   }).timeout(0); // just because of it hitting Rasa on cloud (may replace with stub in future), so, disable timeout
 
   it('Should respond to Izwi Lami correctly', (done) => {
@@ -249,6 +236,53 @@ describe('Test platform search (mostly)', () => {
 
   it('Restarting to clean up', restartTest).timeout(0);
 
+});
+
+describe('Test action initiation', () => {
+  beforeEach(() => {
+    this.post = sinon.stub(rp, 'post');
+    this.post.withArgs(mockUserIdOptions).returns(testUserId);
+  });
+
+  afterEach(() => {
+    this.post = rp.post.restore();
+  });
+
+  it('Should respond to a greeting correctly', (done) => {
+    const testMessage = assembleTestMessage("Hi");
+    logger('Sending greeting to server, initiating action flow');
+    chai.request(server)
+      .post('/inbound')
+      .send(testMessage)
+      .end((err, res) => testGreetingOkay(done, res))
+  }).timeout(0);
+
+  it("Should provide opening action menu correctly", (done) => {
+    const testMessage = assembleTestMessage("3");
+    logger('Sending menu selection to server')
+    chai.request(server)
+      .post('/inbound')
+      .send(testMessage)
+      .end((err, res) => {
+        res.should.have.status(200);
+        res.should.not.be.empty;
+        res.should.be.json;
+        res.body.replyMessages.should.deep.equal(['Welcome to Grassroot Actions. Here you can set meeting, call votes, post livewires, gather group member information (such as addresses and phone numbers), call for action, find volunteers, and validate an action. What would you like to do?']);      
+        done();
+      })
+  }).timeout(0);
+
+  it('Restarting to clean up', restartTest).timeout(0);
+
+})
+
+const testGreetingOkay = ((done, res) => {
+  logger('Received server response on greeting: ', res.body);
+  res.should.have.status(200);
+  res.should.not.be.empty;
+  res.should.be.json;
+  res.body.should.deep.equal(conversation.openingMsg(testUserId));
+  done();
 });
 
 const assembleTestMessage = (message) => {

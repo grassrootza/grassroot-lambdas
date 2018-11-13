@@ -46,7 +46,7 @@ exports.checkForJoinPhrase = async (incomingPhrase, rasaNluResult, userId, broad
         json: true
     };
 
-    logger('Sending options to platform: ', options);
+    // logger('Sending options to platform: ', options);
 
     const phraseSearchResult = await request.post(options);
     logger('Result of phrase search on platform: ', phraseSearchResult);
@@ -143,7 +143,7 @@ exports.continueJoinFlowEntityKnown = async (priorMessage, userMessage, userId) 
             menuOptionPayload: userMessage['payload']
         };
     } else if (api.isMediaType(userMessage['type'])) {
-        logger(`We have an image! Do we know what it's for? Prior payload: ${priorMessage['menuPayload']}`);
+        logger(`We have some media! Do we know what it's for? Prior payload: ${priorMessage['menuPayload']}`);
         // note: as far as the platform is concerned, the payload is _not_ the media image ID, but the last thing it sent to user, hence
         replyDict = {
             menuOptionPayload: !!priorMessage['menuPayload'] ? priorMessage['menuPayload'][0] : userMessage['payload'],

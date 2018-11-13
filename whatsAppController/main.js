@@ -20,7 +20,7 @@ var env = process.env.NODE_ENV || 'dev';
 
 // not used but recording for reference
 const DOMAINS = ['opening', 
-        'retart', // i.e., user just reset things 
+        'restart', // i.e., user just reset things 
         'campaign', // i.e., joining a campaign (or a public group, which we include in this domain)
         'service',  // i.e., looking for a service, like a clinic or shelter, etc
         'action'  // i.e., calling a meeting, etc 
@@ -67,6 +67,7 @@ app.post('/inbound', async (req, res, next) => {
         if (api.isMediaType(content['type'])) {
             const mediaFileId = await handleMedia(userId, content, nonEmptyLastMessage ? lastMessage['Items'][0] : null);
             logger('Returned media file ID: ', mediaFileId);
+            content['type'] = 'media';
             content['payload'] = !!mediaFileId ? 'media_record_id::' + mediaFileId : '';
         }
         
@@ -234,9 +235,10 @@ const handleFirstMessageInConversation = async (prior, userId, content, openingN
 const checkForTriggerWord = (userMessage) => {
     const normalized = userMessage.trim().toLowerCase();
     logger(`Checking if ${normalized} is a trigger word`);
-    const platformIndex = Object.keys(DOMAIN_TRIGGERS).find(key => {
-        logger(`Looking for domain ${key} with words ${DOMAIN_TRIGGERS[key]}`);
-        return DOMAIN_TRIGGERS[key].findIndex(trigger => userMessage == normalized) != -1;
+    const domains = Object.keys(DOMAIN_TRIGGERS);
+    const platformIndex = domains.find(domain => {
+        logger(`Looking in domain ${domain} with trigger words ${DOMAIN_TRIGGERS[domain]}`);
+        return DOMAIN_TRIGGERS[domain].findIndex(trigger => trigger == normalized) != -1;
     });
     logger('Found a platform for user message? : ', platformIndex);
     return platformIndex;

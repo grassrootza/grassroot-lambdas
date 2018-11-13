@@ -32,6 +32,10 @@ izweLamiClinics/**
 **/build
 **/target
 
+# V envs, now that we have some Python lambdas
+**/venv
+**/__pycache__
+
 # Compiled class file
 *.class
 

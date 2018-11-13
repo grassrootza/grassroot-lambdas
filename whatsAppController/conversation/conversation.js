@@ -121,7 +121,7 @@ exports.sendToCore = async (userMessage, userId, domain) => {
     } else if (userMessage['type'] === 'location') {
         messageToTransmit = '/select' + JSON.stringify(userMessage['message']);
         logger('converted message: ', messageToTransmit);
-    } else if (userMessage['type'] === 'payload') {
+    } else if (userMessage['type'] === 'payload' || userMesage['type'] === 'media') {
         const payload = userMessage['payload'];
         const slot = payload.substring(0, payload.indexOf('::'));
         const value = payload.substring(payload.indexOf('::') + 2);

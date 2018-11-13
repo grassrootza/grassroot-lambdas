@@ -6,7 +6,7 @@ const util = require('util');
 
 var exports = module.exports = {};
 
-const MEDIA_TYPES = ['image', 'voice', 'video', 'audio']
+const MEDIA_TYPES = ['image', 'voice', 'video', 'audio', 'media']
 
 exports.isMediaType = (type) => {
     return MEDIA_TYPES.indexOf(type) > -1;

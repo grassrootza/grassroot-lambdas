@@ -33,14 +33,14 @@
             "_id": "OPENING_OPTION",
             "_source": {
                 "service": "Find services (e.g., health clinics, shelters)",
-                "platform": "Join a campaign or group (e.g., from Amandla.mobi)"
+                "platform": "Join a campaign or group (e.g., from Amandla.mobi)",
+                "action": "Take action (e.g., call a meeting, issue LiveWire)"
             }
         },
         {
             "_id": "TO_BE_BUILT",
             "_source": {
                 "knowledge": "Get knowledge (e.g., on housing rights, ideas for action)",
-                "action": "Take action (e.g., join a group or campaign, call a meeting, issue an alert)",
                 "connection": "Talk to people (e.g., other activists, experts)"
             }
         }
