@@ -83,7 +83,8 @@
             "_id": "ERROR_OPTION",
             "_source": {
                 "service": "Find services (e.g., health clinics, shelters)",
-                "platform": "Join a campaign or group (e.g., from Amandla.mobi)"
+                "platform": "Join a campaign or group (e.g., from Amandla.mobi)",
+                "action": "Take action (e.g., call a meeting, issue LiveWire)"
             }
         }
     ],

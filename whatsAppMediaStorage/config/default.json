@@ -8,5 +8,12 @@
     },
     "dynamo": {
         "table": "inbound_media_file_records"
+    },
+    "platform": {
+        "url": "http://localhost:8080",
+        "path": {
+            "token": "/v2/api/whatsapp/user/token",
+            "store": "/v2/api/media/store/record"
+        }
     }
 }

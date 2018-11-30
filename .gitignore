@@ -19,7 +19,7 @@ izweLamiClinics/**
 **/local.json
 **/development.json
 **/production.json
-**/event.json
+**/event*.json
 
 # JS and Claudia generated files
 **/node_modules

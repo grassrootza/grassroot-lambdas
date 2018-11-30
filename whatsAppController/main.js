@@ -109,7 +109,7 @@ if (env == 'production') {
 }
 
 const handleMedia = async (userId, inboundMessage, priorOutbound) => {
-    if (!priorOutbound || !priorOutbound['entity']) {
+    if (!mayExpectMedia(priorOutbound)) {
         logger('Received media, but have no context for it, so just abord');
         return false;
     }
@@ -123,6 +123,9 @@ const handleMedia = async (userId, inboundMessage, priorOutbound) => {
     logger('Extracted payload: ', messageBody);
     return messageBody['media_record_id'];
 }
+
+const mayExpectMedia = (priorOutbound) => priorOutbound 
+    && (priorOutbound['entity'] || priorOutbound['domain'] == 'action');
 
 const getMessageReply = async (content, prior, userId) => {
     logger('User message: ', content['message']);

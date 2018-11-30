@@ -13,11 +13,11 @@ exports.isMediaType = (type) => {
 }
 
 exports.getMessageContent = (req) => {
-    logger('message body: ', util.inspect(req.body, false, null, false));
     if (!!req.body['statuses'] || !req.body['messages']) {
         return false;
     }
-
+    logger('message body: ', util.inspect(req.body, false, null, false));
+    
     const pulledBody = req.body['messages'][0];
 
     const incoming_type = pulledBody['type'];

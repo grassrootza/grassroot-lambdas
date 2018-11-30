@@ -32,6 +32,8 @@ module.exports.store = async (event, context) => {
   if (!mediaFile) {
     return { statusCode: 404, body: JSON.stringify({message: 'Failed! Could not find on WhatsApp', input: event})}
   }
+
+  const hasEntityId = !!payload['entity_uid'];
   
   // fs.writeFile('./image.jpg', mediaFile, 'binary', () => console.log('File written'));
   const ourImageId = uuid();
@@ -39,13 +41,21 @@ module.exports.store = async (event, context) => {
   const s3Upload = await storeFileInS3(ourImageId, payload['media_type'], mediaFile)
   console.log('Completed s3 upload, result: ', s3Upload);
 
-  const dynamoRecord = await insertRecordInDynamoDb(ourImageId, payload);
-  console.log('Result of Dynamo DB insertion: ', dynamoRecord);
+  let id_to_return;
+  if (hasEntityId) {
+    const dynamoRecord = await insertRecordInDynamoDb(ourImageId, payload);
+    console.log('Result of Dynamo DB insertion: ', dynamoRecord);
+    id_to_return = ourImageId;
+  } else {
+    const putResult = await storeRecordOnPlatform(ourImageId, payload);
+    console.log('Result of platform storage: ', putResult);
+    id_to_return = putResult;
+  }
 
   return {
     statusCode: 200,
     body: JSON.stringify({
-      media_record_id: ourImageId,
+      media_record_id: id_to_return,
       input: event,
     }),
   };
@@ -115,4 +125,35 @@ const insertRecordInDynamoDb = (media_file_id, payload) => {
   };
 
   return docClient.put(params).promise();
+}
+
+const storeRecordOnPlatform = async (media_file_id, payload) => {
+  console.log('Fetching token for user first');
+
+  const tokenOptions = {
+    uri: `${config.get('platform.url')}${config.get('platform.path.token')}`,
+    method: 'POST',
+    auth: { 'bearer': config.get('platform.token') },
+    qs: {
+      userId: payload['user_id']
+    }
+  }
+  // console.log('Options: ', tokenOptions);
+  const token = await request(tokenOptions);
+  // console.log('Retrieved token from platform? : ', token);
+
+  const options = {
+    uri: `${config.get('platform.url')}${config.get('platform.path.store')}`,
+    method: 'POST',
+    auth: { 'bearer': token },
+    qs: {
+      bucket: storageBucket,
+      imageKey: `${storageFolder}/${media_file_id}`,
+      mimeType: payload['media_type']
+    }
+  }
+
+  console.log('Storing media record, options: ', options);
+
+  return request(options);
 }
